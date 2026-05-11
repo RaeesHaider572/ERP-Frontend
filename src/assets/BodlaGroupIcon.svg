@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 967.68 967.68">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #244d68;
+      }
+
+      .st0, .st1, .st2 {
+        stroke: #a8aaac;
+        stroke-miterlimit: 10;
+      }
+
+      .st1 {
+        fill: #1f96ce;
+      }
+
+      .st2 {
+        fill: none;
+      }
+    </style>
+  </defs>
+  <polygon class="st0" points="412.25 482.06 143.87 482.06 142.16 478.53 276.79 243.73 412.25 482.06"/>
+  <polygon class="st0" points="143.87 485.62 409.72 485.62 411.52 489.24 276.79 723.95 142.17 489.14 143.87 485.62"/>
+  <polygon class="st2" points="692.84 482.06 424.46 482.06 422.75 478.53 557.38 243.73 692.84 482.06"/>
+  <polygon class="st2" points="424.45 485.62 690.31 485.62 692.11 489.24 557.38 723.95 422.75 489.14 424.45 485.62"/>
+  <polygon class="st0" points="553.59 729.32 418.96 967.68 282.68 729.32 553.59 729.32"/>
+  <polygon class="st0" points="553.59 238.36 282.68 238.36 416.47 1.76 553.59 238.36"/>
+  <polygon class="st0" points="412.25 967.68 141.34 967.68 275.97 729.32 412.25 967.68"/>
+  <polygon class="st0" points="412.25 0 275.97 238.36 141.34 0 412.25 0"/>
+  <polygon class="st0" points="553.59 243.7 418.14 480.25 282.68 243.7 553.59 243.7"/>
+  <polygon class="st2" points="832.07 243.7 696.62 480.25 561.16 243.7 832.07 243.7"/>
+  <polygon class="st2" points="270.91 238.36 0 238.36 133.79 1.76 270.91 238.36"/>
+  <polygon class="st2" points="270.91 243.7 135.45 480.25 0 243.7 270.91 243.7"/>
+  <polygon class="st0" points="553.59 723.98 282.68 723.98 418.14 487.43 553.59 723.98"/>
+  <polygon class="st2" points="271.45 729.32 136.82 967.68 .55 729.32 271.45 729.32"/>
+  <polygon class="st2" points="271.45 723.98 .55 723.98 136 487.43 271.45 723.98"/>
+  <polygon class="st1" points="691.97 967.68 422.75 967.68 558.2 731.13 691.97 967.68"/>
+  <polygon class="st2" points="967.68 967.68 698.46 967.68 833.91 731.13 967.68 967.68"/>
+  <polygon class="st1" points="690.29 0 556.52 236.55 422.75 0 690.29 0"/>
+  <polygon class="st2" points="967.68 0 833.91 236.55 700.14 0 967.68 0"/>
+  <polygon class="st2" points="561.16 238.36 696.6 1.77 830.39 238.36 561.16 238.36"/>
+  <polygon class="st1" points="828.7 729.32 694.92 965.91 561.16 729.32 828.7 729.32"/>
+  <polygon class="st1" points="827.02 723.98 557.8 723.98 691.58 489.16 827.02 723.98"/>
+  <polygon class="st1" points="965.99 487.4 832.21 722.22 696.77 487.4 965.99 487.4"/>
+</svg>

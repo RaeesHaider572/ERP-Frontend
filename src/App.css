@@ -1,0 +1,94 @@
+/* ROOT */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  background: #f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 240px;
+  background: #1f2937;
+  color: #fff;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+}
+
+.sidebar-nav a {
+  display: block;
+  padding: 12px 16px;
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.sidebar-nav a.active,
+.sidebar-nav a:hover {
+  background: #374151;
+  color: #fff;
+}
+
+/* TOPBAR */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 56px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.menu-btn {
+  font-size: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.topbar-title {
+  margin-left: 16px;
+  flex: 1;
+}
+
+.topbar-actions button {
+  background: none;
+  border: none;
+  margin-left: 12px;
+  cursor: pointer;
+}
+
+/* CONTENT */
+.content-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    height: 100%;
+    transform: translateX(-100%);
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+
+.MuiDialogTitle-root+.css-188famg-MuiDialogContent-root {
+    padding: 20px 24px !important;
+}
