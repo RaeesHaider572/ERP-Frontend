@@ -9,7 +9,7 @@ const getApiUrl = () => {
     
     // Otherwise, detect from current hostname
     const hostname = window.location.hostname;
-    const port = window.location.port || "3000";
+    // FIX 1: Removed unused 'port' variable (was: const port = window.location.port || "3000")
     
     // If accessing via IP address (not localhost), use same IP for API
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
@@ -73,14 +73,15 @@ export const login = async (email, password) => {
         console.error("Login error:", error);
         // Handle network errors
         if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-            throw {
-                response: {
-                    data: {
-                        status: "error",
-                        message: `Cannot connect to server. Please check that the backend is running at ${API_URL}`
-                    }
+            // FIX 2: Throw a proper Error object instead of a plain object
+            const err = new Error(`Cannot connect to server. Please check that the backend is running at ${API_URL}`);
+            err.response = {
+                data: {
+                    status: "error",
+                    message: `Cannot connect to server. Please check that the backend is running at ${API_URL}`
                 }
             };
+            throw err;
         }
         // Handle other errors
         throw error;
@@ -96,14 +97,15 @@ export const register = async (name, email, password) => {
         console.error("Registration error:", error);
         // Handle network errors
         if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-            throw {
-                response: {
-                    data: {
-                        status: "error",
-                        message: `Cannot connect to server. Please check that the backend is running at ${API_URL}`
-                    }
+            // FIX 3: Throw a proper Error object instead of a plain object
+            const err = new Error(`Cannot connect to server. Please check that the backend is running at ${API_URL}`);
+            err.response = {
+                data: {
+                    status: "error",
+                    message: `Cannot connect to server. Please check that the backend is running at ${API_URL}`
                 }
             };
+            throw err;
         }
         // Handle other errors
         throw error;
@@ -146,4 +148,3 @@ export const authService = {
     getUser,
     isAuthenticated
 };
-
