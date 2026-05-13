@@ -195,7 +195,7 @@ function Layout({ children }) {
         display: 'flex',
         justifyContent: 'flex-end',
         p: 1,
-        display: isMobile ? 'none' : 'flex',
+        // display: isMobile ? 'none' : 'flex',
       }}>
         <Tooltip title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
           <IconButton

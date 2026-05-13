@@ -2,16 +2,11 @@
 import React from 'react';
 import {
   Grid,
-  Paper,
   Typography,
   Box,
   Card,
   CardContent,
-  LinearProgress,
   Chip,
-  Button,
-  AvatarGroup,
-  Avatar,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -28,7 +23,7 @@ import { useThemeContext } from '../../contexts/ThemeContext';
 // Rest of the DashboardContent component remains the same, but update the container Box:
 const DashboardContent = () => {
   const theme = useTheme();
-  const { sidebarOpen } = useThemeContext();
+  // const { sidebarOpen } = useThemeContext();
   
   const stats = [
     { title: 'Total Revenue', value: '$54,239', change: '+12.5%', icon: <AttachMoney />, color: '#10b981' },
@@ -75,7 +70,7 @@ const DashboardContent = () => {
 // Update the StatCard component to use theme properly
 const StatCard = ({ title, value, change, icon, color }) => {
   const theme = useTheme();
-  const { sidebarOpen } = useThemeContext();
+  // const { sidebarOpen } = useThemeContext();
   
   return (
     <Card sx={{ 

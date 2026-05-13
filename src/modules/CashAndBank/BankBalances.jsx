@@ -14,7 +14,7 @@ import { getBankBalances } from "../../services/cashAndBankService";
 const fPKR = (v) =>
   Math.round(Number(v) || 0).toLocaleString("en-PK");
 
-const todayStr = () => new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+// const todayStr = () => new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function BankBalances({
