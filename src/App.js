@@ -22,7 +22,7 @@ import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 import Attendance from '../src/modules/attendance/attendance';
 
-import AttendanceLiveFeed from './components/attendance/AttendanceLiveFeed';
+import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 
 function App() {
   return (
