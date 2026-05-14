@@ -22,6 +22,8 @@ import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 import Attendance from '../src/modules/attendance/attendance';
 
+import AttendanceLiveFeed from './components/attendance/AttendanceLiveFeed';
+
 function App() {
   return (
     <CustomThemeProvider>
@@ -52,6 +54,7 @@ function App() {
             <Route path="cash-and-bank" element={<CashAndBank />} />
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="attendance" element={<Attendance />} />
+            <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
