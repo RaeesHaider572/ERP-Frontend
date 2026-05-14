@@ -1,17 +1,7 @@
-/**
- * AttendanceLiveFeed.jsx
- * Real-time attendance dashboard for ZKTeco multi-location devices
- * Auto-refreshes every 10 seconds — shows live punch feed, device status, today's stats
- *
- * Usage: import AttendanceLiveFeed from './components/attendance/AttendanceLiveFeed';
- * Place in your React router or page component.
- *
- * Required env var: REACT_APP_API_URL=http://your-server:5000
- */
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const _RAW_API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API = _RAW_API.replace(/\/api\/?$/, '');
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
