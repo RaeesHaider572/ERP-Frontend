@@ -378,13 +378,6 @@ export default function AttendanceLiveFeed() {
         </div>
       </div>
 
-      {/* ── Footer hint ──────────────────────────────────────────────────────── */}
-      <div style={{ marginTop: 24, padding: '14px 18px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe', fontSize: 13, color: '#1d4ed8' }}>
-        💡 <strong>Device Setup:</strong> On each ZKTeco uFace800, set <em>Server Mode = ADMS</em>, 
-        Server Address = <strong>{process.env.REACT_APP_PUBLIC_IP || 'your-server.com'}</strong>, 
-        Port = <strong>{process.env.REACT_APP_PORT || '5000'}</strong>. 
-        Devices at any location will automatically push attendance over the internet.
-      </div>
     </div>
   );
 }
