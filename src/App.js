@@ -24,6 +24,8 @@ import Attendance from '../src/modules/attendance/attendance';
 
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 
+import Employees from '../src/modules/Employees/Employees';
+
 function App() {
   return (
     <CustomThemeProvider>
@@ -55,6 +57,7 @@ function App() {
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
+            <Route path="Employees" element={<Employees />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
