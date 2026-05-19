@@ -24,7 +24,7 @@ import Attendance from '../src/modules/attendance/attendance';
 
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 
-import Employees from '../src/modules/Employees/Employees';
+import employees from '../src/modules/Employees/Employees';
 
 function App() {
   return (
