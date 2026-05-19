@@ -57,7 +57,7 @@ function App() {
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
-            <Route path="Employees" element={<Employees />} />
+            <Route path="employees" element={<Employees />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
