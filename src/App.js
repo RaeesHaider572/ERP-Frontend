@@ -20,7 +20,6 @@ import Inventory from "../src/modules/inventory/Inventory";
 import TaxRates from "../src/modules/taxRates/TaxRates";
 import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
-// import Attendance from '../src/modules/attendance/attendance';
 
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 
@@ -55,7 +54,6 @@ function App() {
             <Route path="tax-rates" element={<TaxRates />} />
             <Route path="cash-and-bank" element={<CashAndBank />} />
             <Route path="add-record-cb" element={<CashAndBankForm />} />
-            {/* <Route path="attendance" element={<Attendance />} /> */}
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
             <Route path="employees" element={<Employees />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
