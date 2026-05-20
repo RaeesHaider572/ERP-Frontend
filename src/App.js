@@ -23,7 +23,7 @@ import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 
-import employees from '../src/modules/Employees/Employees';
+import Employees from './modules/Employees/Employees';
 
 function App() {
   return (
@@ -55,7 +55,7 @@ function App() {
             <Route path="cash-and-bank" element={<CashAndBank />} />
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
-            <Route path="employees" element={<Employees />} />
+            <Route path='Employees' element={<Employees />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
