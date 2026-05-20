@@ -15,7 +15,7 @@ import {
   Warehouse,
   Percent as PercentIcon,
   AccountBalance as AccountBalanceIcon,
-  employee as EmployeeIcon,
+  VerifiedUser as EmployeeIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
