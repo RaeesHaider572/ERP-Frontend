@@ -15,6 +15,7 @@ import {
   Warehouse,
   Percent as PercentIcon,
   AccountBalance as AccountBalanceIcon,
+  employee as EmployeeIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -86,6 +87,7 @@ function Layout({ children }) {
     },
     { text: "Tax Rates", icon: <PercentIcon />, path: "/tax-rates", badge: 0 },
     { text: "Cash and Bank", icon: <AccountBalanceIcon />, path: "/cash-and-bank", badge: 0 },
+    { text: "Employees", icon: <EmployeeIcon />, path: "/employees", badge: 0 },
   ];
 
   const handleDrawerClose = () => {
