@@ -1,6 +1,6 @@
 import api from "./authService";
 
-const API_URL = "/employees"; // Relative path since baseURL is set in authService
+const API_URL = "/employees";
 
 // Basic CRUD operations
 export const getEmployees = () => api.get(API_URL);

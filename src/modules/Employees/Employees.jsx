@@ -6,16 +6,51 @@ import {
     deleteEmployee,
     searchEmployees,
     getEmployeeStats
-} from '../services/employeeService';
+} from '../../services/employeeService';
+import {
+    Box,
+    Typography,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Button,
+    IconButton,
+    TextField,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Snackbar,
+    Alert,
+    Grid,
+    Card,
+    CardContent,
+    InputAdornment,
+    CircularProgress,
+    Chip,
+    Tooltip
+} from '@mui/material';
+import {
+    Add as AddIcon,
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    Search as SearchIcon,
+    Refresh as RefreshIcon,
+    Upload as UploadIcon
+} from '@mui/icons-material';
 
-const EmployeeManagement = () => {
+const Employees = () => {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [showModal, setShowModal] = useState(false);
+    const [openDialog, setOpenDialog] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState(null);
-    const [showBulkImport, setShowBulkImport] = useState(false);
+    const [openBulkDialog, setOpenBulkDialog] = useState(false);
     const [bulkData, setBulkData] = useState('');
     
     const [formData, setFormData] = useState({
@@ -23,13 +58,12 @@ const EmployeeManagement = () => {
         deviceUid: ''
     });
 
-    const [notification, setNotification] = useState({
-        show: false,
-        type: '',
-        message: ''
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
     });
 
-    // Load employees on component mount
     useEffect(() => {
         loadEmployees();
         loadStats();
@@ -41,11 +75,9 @@ const EmployeeManagement = () => {
             const response = await getEmployees();
             if (response.data.success) {
                 setEmployees(response.data.data);
-            } else {
-                showNotification('error', response.data.message || 'Failed to load employees');
             }
         } catch (error) {
-            showNotification('error', error.response?.data?.message || 'Failed to load employees');
+            showSnackbar('Failed to load employees', 'error');
         } finally {
             setLoading(false);
         }
@@ -62,11 +94,8 @@ const EmployeeManagement = () => {
         }
     };
 
-    const showNotification = (type, message) => {
-        setNotification({ show: true, type, message });
-        setTimeout(() => {
-            setNotification({ show: false, type: '', message: '' });
-        }, 3000);
+    const showSnackbar = (message, severity = 'success') => {
+        setSnackbar({ open: true, message, severity });
     };
 
     const handleSearch = async () => {
@@ -82,7 +111,7 @@ const EmployeeManagement = () => {
                 setEmployees(response.data.data);
             }
         } catch (error) {
-            showNotification('error', error.response?.data?.message || 'Search failed');
+            showSnackbar('Search failed', 'error');
         } finally {
             setLoading(false);
         }
@@ -95,41 +124,37 @@ const EmployeeManagement = () => {
         });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
+    const handleSubmit = async () => {
         if (!formData.Name || !formData.deviceUid) {
-            showNotification('error', 'Please fill all fields');
+            showSnackbar('Please fill all fields', 'error');
             return;
         }
 
         setLoading(true);
         try {
             if (editingEmployee) {
-                // Update existing employee
                 const response = await updateEmployee(editingEmployee.EmployeeId, formData);
                 if (response.data.success) {
-                    showNotification('success', 'Employee updated successfully');
-                    closeModal();
+                    showSnackbar('Employee updated successfully');
+                    handleCloseDialog();
                     await loadEmployees();
                     await loadStats();
                 } else {
-                    showNotification('error', response.data.message || 'Update failed');
+                    showSnackbar(response.data.message || 'Update failed', 'error');
                 }
             } else {
-                // Create new employee
                 const response = await createEmployee(formData);
                 if (response.data.success) {
-                    showNotification('success', 'Employee created successfully');
-                    closeModal();
+                    showSnackbar('Employee created successfully');
+                    handleCloseDialog();
                     await loadEmployees();
                     await loadStats();
                 } else {
-                    showNotification('error', response.data.message || 'Creation failed');
+                    showSnackbar(response.data.message || 'Creation failed', 'error');
                 }
             }
         } catch (error) {
-            showNotification('error', error.response?.data?.message || 'Operation failed');
+            showSnackbar(error.response?.data?.message || 'Operation failed', 'error');
         } finally {
             setLoading(false);
         }
@@ -141,7 +166,7 @@ const EmployeeManagement = () => {
             Name: employee.Name,
             deviceUid: employee.DeviceUid
         });
-        setShowModal(true);
+        setOpenDialog(true);
     };
 
     const handleDelete = async (employee) => {
@@ -150,14 +175,14 @@ const EmployeeManagement = () => {
             try {
                 const response = await deleteEmployee(employee.EmployeeId);
                 if (response.data.success) {
-                    showNotification('success', 'Employee deleted successfully');
+                    showSnackbar('Employee deleted successfully');
                     await loadEmployees();
                     await loadStats();
                 } else {
-                    showNotification('error', response.data.message || 'Delete failed');
+                    showSnackbar(response.data.message || 'Delete failed', 'error');
                 }
             } catch (error) {
-                showNotification('error', error.response?.data?.message || 'Delete failed');
+                showSnackbar(error.response?.data?.message || 'Delete failed', 'error');
             } finally {
                 setLoading(false);
             }
@@ -166,258 +191,320 @@ const EmployeeManagement = () => {
 
     const handleBulkImport = async () => {
         if (!bulkData.trim()) {
-            showNotification('error', 'Please enter employee data');
+            showSnackbar('Please enter employee data', 'error');
             return;
         }
 
         try {
-            // Parse CSV format: Name,DeviceUid
             const lines = bulkData.trim().split('\n');
-            const employees = lines.map(line => {
+            const employeesData = lines.map(line => {
                 const [Name, deviceUid] = line.split(',').map(s => s.trim());
                 return { Name, deviceUid: parseInt(deviceUid) };
             }).filter(emp => emp.Name && emp.deviceUid);
 
-            if (employees.length === 0) {
-                showNotification('error', 'No valid employees found');
+            if (employeesData.length === 0) {
+                showSnackbar('No valid employees found', 'error');
                 return;
             }
 
             setLoading(true);
-            const response = await bulkImportEmployees(employees);
+            const response = await bulkImportEmployees(employeesData);
             if (response.data.success) {
-                showNotification('success', response.data.message);
-                setShowBulkImport(false);
+                showSnackbar(response.data.message);
+                setOpenBulkDialog(false);
                 setBulkData('');
                 await loadEmployees();
                 await loadStats();
             } else {
-                showNotification('error', response.data.message);
+                showSnackbar(response.data.message, 'error');
             }
         } catch (error) {
-            showNotification('error', error.response?.data?.message || 'Bulk import failed');
+            showSnackbar(error.response?.data?.message || 'Bulk import failed', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const closeModal = () => {
-        setShowModal(false);
+    const handleCloseDialog = () => {
+        setOpenDialog(false);
         setEditingEmployee(null);
         setFormData({ Name: '', deviceUid: '' });
     };
 
-    // Format date
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        return new Date(dateString).toLocaleString();
     };
 
     return (
-        <div className="employee-container">
-            {/* Notification */}
-            {notification.show && (
-                <div className={`notification notification-${notification.type}`}>
-                    {notification.message}
-                </div>
-            )}
-
+        <Box sx={{ p: 3 }}>
             {/* Header */}
-            <div className="employee-header">
-                <h1>Employee Management</h1>
-                <div className="header-actions">
-                    <button 
-                        className="btn btn-primary"
-                        onClick={() => setShowModal(true)}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4" component="h1">
+                    Employee Management
+                </Typography>
+                <Box>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => setOpenDialog(true)}
+                        sx={{ mr: 1 }}
                     >
-                        + Add Employee
-                    </button>
-                    <button 
-                        className="btn btn-secondary"
-                        onClick={() => setShowBulkImport(true)}
+                        Add Employee
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<UploadIcon />}
+                        onClick={() => setOpenBulkDialog(true)}
                     >
-                        📥 Bulk Import
-                    </button>
-                </div>
-            </div>
+                        Bulk Import
+                    </Button>
+                </Box>
+            </Box>
 
             {/* Statistics Cards */}
             {stats && (
-                <div className="stats-container">
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.totalEmployees || 0}</div>
-                        <div className="stat-label">Total Employees</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.uniqueDeviceUids || 0}</div>
-                        <div className="stat-label">Unique Device UIDs</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.newLast7Days || 0}</div>
-                        <div className="stat-label">New (Last 7 Days)</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.todayPunches || 0}</div>
-                        <div className="stat-label">Today's Punches</div>
-                    </div>
-                </div>
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <Typography color="textSecondary" gutterBottom>
+                                    Total Employees
+                                </Typography>
+                                <Typography variant="h4">
+                                    {stats.totalEmployees || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <Typography color="textSecondary" gutterBottom>
+                                    Unique Device UIDs
+                                </Typography>
+                                <Typography variant="h4">
+                                    {stats.uniqueDeviceUids || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <Typography color="textSecondary" gutterBottom>
+                                    New (Last 7 Days)
+                                </Typography>
+                                <Typography variant="h4">
+                                    {stats.newLast7Days || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <Typography color="textSecondary" gutterBottom>
+                                    Today's Punches
+                                </Typography>
+                                <Typography variant="h4">
+                                    {stats.todayPunches || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
             )}
 
             {/* Search Bar */}
-            <div className="search-container">
-                <input
-                    type="text"
-                    placeholder="Search by name or DeviceUid..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    className="search-input"
-                />
-                <button onClick={handleSearch} className="btn btn-search">
-                    🔍 Search
-                </button>
-                <button onClick={loadEmployees} className="btn btn-refresh">
-                    🔄 Refresh
-                </button>
-            </div>
+            <Paper sx={{ p: 2, mb: 3 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                        fullWidth
+                        placeholder="Search by name or Device UID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <Button
+                        variant="contained"
+                        onClick={handleSearch}
+                        disabled={loading}
+                    >
+                        Search
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={loadEmployees}
+                        startIcon={<RefreshIcon />}
+                        disabled={loading}
+                    >
+                        Refresh
+                    </Button>
+                </Box>
+            </Paper>
 
             {/* Employees Table */}
-            <div className="table-container">
-                {loading ? (
-                    <div className="loading-spinner">Loading...</div>
-                ) : (
-                    <table className="employee-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Device UID</th>
-                                <th>Created At</th>
-                                <th>Updated At</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {employees.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="no-data">
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>ID</TableCell>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Device UID</TableCell>
+                            <TableCell>Created At</TableCell>
+                            <TableCell>Updated At</TableCell>
+                            <TableCell align="center">Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {loading ? (
+                            <TableRow>
+                                <TableCell colSpan={6} align="center">
+                                    <CircularProgress />
+                                </TableCell>
+                            </TableRow>
+                        ) : employees.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} align="center">
+                                    <Typography variant="body1" sx={{ py: 3 }}>
                                         No employees found
-                                    </td>
-                                </tr>
-                            ) : (
-                                employees.map((employee) => (
-                                    <tr key={employee.EmployeeId}>
-                                        <td>{employee.EmployeeId}</td>
-                                        <td>{employee.Name}</td>
-                                        <td>{employee.DeviceUid}</td>
-                                        <td>{formatDate(employee.CreatedAt)}</td>
-                                        <td>{formatDate(employee.UpdatedAt)}</td>
-                                        <td className="actions">
-                                            <button
-                                                className="btn-edit"
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            employees.map((employee) => (
+                                <TableRow key={employee.EmployeeId} hover>
+                                    <TableCell>{employee.EmployeeId}</TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" fontWeight="bold">
+                                            {employee.Name}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip 
+                                            label={employee.DeviceUid} 
+                                            size="small" 
+                                            color="primary" 
+                                            variant="outlined"
+                                        />
+                                    </TableCell>
+                                    <TableCell>{formatDate(employee.CreatedAt)}</TableCell>
+                                    <TableCell>{formatDate(employee.UpdatedAt)}</TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip title="Edit">
+                                            <IconButton
+                                                color="primary"
                                                 onClick={() => handleEdit(employee)}
+                                                size="small"
                                             >
-                                                ✏️ Edit
-                                            </button>
-                                            <button
-                                                className="btn-delete"
+                                                <EditIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Delete">
+                                            <IconButton
+                                                color="error"
                                                 onClick={() => handleDelete(employee)}
+                                                size="small"
                                             >
-                                                🗑️ Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
-            {/* Add/Edit Modal */}
-            {showModal && (
-                <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</h2>
-                            <button className="modal-close" onClick={closeModal}>×</button>
-                        </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>Name *</label>
-                                <input
-                                    type="text"
-                                    name="Name"
-                                    value={formData.Name}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter employee name"
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Device UID *</label>
-                                <input
-                                    type="number"
-                                    name="deviceUid"
-                                    value={formData.deviceUid}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter device UID (e.g., 126)"
-                                    required
-                                />
-                                <small>The ID that device sends when employee punches</small>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn-cancel" onClick={closeModal}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn-submit" disabled={loading}>
-                                    {loading ? 'Saving...' : (editingEmployee ? 'Update' : 'Create')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {/* Add/Edit Dialog */}
+            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                </DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Employee Name"
+                        name="Name"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={formData.Name}
+                        onChange={handleInputChange}
+                        sx={{ mb: 2, mt: 1 }}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Device UID"
+                        name="deviceUid"
+                        type="number"
+                        fullWidth
+                        variant="outlined"
+                        value={formData.deviceUid}
+                        onChange={handleInputChange}
+                        helperText="The ID that the device sends when employee punches"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDialog}>Cancel</Button>
+                    <Button onClick={handleSubmit} variant="contained" disabled={loading}>
+                        {editingEmployee ? 'Update' : 'Create'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
-            {/* Bulk Import Modal */}
-            {showBulkImport && (
-                <div className="modal-overlay" onClick={() => setShowBulkImport(false)}>
-                    <div className="modal-content bulk-import-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Bulk Import Employees</h2>
-                            <button className="modal-close" onClick={() => setShowBulkImport(false)}>×</button>
-                        </div>
-                        <div className="form-group">
-                            <label>Enter employee data (CSV format)</label>
-                            <textarea
-                                rows="10"
-                                value={bulkData}
-                                onChange={(e) => setBulkData(e.target.value)}
-                                placeholder="Name,DeviceUid
+            {/* Bulk Import Dialog */}
+            <Dialog open={openBulkDialog} onClose={() => setOpenBulkDialog(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Bulk Import Employees</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        multiline
+                        rows={10}
+                        fullWidth
+                        variant="outlined"
+                        value={bulkData}
+                        onChange={(e) => setBulkData(e.target.value)}
+                        placeholder="Name,DeviceUid
 John Doe,200
 Jane Smith,201
 Ahmed Khan,202"
-                                className="bulk-textarea"
-                            />
-                            <small>
-                                Format: Name,DeviceUid (one per line)<br />
-                                Example: Syed Raees Haider,126
-                            </small>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn-cancel" onClick={() => setShowBulkImport(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn-submit" onClick={handleBulkImport} disabled={loading}>
-                                {loading ? 'Importing...' : 'Import'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                        sx={{ mb: 2, mt: 1 }}
+                    />
+                    <Typography variant="caption" color="textSecondary">
+                        Format: Name,DeviceUid (one per line)<br />
+                        Example: Syed Raees Haider,126
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenBulkDialog(false)}>Cancel</Button>
+                    <Button onClick={handleBulkImport} variant="contained" disabled={loading}>
+                        Import
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Snackbar */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+            >
+                <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+        </Box>
     );
 };
 
-export default EmployeeManagement;
+export default Employees;
