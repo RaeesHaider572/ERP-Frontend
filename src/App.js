@@ -1,4 +1,4 @@
-// src/App.jsx - UPDATED VERSION
+// src/App.jsx - CORRECTED VERSION
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -20,9 +20,7 @@ import Inventory from "../src/modules/inventory/Inventory";
 import TaxRates from "../src/modules/taxRates/TaxRates";
 import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
-
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
-
 import Employees from './modules/Employees/Employees';
 
 function App() {
@@ -34,7 +32,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected routes - NO NESTED ROUTES */}
+          {/* Protected routes */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
@@ -55,7 +53,7 @@ function App() {
             <Route path="cash-and-bank" element={<CashAndBank />} />
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
-            <Route path='Employees' element={<Employees />} />
+            <Route path="employees" element={<Employees />} />  {/* ✅ Changed to lowercase */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
