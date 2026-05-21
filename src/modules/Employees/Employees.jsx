@@ -1,510 +1,409 @@
-import React, { useState, useEffect } from 'react';
-import {
-    getEmployees,
-    createEmployee,
-    updateEmployee,
-    deleteEmployee,
-    searchEmployees,
-    getEmployeeStats
-} from '../../services/employeeService';
-import {
-    Box,
-    Typography,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Button,
-    IconButton,
-    TextField,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Snackbar,
-    Alert,
-    Grid,
-    Card,
-    CardContent,
-    InputAdornment,
-    CircularProgress,
-    Chip,
-    Tooltip
-} from '@mui/material';
-import {
-    Add as AddIcon,
-    Edit as EditIcon,
-    Delete as DeleteIcon,
-    Search as SearchIcon,
-    Refresh as RefreshIcon,
-    Upload as UploadIcon
-} from '@mui/icons-material';
+import React, { useEffect, useState } from "react";
+import { 
+  Table, Button, Modal, Form, Container, Row, Col,
+  FormControl, InputGroup
+} from "react-bootstrap";
+import { ToastContainer, toast } from "react-toastify";
+import { 
+  getEmployees, 
+  createEmployee, 
+  updateEmployee, 
+  deleteEmployee 
+} from "../../services/employeeService";
 
-const Employees = () => {
-    const [employees, setEmployees] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [openDialog, setOpenDialog] = useState(false);
-    const [editingEmployee, setEditingEmployee] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [stats, setStats] = useState(null);
-    const [openBulkDialog, setOpenBulkDialog] = useState(false);
-    const [bulkData, setBulkData] = useState('');
-    
-    const [formData, setFormData] = useState({
-        Name: '',
-        deviceUid: ''
+function Employees() {
+  const [employees, setEmployees] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [form, setForm] = useState({
+    Name: "",
+    DeviceUid: "",
+    DeviceName: "",
+    Department: "",
+    Designation: "",
+    Email: "",
+    Phone: "",
+    Salary: "",
+    Status: "active"
+  });
+
+  // Fetch employees - SIMPLE like projects
+  const fetchEmployees = async () => {
+    try {
+      const res = await getEmployees();
+      console.log("Employees response:", res.data);
+      
+      // Handle different response structures
+      let employeesData = [];
+      if (res.data && res.data.data && res.data.data.employees) {
+        employeesData = res.data.data.employees;
+      } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
+        employeesData = res.data.data;
+      } else if (res.data && Array.isArray(res.data)) {
+        employeesData = res.data;
+      } else if (res.data && res.data.employees) {
+        employeesData = res.data.employees;
+      }
+      
+      setEmployees(employeesData);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      toast.error(err.response?.data?.message || "Error fetching employees");
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async () => {
+    // Validation
+    if (!form.Name.trim()) {
+      toast.error("Employee name is required");
+      return;
+    }
+
+    try {
+      const submitData = {
+        ...form,
+        DeviceUid: form.DeviceUid ? parseInt(form.DeviceUid) : null,
+        Salary: form.Salary ? parseFloat(form.Salary) : 0
+      };
+
+      if (editingEmployee) {
+        await updateEmployee(editingEmployee.EmployeeId, submitData);
+        toast.success("Employee updated successfully");
+      } else {
+        await createEmployee(submitData);
+        toast.success("Employee created successfully");
+      }
+      
+      setShowModal(false);
+      resetForm();
+      fetchEmployees();
+    } catch (err) {
+      console.error("Error saving employee:", err);
+      toast.error(err.response?.data?.message || "Error saving employee");
+    }
+  };
+
+  const handleEdit = (employee) => {
+    setEditingEmployee(employee);
+    setForm({
+      Name: employee.Name || "",
+      DeviceUid: employee.DeviceUid || "",
+      DeviceName: employee.DeviceName || "",
+      Department: employee.Department || "",
+      Designation: employee.Designation || "",
+      Email: employee.Email || "",
+      Phone: employee.Phone || "",
+      Salary: employee.Salary || "",
+      Status: employee.Status || "active"
     });
+    setShowModal(true);
+  };
 
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: '',
-        severity: 'success'
+  const handleDelete = async (employeeId, employeeName) => {
+    if (window.confirm(`Are you sure you want to delete ${employeeName}?`)) {
+      try {
+        await deleteEmployee(employeeId);
+        toast.success("Employee deleted successfully");
+        fetchEmployees();
+      } catch (err) {
+        console.error("Error deleting employee:", err);
+        toast.error(err.response?.data?.message || "Error deleting employee");
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setForm({
+      Name: "",
+      DeviceUid: "",
+      DeviceName: "",
+      Department: "",
+      Designation: "",
+      Email: "",
+      Phone: "",
+      Salary: "",
+      Status: "active"
     });
+    setEditingEmployee(null);
+  };
 
-    useEffect(() => {
-        loadEmployees();
-        loadStats();
-    }, []);
-
-    const loadEmployees = async () => {
-        setLoading(true);
-        try {
-            const response = await getEmployees();
-            if (response.data.success) {
-                setEmployees(response.data.data);
-            }
-        } catch (error) {
-            showSnackbar('Failed to load employees', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadStats = async () => {
-        try {
-            const response = await getEmployeeStats();
-            if (response.data.success) {
-                setStats(response.data.data);
-            }
-        } catch (error) {
-            console.error('Error loading stats:', error);
-        }
-    };
-
-    const showSnackbar = (message, severity = 'success') => {
-        setSnackbar({ open: true, message, severity });
-    };
-
-    const handleSearch = async () => {
-        if (!searchTerm.trim()) {
-            await loadEmployees();
-            return;
-        }
-        
-        setLoading(true);
-        try {
-            const response = await searchEmployees(searchTerm);
-            if (response.data.success) {
-                setEmployees(response.data.data);
-            }
-        } catch (error) {
-            showSnackbar('Search failed', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleInputChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    const handleSubmit = async () => {
-        if (!formData.Name || !formData.deviceUid) {
-            showSnackbar('Please fill all fields', 'error');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            if (editingEmployee) {
-                const response = await updateEmployee(editingEmployee.EmployeeId, formData);
-                if (response.data.success) {
-                    showSnackbar('Employee updated successfully');
-                    handleCloseDialog();
-                    await loadEmployees();
-                    await loadStats();
-                } else {
-                    showSnackbar(response.data.message || 'Update failed', 'error');
-                }
-            } else {
-                const response = await createEmployee(formData);
-                if (response.data.success) {
-                    showSnackbar('Employee created successfully');
-                    handleCloseDialog();
-                    await loadEmployees();
-                    await loadStats();
-                } else {
-                    showSnackbar(response.data.message || 'Creation failed', 'error');
-                }
-            }
-        } catch (error) {
-            showSnackbar(error.response?.data?.message || 'Operation failed', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleEdit = (employee) => {
-        setEditingEmployee(employee);
-        setFormData({
-            Name: employee.Name,
-            deviceUid: employee.DeviceUid
-        });
-        setOpenDialog(true);
-    };
-
-    const handleDelete = async (employee) => {
-        if (window.confirm(`Are you sure you want to delete ${employee.Name}?`)) {
-            setLoading(true);
-            try {
-                const response = await deleteEmployee(employee.EmployeeId);
-                if (response.data.success) {
-                    showSnackbar('Employee deleted successfully');
-                    await loadEmployees();
-                    await loadStats();
-                } else {
-                    showSnackbar(response.data.message || 'Delete failed', 'error');
-                }
-            } catch (error) {
-                showSnackbar(error.response?.data?.message || 'Delete failed', 'error');
-            } finally {
-                setLoading(false);
-            }
-        }
-    };
-
-    const handleBulkImport = async () => {
-        if (!bulkData.trim()) {
-            showSnackbar('Please enter employee data', 'error');
-            return;
-        }
-
-        try {
-            const lines = bulkData.trim().split('\n');
-            const employeesData = lines.map(line => {
-                const [Name, deviceUid] = line.split(',').map(s => s.trim());
-                return { Name, deviceUid: parseInt(deviceUid) };
-            }).filter(emp => emp.Name && emp.deviceUid);
-
-            if (employeesData.length === 0) {
-                showSnackbar('No valid employees found', 'error');
-                return;
-            }
-
-            setLoading(true);
-            const response = await bulkImportEmployees(employeesData);
-            if (response.data.success) {
-                showSnackbar(response.data.message);
-                setOpenBulkDialog(false);
-                setBulkData('');
-                await loadEmployees();
-                await loadStats();
-            } else {
-                showSnackbar(response.data.message, 'error');
-            }
-        } catch (error) {
-            showSnackbar(error.response?.data?.message || 'Bulk import failed', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCloseDialog = () => {
-        setOpenDialog(false);
-        setEditingEmployee(null);
-        setFormData({ Name: '', deviceUid: '' });
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleString();
-    };
-
+  // Filter employees based on search
+  const filteredEmployees = employees.filter(emp => {
+    const searchLower = searchTerm.toLowerCase();
     return (
-        <Box sx={{ p: 3 }}>
-            {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" component="h1">
-                    Employee Management
-                </Typography>
-                <Box>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => setOpenDialog(true)}
-                        sx={{ mr: 1 }}
-                    >
-                        Add Employee
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<UploadIcon />}
-                        onClick={() => setOpenBulkDialog(true)}
-                    >
-                        Bulk Import
-                    </Button>
-                </Box>
-            </Box>
-
-            {/* Statistics Cards */}
-            {stats && (
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography color="textSecondary" gutterBottom>
-                                    Total Employees
-                                </Typography>
-                                <Typography variant="h4">
-                                    {stats.totalEmployees || 0}
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography color="textSecondary" gutterBottom>
-                                    Unique Device UIDs
-                                </Typography>
-                                <Typography variant="h4">
-                                    {stats.uniqueDeviceUids || 0}
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography color="textSecondary" gutterBottom>
-                                    New (Last 7 Days)
-                                </Typography>
-                                <Typography variant="h4">
-                                    {stats.newLast7Days || 0}
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography color="textSecondary" gutterBottom>
-                                    Today's Punches
-                                </Typography>
-                                <Typography variant="h4">
-                                    {stats.todayPunches || 0}
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
-            )}
-
-            {/* Search Bar */}
-            <Paper sx={{ p: 2, mb: 3 }}>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        placeholder="Search by name or Device UID..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Button
-                        variant="contained"
-                        onClick={handleSearch}
-                        disabled={loading}
-                    >
-                        Search
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        onClick={loadEmployees}
-                        startIcon={<RefreshIcon />}
-                        disabled={loading}
-                    >
-                        Refresh
-                    </Button>
-                </Box>
-            </Paper>
-
-            {/* Employees Table */}
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>ID</TableCell>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Device UID</TableCell>
-                            <TableCell>Created At</TableCell>
-                            <TableCell>Updated At</TableCell>
-                            <TableCell align="center">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">
-                                    <CircularProgress />
-                                </TableCell>
-                            </TableRow>
-                        ) : employees.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">
-                                    <Typography variant="body1" sx={{ py: 3 }}>
-                                        No employees found
-                                    </Typography>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            employees.map((employee) => (
-                                <TableRow key={employee.EmployeeId} hover>
-                                    <TableCell>{employee.EmployeeId}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {employee.Name}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip 
-                                            label={employee.DeviceUid} 
-                                            size="small" 
-                                            color="primary" 
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell>{formatDate(employee.CreatedAt)}</TableCell>
-                                    <TableCell>{formatDate(employee.UpdatedAt)}</TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Edit">
-                                            <IconButton
-                                                color="primary"
-                                                onClick={() => handleEdit(employee)}
-                                                size="small"
-                                            >
-                                                <EditIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Delete">
-                                            <IconButton
-                                                color="error"
-                                                onClick={() => handleDelete(employee)}
-                                                size="small"
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            {/* Add/Edit Dialog */}
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-                </DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Employee Name"
-                        name="Name"
-                        type="text"
-                        fullWidth
-                        variant="outlined"
-                        value={formData.Name}
-                        onChange={handleInputChange}
-                        sx={{ mb: 2, mt: 1 }}
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Device UID"
-                        name="deviceUid"
-                        type="number"
-                        fullWidth
-                        variant="outlined"
-                        value={formData.deviceUid}
-                        onChange={handleInputChange}
-                        helperText="The ID that the device sends when employee punches"
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog}>Cancel</Button>
-                    <Button onClick={handleSubmit} variant="contained" disabled={loading}>
-                        {editingEmployee ? 'Update' : 'Create'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Bulk Import Dialog */}
-            <Dialog open={openBulkDialog} onClose={() => setOpenBulkDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Bulk Import Employees</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        multiline
-                        rows={10}
-                        fullWidth
-                        variant="outlined"
-                        value={bulkData}
-                        onChange={(e) => setBulkData(e.target.value)}
-                        placeholder="Name,DeviceUid
-John Doe,200
-Jane Smith,201
-Ahmed Khan,202"
-                        sx={{ mb: 2, mt: 1 }}
-                    />
-                    <Typography variant="caption" color="textSecondary">
-                        Format: Name,DeviceUid (one per line)<br />
-                        Example: Syed Raees Haider,126
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenBulkDialog(false)}>Cancel</Button>
-                    <Button onClick={handleBulkImport} variant="contained" disabled={loading}>
-                        Import
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Snackbar */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-                <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-        </Box>
+      (emp.Name && emp.Name.toLowerCase().includes(searchLower)) ||
+      (emp.DeviceUid && emp.DeviceUid.toString().includes(searchLower)) ||
+      (emp.Email && emp.Email.toLowerCase().includes(searchLower)) ||
+      (emp.Phone && emp.Phone.includes(searchLower))
     );
-};
+  });
+
+  return (
+    <Container fluid className="py-3">
+      <ToastContainer position="top-right" autoClose={3000} />
+      
+      {/* Header */}
+      <Row className="mb-3">
+        <Col sm={6}>
+          <h2>Employee Management</h2>
+          <p className="text-muted">Manage your workforce and device integration</p>
+        </Col>
+        <Col sm={6} className="text-end">
+          <Button 
+            variant="primary" 
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+          >
+            Add New Employee
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Search Bar */}
+      <Row className="mb-3">
+        <Col md={6}>
+          <InputGroup>
+            <FormControl
+              placeholder="Search by name, device UID, email, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button variant="outline-secondary" onClick={() => setSearchTerm("")}>
+              Clear
+            </Button>
+          </InputGroup>
+        </Col>
+        <Col md={6} className="text-end">
+          <Button variant="outline-info" onClick={fetchEmployees}>
+            Refresh
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Employees Table */}
+      <Table striped bordered hover responsive>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Device UID</th>
+            <th>Device Name</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredEmployees.length === 0 ? (
+            <tr>
+              <td colSpan="10" className="text-center">
+                {employees.length === 0 ? "No employees found" : "No matching employees"}
+              </td>
+            </tr>
+          ) : (
+            filteredEmployees.map((emp) => (
+              <tr key={emp.EmployeeId}>
+                <td>{emp.EmployeeId}</td>
+                <td><strong>{emp.Name}</strong></td>
+                <td>{emp.DeviceUid || "-"}</td>
+                <td>{emp.DeviceName || "-"}</td>
+                <td>{emp.Department || "-"}</td>
+                <td>{emp.Designation || "-"}</td>
+                <td>{emp.Email || "-"}</td>
+                <td>{emp.Phone || "-"}</td>
+                <td>
+                  <span className={`badge bg-${emp.Status === 'active' ? 'success' : emp.Status === 'inactive' ? 'secondary' : 'warning'}`}>
+                    {emp.Status || "active"}
+                  </span>
+                </td>
+                <td>
+                  <Button 
+                    size="sm" 
+                    variant="warning" 
+                    onClick={() => handleEdit(emp)}
+                    className="me-2"
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="danger" 
+                    onClick={() => handleDelete(emp.EmployeeId, emp.Name)}
+                  >
+                    Delete
+                  </Button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </Table>
+
+      {/* Add/Edit Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {editingEmployee ? "Edit Employee" : "Add New Employee"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Full Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="Name"
+                    value={form.Name}
+                    onChange={handleChange}
+                    placeholder="Enter employee name"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Device UID</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="DeviceUid"
+                    value={form.DeviceUid}
+                    onChange={handleChange}
+                    placeholder="Biometric device user ID"
+                  />
+                  <Form.Text className="text-muted">
+                    User ID from biometric device
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Device Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="DeviceName"
+                    value={form.DeviceName}
+                    onChange={handleChange}
+                    placeholder="e.g., Oasis Office, Head Office"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Department</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="Department"
+                    value={form.Department}
+                    onChange={handleChange}
+                    placeholder="e.g., IT, HR, Finance"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Designation</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="Designation"
+                    value={form.Designation}
+                    onChange={handleChange}
+                    placeholder="e.g., Manager, Developer"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    name="Email"
+                    value={form.Email}
+                    onChange={handleChange}
+                    placeholder="employee@example.com"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Phone</Form.Label>
+                  <Form.Control
+                    type="tel"
+                    name="Phone"
+                    value={form.Phone}
+                    onChange={handleChange}
+                    placeholder="03001234567"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Salary</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="Salary"
+                    value={form.Salary}
+                    onChange={handleChange}
+                    placeholder="0"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select
+                    name="Status"
+                    value={form.Status}
+                    onChange={handleChange}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="on-leave">On Leave</option>
+                    <option value="terminated">Terminated</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleSubmit}>
+            {editingEmployee ? "Update Employee" : "Create Employee"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </Container>
+  );
+}
 
 export default Employees;
