@@ -22,6 +22,7 @@ import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 import Employees from './modules/Employees/Employees';
+import MobileCheckIn from '../src/modules/Mobilecheckin';
 
 function App() {
   return (
@@ -53,7 +54,8 @@ function App() {
             <Route path="cash-and-bank" element={<CashAndBank />} />
             <Route path="add-record-cb" element={<CashAndBankForm />} />
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
-            <Route path="employees" element={<Employees />} />  {/* ✅ Changed to lowercase */}
+            <Route path="employees" element={<Employees />} />
+            <Route path="mobile-checkin" element={<MobileCheckIn />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
