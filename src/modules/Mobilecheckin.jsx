@@ -123,11 +123,20 @@ export default function MobileCheckIn() {
     setPunching(true);
 
     try {
-      const res  = await fetch(`${API}/api/mobile/punch`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ employeeId: selected.EmployeeId, punchType }),
-      });
+    //   const res  = await fetch(`${API}/api/mobile/punch`, {
+    //     method:  'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body:    JSON.stringify({ employeeId: selected.EmployeeId, punchType }),
+    //   });
+    const response = await fetch(`${API}/api/mobile/punch`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    employeeId: selectedEmployee.EmployeeId,
+    punchType:  selectedPunchType,
+    punchTime:  new Date().toISOString(),  // ← ADD THIS — browser local time
+  }),
+});
       const data = await res.json();
 
       if (data.success) {
