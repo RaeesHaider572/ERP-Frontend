@@ -1,14 +1,7 @@
 /**
  * MobileCheckIn.jsx
  * Full-screen mobile check-in / check-out page
- * Employee selects their name → taps Check In or Check Out
- * 
- * Usage: Add route /mobile-checkin in your React router
- * Works on any phone browser — no app install needed
- * 
- * WiFi restriction note:
- * To restrict to office WiFi only, uncomment the IP check section below
- * and add your office WiFi public IP to ALLOWED_IPS
+ * Works like a ZKTeco device — sends browser local time
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -51,7 +44,7 @@ function Clock() {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function MobileCheckIn() {
-  const [step,        setStep]        = useState('select');    // select | confirm | success | error
+  const [step,        setStep]        = useState('select');
   const [employees,   setEmployees]   = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -65,6 +58,7 @@ export default function MobileCheckIn() {
 
   // Fetch employees
   const fetchEmployees = useCallback(async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search)     params.set('search',     search);
@@ -76,7 +70,6 @@ export default function MobileCheckIn() {
       ]);
       const [empData, deptData] = await Promise.all([empRes.json(), deptRes.json()]);
 
-      // Handle WiFi restriction
       if (empData.code === 'WIFI_RESTRICTED') {
         setError({ type: 'wifi', message: empData.error, ip: empData.yourIP });
         setLoading(false);
@@ -95,60 +88,50 @@ export default function MobileCheckIn() {
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
-  // Select employee and determine punch type
+  // Select employee
   const handleSelectEmployee = async (emp) => {
     setSelected(emp);
-
-    // Determine next action based on today's last punch
     try {
       const res  = await fetch(`${API}/api/mobile/status/${emp.EmployeeId}`);
       const data = await res.json();
       if (data.success) {
-        // If last punch was CHECK IN → next is CHECK OUT, and vice versa
         const next = data.data.isCheckedIn ? 1 : 0;
         setPunchType(next);
       } else {
-        setPunchType(0); // Default to CHECK IN
+        setPunchType(0);
       }
     } catch {
       setPunchType(0);
     }
-
     setStep('confirm');
   };
 
-  // Submit punch
+  // ── Submit punch — sends browser local time, exactly like ZKTeco device ────
   const handlePunch = async () => {
     if (!selected || punchType === null) return;
     setPunching(true);
 
     try {
-    //   const res  = await fetch(`${API}/api/mobile/punch`, {
-    //     method:  'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body:    JSON.stringify({ employeeId: selected.EmployeeId, punchType }),
-    //   });
-    const response = await fetch(`${API}/api/mobile/punch`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    employeeId: selectedEmployee.EmployeeId,
-    punchType:  selectedPunchType,
-    punchTime:  new Date().toISOString(),  // ← ADD THIS — browser local time
-  }),
-});
+      const res = await fetch(`${API}/api/mobile/punch`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          employeeId: selected.EmployeeId,
+          punchType:  punchType,
+          punchTime:  new Date().toISOString(),  // browser local time
+        }),
+      });
       const data = await res.json();
 
       if (data.success) {
         setResult(data);
         setStep('success');
-        // Auto-reset after 4 seconds
         setTimeout(() => {
           setStep('select');
           setSelected(null);
           setPunchType(null);
           setResult(null);
-          fetchEmployees(); // Refresh status
+          fetchEmployees();
         }, 4000);
       } else {
         setError(data.error || 'Punch failed');
@@ -170,7 +153,7 @@ export default function MobileCheckIn() {
     setError(null);
   };
 
-  // ── STEP: Select Employee ───────────────────────────────────────────────────
+  // ── STEP: Select Employee ──────────────────────────────────────────────────
   if (step === 'select') return (
     <div style={{
       fontFamily: "'DM Sans','Segoe UI',sans-serif",
@@ -179,13 +162,11 @@ export default function MobileCheckIn() {
     }}>
       <style>{`* { box-sizing: border-box; } input:focus { outline: none; border-color: #6366f1 !important; }`}</style>
 
-      {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', padding: '28px 24px 24px', color: '#fff' }}>
         <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>📱 Mobile Attendance</div>
         <Clock />
       </div>
 
-      {/* Search & Filter */}
       <div style={{ padding: '16px 16px 8px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
         <input
           placeholder="🔍 Search employee name…"
@@ -197,15 +178,13 @@ export default function MobileCheckIn() {
           }}
         />
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          <button
-            onClick={() => setDeptFilter('')}
-            style={{
-              padding: '6px 14px', borderRadius: 20, border: '1.5px solid',
-              borderColor: deptFilter === '' ? '#6366f1' : '#e2e8f0',
-              background: deptFilter === '' ? '#6366f1' : '#fff',
-              color: deptFilter === '' ? '#fff' : '#64748b',
-              fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>All</button>
+          <button onClick={() => setDeptFilter('')} style={{
+            padding: '6px 14px', borderRadius: 20, border: '1.5px solid',
+            borderColor: deptFilter === '' ? '#6366f1' : '#e2e8f0',
+            background: deptFilter === '' ? '#6366f1' : '#fff',
+            color: deptFilter === '' ? '#fff' : '#64748b',
+            fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>All</button>
           {departments.map(d => (
             <button key={d} onClick={() => setDeptFilter(d)} style={{
               padding: '6px 14px', borderRadius: 20, border: '1.5px solid',
@@ -218,7 +197,6 @@ export default function MobileCheckIn() {
         </div>
       </div>
 
-      {/* Employee list */}
       <div style={{ padding: '8px 12px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>
@@ -228,20 +206,15 @@ export default function MobileCheckIn() {
         ) : error?.type === 'wifi' ? (
           <div style={{ margin: 24, background: '#fef2f2', borderRadius: 16, padding: 28, textAlign: 'center', border: '1px solid #fca5a5' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📵</div>
-            <div style={{ fontWeight: 800, fontSize: 18, color: '#dc2626', marginBottom: 8 }}>
-              Office WiFi Required
-            </div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: '#dc2626', marginBottom: 8 }}>Office WiFi Required</div>
             <div style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
-              Mobile check-in is only available when connected to your office WiFi network.
+              Mobile check-in is only available on office WiFi.
             </div>
             <div style={{ background: '#fff', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#94a3b8', marginBottom: 16 }}>
               Your IP: <strong>{error.ip}</strong>
             </div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>
-              Please connect to your office WiFi and try again.
-            </div>
             <button onClick={fetchEmployees} style={{
-              marginTop: 16, padding: '10px 24px', borderRadius: 10,
+              marginTop: 8, padding: '10px 24px', borderRadius: 10,
               background: '#6366f1', color: '#fff', border: 'none',
               fontWeight: 700, cursor: 'pointer',
             }}>Try Again</button>
@@ -264,17 +237,13 @@ export default function MobileCheckIn() {
               width: '100%', display: 'flex', alignItems: 'center', gap: 14,
               padding: '14px 16px', background: '#fff', borderRadius: 12,
               border: '1.5px solid #f1f5f9', marginBottom: 8, cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,.05)',
-              textAlign: 'left',
+              boxShadow: '0 1px 3px rgba(0,0,0,.05)', textAlign: 'left',
             }}>
               <Avatar name={emp.Name} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{emp.Name}</div>
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                  {emp.Designation || emp.Department || `UID: ${emp.DeviceUid}`}
-                </div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>{`UID: ${emp.DeviceUid}`}</div>
               </div>
-              {/* Today status */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 {isIn && (
                   <div>
@@ -308,7 +277,6 @@ export default function MobileCheckIn() {
       maxWidth: 480, margin: '0 auto',
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Back */}
       <div style={{ padding: '16px 20px', background: '#fff', borderBottom: '1px solid #f1f5f9' }}>
         <button onClick={reset} style={{ background: 'none', border: 'none', color: '#6366f1', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: 0 }}>
           ← Back
@@ -321,11 +289,10 @@ export default function MobileCheckIn() {
         <div style={{ fontWeight: 900, fontSize: 26, color: '#0f172a', marginTop: 20, textAlign: 'center' }}>
           {selected?.Name}
         </div>
-        <div style={{ color: '#64748b', fontSize: 14, marginBottom: 8 }}>
-          {selected?.Designation || selected?.Department || `Employee #${selected?.EmployeeId}`}
+        <div style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+          Employee #{selected?.EmployeeId}
         </div>
 
-        {/* Today summary */}
         {(selected?.TodayCheckIn || selected?.TodayCheckOut) && (
           <div style={{ background: '#f1f5f9', borderRadius: 12, padding: '12px 20px', marginBottom: 24, textAlign: 'center', width: '100%' }}>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Today</div>
@@ -342,7 +309,6 @@ export default function MobileCheckIn() {
           </div>
         )}
 
-        {/* Toggle Check In / Check Out */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 32, width: '100%' }}>
           <button onClick={() => setPunchType(0)} style={{
             flex: 1, padding: '14px', borderRadius: 12, border: '2px solid',
@@ -350,21 +316,16 @@ export default function MobileCheckIn() {
             background: punchType === 0 ? '#f0fdf4' : '#fff',
             color: punchType === 0 ? '#15803d' : '#94a3b8',
             fontWeight: 700, fontSize: 15, cursor: 'pointer',
-          }}>
-            🔵 Check In
-          </button>
+          }}>🔵 Check In</button>
           <button onClick={() => setPunchType(1)} style={{
             flex: 1, padding: '14px', borderRadius: 12, border: '2px solid',
             borderColor: punchType === 1 ? '#f97316' : '#e2e8f0',
             background: punchType === 1 ? '#fff7ed' : '#fff',
             color: punchType === 1 ? '#c2410c' : '#94a3b8',
             fontWeight: 700, fontSize: 15, cursor: 'pointer',
-          }}>
-            🟢 Check Out
-          </button>
+          }}>🟢 Check Out</button>
         </div>
 
-        {/* Big punch button */}
         <button
           onClick={handlePunch}
           disabled={punching || punchType === null}
@@ -393,7 +354,7 @@ export default function MobileCheckIn() {
     </div>
   );
 
-  // ── STEP: Success ─────────────────────────────────────────────────────────
+  // ── STEP: Success ──────────────────────────────────────────────────────────
   if (step === 'success') return (
     <div style={{
       fontFamily: "'DM Sans','Segoe UI',sans-serif",
@@ -427,21 +388,17 @@ export default function MobileCheckIn() {
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 13, opacity: 0.7 }}>
-        Returning to home in a few seconds…
-      </div>
+      <div style={{ marginTop: 24, fontSize: 13, opacity: 0.7 }}>Returning to home in a few seconds…</div>
 
       <button onClick={reset} style={{
         marginTop: 20, padding: '12px 28px', borderRadius: 12,
         background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.4)',
         color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-      }}>
-        Done
-      </button>
+      }}>Done</button>
     </div>
   );
 
-  // ── STEP: Error ───────────────────────────────────────────────────────────
+  // ── STEP: Error ────────────────────────────────────────────────────────────
   if (step === 'error') return (
     <div style={{
       fontFamily: "'DM Sans','Segoe UI',sans-serif",
@@ -451,18 +408,12 @@ export default function MobileCheckIn() {
       justifyContent: 'center', padding: 32,
     }}>
       <div style={{ fontSize: 64 }}>❌</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626', marginTop: 16, marginBottom: 8 }}>
-        Punch Failed
-      </div>
-      <div style={{ fontSize: 15, color: '#64748b', textAlign: 'center', marginBottom: 32 }}>
-        {error}
-      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626', marginTop: 16, marginBottom: 8 }}>Punch Failed</div>
+      <div style={{ fontSize: 15, color: '#64748b', textAlign: 'center', marginBottom: 32 }}>{error}</div>
       <button onClick={reset} style={{
         padding: '14px 32px', borderRadius: 12, border: 'none',
         background: '#6366f1', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer',
-      }}>
-        Try Again
-      </button>
+      }}>Try Again</button>
     </div>
   );
 
