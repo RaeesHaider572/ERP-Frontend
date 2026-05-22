@@ -293,21 +293,6 @@ export default function MobileCheckIn() {
           Employee #{selected?.EmployeeId}
         </div>
 
-        {(selected?.TodayCheckIn || selected?.TodayCheckOut) && (
-          <div style={{ background: '#f1f5f9', borderRadius: 12, padding: '12px 20px', marginBottom: 24, textAlign: 'center', width: '100%' }}>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Today</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 24 }}>
-              <div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Check In</div>
-                <div style={{ fontWeight: 700, color: '#22c55e' }}>{selected?.TodayCheckIn || '—'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Check Out</div>
-                <div style={{ fontWeight: 700, color: '#f97316' }}>{selected?.TodayCheckOut || '—'}</div>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 32, width: '100%' }}>
           <button onClick={() => setPunchType(0)} style={{
@@ -376,8 +361,8 @@ export default function MobileCheckIn() {
         {result?.data?.employeeName}
       </div>
       <div style={{ fontSize: 32, fontWeight: 900, marginTop: 8, opacity: 0.9 }}>
-        {result?.data?.punchTimeFormatted}
-      </div>
+  {new Date(result?.data?.punchTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}
+</div>
       <div style={{ fontSize: 14, opacity: 0.8, marginTop: 4 }}>
         {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' })}
       </div>
