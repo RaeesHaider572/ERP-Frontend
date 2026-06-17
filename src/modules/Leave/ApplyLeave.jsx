@@ -79,16 +79,16 @@ const LeaveApplicationForm = () => {
     }, []);
 
     // ============================================
-    // ✅ GENERATE APPLICATION ID FROM DATABASE
+    // ✅ GENERATE APPLICATION ID FROM LEAVE REQUESTS TABLE
     // ============================================
     const generateApplicationId = async () => {
         setGeneratingId(true);
         try {
-            console.log("🆔 Generating Application ID...");
+            console.log("🆔 Generating Application ID from Leave Requests table...");
 
-            // ✅ Get the latest leave request from database
+            // ✅ Get all leave requests from database
             const res = await api.get('/leave/requests');
-            console.log("📊 Latest requests response:", res.data);
+            console.log("📊 Leave requests response:", res.data);
 
             let requests = [];
             if (res.data?.data) {
@@ -108,19 +108,18 @@ const LeaveApplicationForm = () => {
                 console.log("📊 No existing requests, starting from 1");
             }
 
-            // ✅ Format as LVE-XXXXXX (e.g., LVE-000001)
-            const formattedId = `LVE-${String(nextId).padStart(6, '0')}`;
+            // ✅ Format as 6 digits with leading zeros (000001, 000002, etc.)
+            const formattedId = String(nextId).padStart(6, '0');
             console.log(`✅ Generated Application ID: ${formattedId}`);
 
             setFormData((prev) => ({
                 ...prev,
-                applicationId: formattedId,
+                applicationId: formattedId,  // ✅ Store as 6-digit number
                 requestId: nextId,
             }));
 
         } catch (error) {
             console.error("❌ Error generating application ID:", error);
-            // ✅ Show error and keep ID empty
             setFormData((prev) => ({
                 ...prev,
                 applicationId: "",
@@ -872,9 +871,11 @@ const LeaveApplicationForm = () => {
                                     {generatingId ? (
                                         <CircularProgress size={16} sx={{ ml: 1 }} />
                                     ) : formData.applicationId ? (
-                                        ` ${formData.applicationId}`
+                                        ` ${formData.applicationId}`  // ✅ Shows as 000001, 000002, etc.
                                     ) : (
-                                        <span style={{ color: 'red', fontWeight: 'bold' }}> Failed to load</span>
+                                        <span style={{ color: '#d32f2f', fontWeight: 'bold', marginLeft: '8px' }}>
+                                            ⚠️ Failed to load
+                                        </span>
                                     )}
                                 </Typography>
                             </Grid>
