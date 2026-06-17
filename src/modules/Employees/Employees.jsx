@@ -1,60 +1,74 @@
 import React, { useEffect, useState } from "react";
 import { 
   Table, Button, Modal, Form, Container, Row, Col,
-  FormControl, InputGroup
+  FormControl, InputGroup, Badge, Spinner
 } from "react-bootstrap";
 import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { 
   getEmployees, 
   createEmployee, 
   updateEmployee, 
-  deleteEmployee 
+  deleteEmployee,
+  getEmployeeStats
 } from "../../services/employeeService";
 
 function Employees() {
   const [employees, setEmployees] = useState([]);
+  const [stats, setStats] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     Name: "",
     DeviceUid: "",
-    DeviceName: "",
+    Email: "",
     Department: "",
     Designation: "",
-    Email: "",
-    Phone: "",
-    Salary: "",
-    Status: "active"
+    JoinDate: "",
+    EmployeeCode: ""
   });
 
-  // Fetch employees - SIMPLE like projects
+  // Fetch employees
   const fetchEmployees = async () => {
+    setLoading(true);
     try {
       const res = await getEmployees();
       console.log("Employees response:", res.data);
       
       // Handle different response structures
       let employeesData = [];
-      if (res.data && res.data.data && res.data.data.employees) {
-        employeesData = res.data.data.employees;
-      } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
-        employeesData = res.data.data;
+      if (res.data && res.data.data) {
+        employeesData = Array.isArray(res.data.data) ? res.data.data : [];
       } else if (res.data && Array.isArray(res.data)) {
         employeesData = res.data;
-      } else if (res.data && res.data.employees) {
-        employeesData = res.data.employees;
       }
       
       setEmployees(employeesData);
     } catch (err) {
       console.error("Error fetching employees:", err);
       toast.error(err.response?.data?.message || "Error fetching employees");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch stats
+  const fetchStats = async () => {
+    try {
+      const res = await getEmployeeStats();
+      if (res.data && res.data.data) {
+        setStats(res.data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching stats:", err);
     }
   };
 
   useEffect(() => {
     fetchEmployees();
+    fetchStats();
   }, []);
 
   const handleChange = (e) => {
@@ -68,15 +82,20 @@ function Employees() {
       return;
     }
 
+    if (!form.DeviceUid) {
+      toast.error("Device UID is required");
+      return;
+    }
+
     try {
       const submitData = {
         ...form,
-        DeviceUid: form.DeviceUid ? parseInt(form.DeviceUid) : null,
-        Salary: form.Salary ? parseFloat(form.Salary) : 0
+        DeviceUid: parseInt(form.DeviceUid),
+        JoinDate: form.JoinDate || null
       };
 
       if (editingEmployee) {
-        await updateEmployee(editingEmployee.EmployeeId, submitData);
+        await updateEmployee(editingEmployee.EmployeeID, submitData);
         toast.success("Employee updated successfully");
       } else {
         await createEmployee(submitData);
@@ -86,6 +105,7 @@ function Employees() {
       setShowModal(false);
       resetForm();
       fetchEmployees();
+      fetchStats();
     } catch (err) {
       console.error("Error saving employee:", err);
       toast.error(err.response?.data?.message || "Error saving employee");
@@ -97,13 +117,11 @@ function Employees() {
     setForm({
       Name: employee.Name || "",
       DeviceUid: employee.DeviceUid || "",
-      DeviceName: employee.DeviceName || "",
+      Email: employee.Email || "",
       Department: employee.Department || "",
       Designation: employee.Designation || "",
-      Email: employee.Email || "",
-      Phone: employee.Phone || "",
-      Salary: employee.Salary || "",
-      Status: employee.Status || "active"
+      JoinDate: employee.JoinDate ? employee.JoinDate.split('T')[0] : "",
+      EmployeeCode: employee.EmployeeCode || ""
     });
     setShowModal(true);
   };
@@ -114,6 +132,7 @@ function Employees() {
         await deleteEmployee(employeeId);
         toast.success("Employee deleted successfully");
         fetchEmployees();
+        fetchStats();
       } catch (err) {
         console.error("Error deleting employee:", err);
         toast.error(err.response?.data?.message || "Error deleting employee");
@@ -125,13 +144,11 @@ function Employees() {
     setForm({
       Name: "",
       DeviceUid: "",
-      DeviceName: "",
+      Email: "",
       Department: "",
       Designation: "",
-      Email: "",
-      Phone: "",
-      Salary: "",
-      Status: "active"
+      JoinDate: "",
+      EmployeeCode: ""
     });
     setEditingEmployee(null);
   };
@@ -141,41 +158,87 @@ function Employees() {
     const searchLower = searchTerm.toLowerCase();
     return (
       (emp.Name && emp.Name.toLowerCase().includes(searchLower)) ||
+      (emp.EmployeeCode && emp.EmployeeCode.toLowerCase().includes(searchLower)) ||
       (emp.DeviceUid && emp.DeviceUid.toString().includes(searchLower)) ||
       (emp.Email && emp.Email.toLowerCase().includes(searchLower)) ||
-      (emp.Phone && emp.Phone.includes(searchLower))
+      (emp.Department && emp.Department.toLowerCase().includes(searchLower))
     );
   });
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <Container fluid className="py-3">
       <ToastContainer position="top-right" autoClose={3000} />
       
-      {/* Header */}
-      <Row className="mb-3">
-        <Col sm={6}>
-          <h2>Employee Management</h2>
+      {/* Header with Stats */}
+      <Row className="mb-4">
+        <Col md={8}>
+          <h2 className="mb-1">Employee Management</h2>
           <p className="text-muted">Manage your workforce and device integration</p>
         </Col>
-        <Col sm={6} className="text-end">
+        <Col md={4} className="text-end">
           <Button 
             variant="primary" 
             onClick={() => {
               resetForm();
               setShowModal(true);
             }}
+            className="mb-2"
           >
-            Add New Employee
+            <i className="bi bi-plus-circle"></i> Add New Employee
           </Button>
         </Col>
       </Row>
+
+      {/* Statistics Cards */}
+      {stats && (
+        <Row className="mb-4">
+          <Col md={3}>
+            <div className="bg-primary text-white p-3 rounded">
+              <h6>Total Employees</h6>
+              <h3>{stats.totalEmployees || 0}</h3>
+            </div>
+          </Col>
+          <Col md={3}>
+            <div className="bg-success text-white p-3 rounded">
+              <h6>Unique Devices</h6>
+              <h3>{stats.uniqueDeviceUids || 0}</h3>
+            </div>
+          </Col>
+          <Col md={3}>
+            <div className="bg-info text-white p-3 rounded">
+              <h6>New This Week</h6>
+              <h3>{stats.newLast7Days || 0}</h3>
+            </div>
+          </Col>
+          <Col md={3}>
+            <div className="bg-warning text-white p-3 rounded">
+              <h6>Total Departments</h6>
+              <h3>{stats.totalDepartments || 0}</h3>
+            </div>
+          </Col>
+        </Row>
+      )}
 
       {/* Search Bar */}
       <Row className="mb-3">
         <Col md={6}>
           <InputGroup>
             <FormControl
-              placeholder="Search by name, device UID, email, or phone..."
+              placeholder="Search by name, code, department, email, or device UID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -185,79 +248,98 @@ function Employees() {
           </InputGroup>
         </Col>
         <Col md={6} className="text-end">
-          <Button variant="outline-info" onClick={fetchEmployees}>
+          <Button variant="outline-info" onClick={() => { fetchEmployees(); fetchStats(); }}>
             Refresh
           </Button>
+          <span className="ms-2 text-muted">
+            {filteredEmployees.length} / {employees.length} employees
+          </span>
         </Col>
       </Row>
 
       {/* Employees Table */}
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Device UID</th>
-            <th>Device Name</th>
-            <th>Department</th>
-            <th>Designation</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredEmployees.length === 0 ? (
-            <tr>
-              <td colSpan="10" className="text-center">
-                {employees.length === 0 ? "No employees found" : "No matching employees"}
-              </td>
-            </tr>
-          ) : (
-            filteredEmployees.map((emp) => (
-              <tr key={emp.EmployeeId}>
-                <td>{emp.EmployeeId}</td>
-                <td><strong>{emp.Name}</strong></td>
-                <td>{emp.DeviceUid || "-"}</td>
-                <td>{emp.DeviceName || "-"}</td>
-                <td>{emp.Department || "-"}</td>
-                <td>{emp.Designation || "-"}</td>
-                <td>{emp.Email || "-"}</td>
-                <td>{emp.Phone || "-"}</td>
-                <td>
-                  <span className={`badge bg-${emp.Status === 'active' ? 'success' : emp.Status === 'inactive' ? 'secondary' : 'warning'}`}>
-                    {emp.Status || "active"}
-                  </span>
-                </td>
-                <td>
-                  <Button 
-                    size="sm" 
-                    variant="warning" 
-                    onClick={() => handleEdit(emp)}
-                    className="me-2"
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="danger" 
-                    onClick={() => handleDelete(emp.EmployeeId, emp.Name)}
-                  >
-                    Delete
-                  </Button>
-                </td>
+      {loading ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2">Loading employees...</p>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <Table striped bordered hover>
+            <thead className="bg-light">
+              <tr>
+                <th>ID</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Device UID</th>
+                <th>Department</th>
+                <th>Designation</th>
+                <th>Email</th>
+                <th>Join Date</th>
+                <th>Actions</th>
               </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
+            </thead>
+            <tbody>
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="text-center py-4">
+                    {employees.length === 0 ? (
+                      <>
+                        <p className="mb-2">No employees found</p>
+                        <Button variant="primary" size="sm" onClick={() => { resetForm(); setShowModal(true); }}>
+                          Add Your First Employee
+                        </Button>
+                      </>
+                    ) : (
+                      "No matching employees"
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((emp) => (
+                  <tr key={emp.EmployeeID}>
+                    <td>{emp.EmployeeID}</td>
+                    <td>
+                      <Badge bg="secondary">{emp.EmployeeCode || "-"}</Badge>
+                    </td>
+                    <td><strong>{emp.Name}</strong></td>
+                    <td>
+                      <Badge bg="info">{emp.DeviceUid || "-"}</Badge>
+                    </td>
+                    <td>{emp.Department || "-"}</td>
+                    <td>{emp.Designation || "-"}</td>
+                    <td>{emp.Email || "-"}</td>
+                    <td>{formatDate(emp.JoinDate)}</td>
+                    <td>
+                      <Button 
+                        size="sm" 
+                        variant="warning" 
+                        onClick={() => handleEdit(emp)}
+                        className="me-1"
+                      >
+                        <i className="bi bi-pencil"></i> Edit
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="danger" 
+                        onClick={() => handleDelete(emp.EmployeeID, emp.Name)}
+                      >
+                        <i className="bi bi-trash"></i> Delete
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
-            {editingEmployee ? "Edit Employee" : "Add New Employee"}
+            {editingEmployee ? `Edit Employee: ${editingEmployee.Name}` : "Add New Employee"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -278,16 +360,17 @@ function Employees() {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Device UID</Form.Label>
+                  <Form.Label>Employee Code</Form.Label>
                   <Form.Control
-                    type="number"
-                    name="DeviceUid"
-                    value={form.DeviceUid}
+                    type="text"
+                    name="EmployeeCode"
+                    value={form.EmployeeCode}
                     onChange={handleChange}
-                    placeholder="Biometric device user ID"
+                    placeholder="Auto-generated if left blank"
+                    disabled={!!editingEmployee}
                   />
                   <Form.Text className="text-muted">
-                    User ID from biometric device
+                    {editingEmployee ? "Employee code cannot be changed" : "Leave blank for auto-generation"}
                   </Form.Text>
                 </Form.Group>
               </Col>
@@ -296,16 +379,35 @@ function Employees() {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Device Name</Form.Label>
+                  <Form.Label>Device UID *</Form.Label>
                   <Form.Control
-                    type="text"
-                    name="DeviceName"
-                    value={form.DeviceName}
+                    type="number"
+                    name="DeviceUid"
+                    value={form.DeviceUid}
                     onChange={handleChange}
-                    placeholder="e.g., Oasis Office, Head Office"
+                    placeholder="Biometric device user ID"
+                    required
+                  />
+                  <Form.Text className="text-muted">
+                    Unique ID from biometric device
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    name="Email"
+                    value={form.Email}
+                    onChange={handleChange}
+                    placeholder="employee@company.com"
                   />
                 </Form.Group>
               </Col>
+            </Row>
+
+            <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Department</Form.Label>
@@ -318,9 +420,6 @@ function Employees() {
                   />
                 </Form.Group>
               </Col>
-            </Row>
-
-            <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Designation</Form.Label>
@@ -333,69 +432,35 @@ function Employees() {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="Email"
-                    value={form.Email}
-                    onChange={handleChange}
-                    placeholder="employee@example.com"
-                  />
-                </Form.Group>
-              </Col>
             </Row>
 
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Phone</Form.Label>
+                  <Form.Label>Join Date</Form.Label>
                   <Form.Control
-                    type="tel"
-                    name="Phone"
-                    value={form.Phone}
+                    type="date"
+                    name="JoinDate"
+                    value={form.JoinDate}
                     onChange={handleChange}
-                    placeholder="03001234567"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Salary</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="Salary"
-                    value={form.Salary}
-                    onChange={handleChange}
-                    placeholder="0"
                   />
                 </Form.Group>
               </Col>
             </Row>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    name="Status"
-                    value={form.Status}
-                    onChange={handleChange}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="on-leave">On Leave</option>
-                    <option value="terminated">Terminated</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
+            {editingEmployee && (
+              <div className="bg-light p-3 rounded">
+                <small className="text-muted">
+                  Created: {formatDate(editingEmployee.CreatedAt)}
+                  {editingEmployee.UpdatedAt && ` | Updated: ${formatDate(editingEmployee.UpdatedAt)}`}
+                </small>
+              </div>
+            )}
           </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
+            Cancel
           </Button>
           <Button variant="primary" onClick={handleSubmit}>
             {editingEmployee ? "Update Employee" : "Create Employee"}

@@ -23,6 +23,13 @@ import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 import Employees from './modules/Employees/Employees';
 import MobileCheckIn from '../src/modules/Mobilecheckin';
+import ApplyLeave from './modules/Leave/ApplyLeave';
+// import LeaveList from './modules/Leave/LeaveList';
+
+import LeaveTypes from '../src/modules/Leave/LeaveTypes';
+import LeaveRequests from '../src/modules/Leave/LeaveRequests';
+import LeaveApply from '../src/modules/Leave/LeaveApply';
+import LeaveDashboard from '../src/modules/Leave/LeaveDashboard';
 
 function App() {
   return (
@@ -56,6 +63,13 @@ function App() {
             <Route path="AttendanceLiveFeed" element={<AttendanceLiveFeed />} />
             <Route path="employees" element={<Employees />} />
             <Route path="mobile-checkin" element={<MobileCheckIn />} />
+            <Route path="ApplyLeave" element={<ApplyLeave />} />
+            {/* <Route path="LeaveList" element={<LeaveList />} /> */}
+            <Route path="LeaveTypes" element={<LeaveTypes />} />
+            <Route path="LeaveRequests" element={<LeaveRequests />} />
+            <Route path="LeaveApply" element={<LeaveApply />} />
+
+
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
