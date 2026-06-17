@@ -88,20 +88,56 @@ const LeaveApplicationForm = () => {
 
             // ✅ Get all leave requests from database
             const res = await api.get('/leave/requests');
-            console.log("📊 Leave requests response:", res.data);
+            console.log("📊 API Response:", res);
+            console.log("📊 Response data:", res.data);
 
             let requests = [];
-            if (res.data?.data) {
-                requests = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                requests = res.data;
+
+            // ✅ Handle different response structures
+            if (res.data) {
+                // If data is directly an array
+                if (Array.isArray(res.data)) {
+                    requests = res.data;
+                    console.log("📊 Found array in res.data");
+                }
+                // If data is in res.data.data
+                else if (res.data.data && Array.isArray(res.data.data)) {
+                    requests = res.data.data;
+                    console.log("📊 Found array in res.data.data");
+                }
+                // If data is in res.data.requests
+                else if (res.data.requests && Array.isArray(res.data.requests)) {
+                    requests = res.data.requests;
+                    console.log("📊 Found array in res.data.requests");
+                }
+                // If data is in res.data.result
+                else if (res.data.result && Array.isArray(res.data.result)) {
+                    requests = res.data.result;
+                    console.log("📊 Found array in res.data.result");
+                }
+                // Try to find any array in the response
+                else {
+                    for (let key in res.data) {
+                        if (Array.isArray(res.data[key])) {
+                            requests = res.data[key];
+                            console.log(`📊 Found array in res.data.${key}`);
+                            break;
+                        }
+                    }
+                }
             }
+
+            console.log("📊 Processed requests:", requests);
+            console.log("📊 Number of requests:", requests.length);
 
             let nextId = 1;
 
             if (requests && requests.length > 0) {
                 // ✅ Find the maximum RequestID
-                const maxId = Math.max(...requests.map(r => r.RequestID || 0));
+                const ids = requests.map(r => r.RequestID || r.id || r.requestId || 0);
+                console.log("📊 All IDs:", ids);
+
+                const maxId = Math.max(...ids);
                 nextId = maxId + 1;
                 console.log(`📊 Last RequestID: ${maxId}, Next ID: ${nextId}`);
             } else {
@@ -114,21 +150,70 @@ const LeaveApplicationForm = () => {
 
             setFormData((prev) => ({
                 ...prev,
-                applicationId: formattedId,  // ✅ Store as 6-digit number
+                applicationId: formattedId,
                 requestId: nextId,
             }));
 
-        } catch (error) {
-            console.error("❌ Error generating application ID:", error);
-            setFormData((prev) => ({
-                ...prev,
-                applicationId: "",
-            }));
+            // ✅ Show success message
             setSnackbar({
                 open: true,
-                message: "Failed to generate Application ID. Please refresh the page.",
-                severity: "error",
+                message: `Application ID generated: ${formattedId}`,
+                severity: "success",
             });
+
+        } catch (error) {
+            console.error("❌ Error generating application ID:", error);
+            console.error("❌ Error details:", error.response || error.message);
+
+            // ✅ Try an alternative approach - fetch last request ID using a different endpoint
+            try {
+                console.log("🔄 Trying alternative endpoint...");
+                // Try to get the last request ID directly
+                const altRes = await api.get('/leave/requests/last');
+                console.log("📊 Alternative response:", altRes.data);
+
+                let lastId = 0;
+                if (altRes.data?.data) {
+                    lastId = altRes.data.data || 0;
+                } else if (altRes.data) {
+                    lastId = altRes.data || 0;
+                }
+
+                const nextId = lastId + 1;
+                const formattedId = String(nextId).padStart(6, '0');
+
+                console.log(`✅ Generated Application ID (alternative): ${formattedId}`);
+
+                setFormData((prev) => ({
+                    ...prev,
+                    applicationId: formattedId,
+                    requestId: nextId,
+                }));
+
+                setSnackbar({
+                    open: true,
+                    message: `Application ID generated: ${formattedId}`,
+                    severity: "success",
+                });
+
+            } catch (altError) {
+                console.error("❌ Alternative also failed:", altError);
+
+                // ✅ Last resort: Use a default starting ID
+                console.log("📊 Using default starting ID");
+                const defaultId = '000001';
+                setFormData((prev) => ({
+                    ...prev,
+                    applicationId: defaultId,
+                    requestId: 1,
+                }));
+
+                setSnackbar({
+                    open: true,
+                    message: "Using default Application ID. Please refresh if needed.",
+                    severity: "warning",
+                });
+            }
         } finally {
             setGeneratingId(false);
         }
