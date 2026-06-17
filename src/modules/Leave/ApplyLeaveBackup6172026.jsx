@@ -33,13 +33,60 @@ import {
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
 
+
 const LeaveApplicationForm = () => {
+    const fetchEmployeeById = async (id) => {
+    try {
+        if (!id) return;
+
+        const res = await api.get(`/employees/${id}`);
+
+        const emp = res.data?.data;   // ✅ FIXED
+
+        setFormData((prev) => ({
+            ...prev,
+            employeeName: emp?.Name || "",
+            designation: emp?.designation || "",
+            department: emp?.department || "",
+        }));
+
+    } catch (error) {
+        console.error("Employee fetch error:", error);
+    }
+};
+    const fetchEmployeeByCode = async (code) => {
+        try {
+            if (!code) return;
+
+            // const res = await api.get(`/employees/code/${code}`);
+            const res = await api.get(`/employees/id/${code}`);
+
+            const emp = res.data;
+
+            if (emp) {
+                setFormData((prev) => ({
+                    ...prev,
+                    employeeName: emp.Name || "",
+                    designation: emp.designation || "",
+                    department: emp.department || "",
+                }));
+            } else {
+                setFormData((prev) => ({
+                    ...prev,
+                    employeeName: "",
+                    designation: "",
+                    department: "",
+                }));
+            }
+        } catch (error) {
+            console.error("Employee fetch error:", error);
+        }
+    };
     const theme = useTheme();
     const printRef = useRef();
 
     const generateAppId = () => `LVE-${Date.now().toString().slice(-8)}`;
     const getTodayDate = () => new Date().toISOString().split('T')[0];
-    
     const initialState = {
         employeeCode: "",
         employeeName: "",
@@ -60,145 +107,12 @@ const LeaveApplicationForm = () => {
         annualLeaves: "",
         compensatoryLeaves: "",
     };
-
     const [formData, setFormData] = useState(initialState);
+
     const [errors, setErrors] = useState({});
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
     const [showPrintPreview, setShowPrintPreview] = useState(false);
-    const [loading, setLoading] = useState(false);
 
-    // ============================================
-    // FETCH EMPLOYEE DATA BY CODE
-    // ============================================
-    const fetchEmployeeByCode = async (code) => {
-        if (!code || code.trim() === "") {
-            // Clear employee fields if code is empty
-            setFormData((prev) => ({
-                ...prev,
-                employeeName: "",
-                designation: "",
-                department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
-            }));
-            return;
-        }
-
-        setLoading(true);
-        try {
-            // Fetch employee by code
-            const res = await api.get(`/employees/code/${code}`);
-            console.log("Employee data:", res.data);
-
-            // Extract employee data from response
-            let emp = null;
-            if (res.data?.data) {
-                emp = res.data.data;
-            } else if (res.data) {
-                emp = res.data;
-            }
-
-            if (emp) {
-                // Update form with employee data
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeName: emp.Name || emp.name || "",
-                    designation: emp.Designation || emp.designation || "",
-                    department: emp.Department || emp.department || "",
-                }));
-
-                // Fetch leave balances for this employee
-                await fetchLeaveBalances(emp.EmployeeID || emp.id);
-            } else {
-                // Employee not found
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeName: "",
-                    designation: "",
-                    department: "",
-                    sickLeaves: "",
-                    casualLeaves: "",
-                    annualLeaves: "",
-                    compensatoryLeaves: "",
-                }));
-                setSnackbar({
-                    open: true,
-                    message: "Employee not found with this code",
-                    severity: "error",
-                });
-            }
-        } catch (error) {
-            console.error("Employee fetch error:", error);
-            setFormData((prev) => ({
-                ...prev,
-                employeeName: "",
-                designation: "",
-                department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
-            }));
-            setSnackbar({
-                open: true,
-                message: error.response?.data?.message || "Failed to fetch employee data",
-                severity: "error",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ============================================
-    // FETCH LEAVE BALANCES BY EMPLOYEE ID
-    // ============================================
-    const fetchLeaveBalances = async (employeeId) => {
-        try {
-            const res = await api.get(`/leave/balances/employee/${employeeId}`);
-            console.log("Leave balances:", res.data);
-
-            let balances = [];
-            if (res.data?.data) {
-                balances = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                balances = res.data;
-            }
-
-            if (balances.length > 0) {
-                // Map balances to form fields
-                const balanceMap = {};
-                balances.forEach((bal) => {
-                    const name = bal.LeaveName || bal.leaveName || "";
-                    if (name.toLowerCase().includes("sick")) {
-                        balanceMap.sickLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("casual")) {
-                        balanceMap.casualLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("annual")) {
-                        balanceMap.annualLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("compensatory")) {
-                        balanceMap.compensatoryLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    }
-                });
-
-                setFormData((prev) => ({
-                    ...prev,
-                    sickLeaves: balanceMap.sickLeaves || "",
-                    casualLeaves: balanceMap.casualLeaves || "",
-                    annualLeaves: balanceMap.annualLeaves || "",
-                    compensatoryLeaves: balanceMap.compensatoryLeaves || "",
-                }));
-            }
-        } catch (error) {
-            console.error("Error fetching leave balances:", error);
-            // Don't show error for balances, just leave empty
-        }
-    };
-
-    // ============================================
-    // CALCULATE DAYS
-    // ============================================
     useEffect(() => {
         if (formData.startDate && formData.endDate) {
             const start = new Date(formData.startDate);
@@ -214,9 +128,14 @@ const LeaveApplicationForm = () => {
         }
     }, [formData.startDate, formData.endDate]);
 
-    // ============================================
-    // HANDLE CHANGE
-    // ============================================
+    // const handleChange = (field) => (event) => {
+    //     const value = event.target.value;
+    //     setFormData(prev => ({ ...prev, [field]: value }));
+    //     if (errors[field]) {
+    //         setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
+    //     }
+    // };
+
     const handleChange = (field) => (event) => {
         const value = event.target.value;
 
@@ -228,11 +147,11 @@ const LeaveApplicationForm = () => {
                 delete e[field];
                 return e;
             });
+        }
 
-            // Auto fetch employee when employeeCode changes
-            if (field === "employeeCode") {
-                fetchEmployeeByCode(value);
-            }
+        // ✅ AUTO FETCH EMPLOYEE
+        if (field === "employeeCode") {
+            fetchEmployeeByCode(value);
         }
     };
 
@@ -241,9 +160,6 @@ const LeaveApplicationForm = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    // ============================================
-    // GET CLOSING BALANCE
-    // ============================================
     const getClosingBalance = (balanceKey, leaveTypeValue) => {
         const opening = parseFloat(formData[balanceKey]) || 0;
         const applied = formData.leaveType === leaveTypeValue
@@ -252,9 +168,6 @@ const LeaveApplicationForm = () => {
         return Math.max(0, opening - applied);
     };
 
-    // ============================================
-    // VALIDATE FORM
-    // ============================================
     const validateForm = () => {
         const newErrors = {};
         if (!formData.employeeCode) newErrors.employeeCode = "Employee Code is required";
@@ -273,16 +186,20 @@ const LeaveApplicationForm = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // ============================================
-    // HANDLE SUBMIT
-    // ============================================
+    // const handleSubmit = () => {
+    //     if (validateForm()) {
+    //         setSnackbar({ open: true, message: "Leave application submitted successfully!", severity: "success" });
+    //         setTimeout(() => setShowPrintPreview(true), 1000);
+    //     } else {
+    //         setSnackbar({ open: true, message: "Please fill in all required fields", severity: "error" });
+    //     }
+    // };
     const handleSubmit = async () => {
         if (!validateForm()) {
             setSnackbar({ open: true, message: "Please fill in all required fields", severity: "error" });
             return;
         }
 
-        setLoading(true);
         try {
             const payload = {
                 employeeCode: formData.employeeCode,
@@ -316,49 +233,32 @@ const LeaveApplicationForm = () => {
             setTimeout(() => setShowPrintPreview(true), 1000);
 
         } catch (error) {
-            console.error("Submit error:", error);
+            console.error(error);
             setSnackbar({
                 open: true,
-                message: error.response?.data?.message || "Failed to submit leave application",
+                message: "Failed to submit leave application",
                 severity: "error",
             });
-        } finally {
-            setLoading(false);
         }
     };
 
-    // ============================================
-    // HANDLE RESET
-    // ============================================
     const handleReset = () => {
-        setFormData({
-            ...initialState,
-            applicationId: generateAppId(),
-            applicationDate: getTodayDate()
-        });
+        setFormData({ ...initialState, applicationId: generateAppId(), applicationDate: getTodayDate() });
         setErrors({});
         setShowPrintPreview(false);
     };
 
-    // ============================================
-    // FORMAT DATE
-    // ============================================
     const formatDate = (date) => {
         if (!date) return "—";
         return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
-    // ============================================
-    // GET LEAVE TYPE LABEL
-    // ============================================
+    // Get leave type label
     const getLeaveTypeLabel = () => {
         const leaveType = leaveTypes.find(lt => lt.value === formData.leaveType);
         return leaveType ? leaveType.label : formData.leaveType;
     };
 
-    // ============================================
-    // LEAVE TYPES
-    // ============================================
     const leaveTypes = [
         { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
         { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
@@ -366,9 +266,407 @@ const LeaveApplicationForm = () => {
         { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
     ];
 
-    // ============================================
-    // LEAVE BALANCE TABLE
-    // ============================================
+    // FIXED: Clean print function without MUI dependencies
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+
+        // Generate the leave balance rows
+        const balanceRows = leaveTypes.map((lt) => {
+            const opening = parseFloat(formData[lt.balanceKey]) || 0;
+            const isActive = formData.leaveType === lt.value;
+            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
+            const closing = Math.max(0, opening - applied);
+            const isHighlighted = isActive ? 'highlight' : '';
+
+            return `
+                <tr class="${isHighlighted}">
+                    <td>${lt.label}</td>
+                    <td class="right">${opening}</td>
+                    <td class="right"><strong>${applied}</strong></td>
+                    <td class="right"><strong>${closing}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        const printHTML = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Leave Application - ${formData.applicationId}</title>
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        
+                        body {
+                            font-family: 'Segoe UI', Arial, sans-serif;
+                            background: white;
+                            padding: 40px;
+                            color: #333;
+                        }
+                        
+                        .print-container {
+                            max-width: 210mm;
+                            margin: 0 auto;
+                            background: white;
+                        }
+                        
+                        /* Header */
+                        .header {
+                            margin-bottom: 16px;
+                            padding-bottom: 16px;
+                            border-bottom: 1px solid #333;
+                            grid-template-columns: 15% 85%;
+                            gap: 16px;
+                            display: flex;
+                            flex-wrap: wrap;
+                            flex-direction: row;
+                        }
+                        .header .header-logo {
+                            width: 100px;
+                            height: auto;
+                            
+                        }
+                            .header .header-logo img {
+                                width: 100%;
+                                height: auto;
+                                border:0;
+                            }
+                        .header .header-company {
+                            width: auto;
+                            height: auto;
+                            margin: 0 auto;
+                            text-align: center;
+                            padding-right: 15%; 
+                        }
+                       .header .header-company .company-name {
+                            font-size: 20px;
+                            font-weight: 800;
+                            letter-spacing: 2px;
+                        }
+                        
+                        .form-title {
+                            font-size: 24px;
+                            font-weight: 600;
+                            margin-top: 8px;
+                            color: #333;
+                        }
+                        
+                       .header .app-info {
+                            display: flex;
+                            flex-wrap: wrap;
+                            flex-direction: row;
+                            align-items: center;
+                            justify-content: space-between;
+                            width: 100%;
+                            margin-top: 0.5rem;
+                            font-size: 0.875rem; /* 14px */
+                            gap: 1rem;
+                        }
+                            .header .app-info span:first-child {
+                                flex-basis: auto;
+                            }
+
+                            .header .app-info span:last-child {
+                                flex-basis: auto;
+                            }
+                        
+                        /* Section */
+                        .section {
+                            margin-bottom: 10px;
+                            display: flex;
+                            flex-wrap: wrap;
+                            flex-direction: row;
+                        }
+                        
+                        .section-title {
+                            font-size: 16px;
+                            font-weight: 700;
+                            margin-bottom: 15px;
+                            padding-bottom: 8px;
+                            border-bottom: 1px solid #ddd;
+                            width: 100%;
+                        }
+                        
+                        /* Info Grid */
+                        .info-grid {
+                            display: flex;
+                            gap: 16px;
+                            margin-bottom: 20px;
+                            width: 100%;
+                        }
+                        
+                        .info-item {
+                            margin-bottom: 8px;
+                            flex: 1;
+                             min-width: 0;
+                        }
+                        
+                        .info-label {
+                            font-size: 11px;
+                            color: #777;
+                            margin-bottom: 4px;
+                        }
+                        
+                        .info-value {
+                            font-size: 14px;
+                            font-weight: 500;
+                            padding-bottom: 6px;
+                            border-bottom: 1px solid #eee;
+                        }
+                        
+                        .info-value.highlight {
+                            font-weight: 700;
+                        }
+                        
+                        /* Details Grid */
+                        .details-grid {
+                            display: flex;
+                            gap: 16px;
+                            width: 100%;
+                            
+                        }
+                            .details-grid .info-item{
+                                flex: 1;
+                                min-width: 0;
+                            }
+                        
+                        .full-width {
+                            width: 100%;
+                            display: block;
+                            margin-bottom: 20px;
+                            margin-top: 16px;
+                        }
+                        
+                        /* Reason Box */
+                        .reason-box {
+                            padding: 12px;
+                            border: 1px solid #eee;
+                            border-radius: 4px;
+                            min-height: 80px;
+                            line-height: 1.6;
+                            width: 100%;
+                            background: #fffff
+                        }
+                        
+                        /* Table */
+                        .balance-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 10px 0;
+                            font-size: 13px;
+                        }
+                        
+                        .balance-table th,
+                        .balance-table td {
+                            border: 1px solid #ddd;
+                            padding: 10px 12px;
+                            text-align: left;
+                        }
+                        
+                        .balance-table th {
+                            background: #f5f5f5;
+                            font-weight: 700;
+                        }
+                        
+                        .balance-table td.right,
+                        .balance-table th.right {
+                            text-align: right;
+                        }
+                        
+                        .balance-table td.center,
+                        .balance-table th.center {
+                            text-align: center;
+                        }
+                        
+                        .balance-table tr.highlight {
+                            background-color: #e3f2fd;
+                        }
+                        
+                        .balance-table tr.highlight td {
+                            font-weight: 700;
+                        }
+                        
+                        /* Approval */
+                        .approval-header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 16px;
+                            padding-bottom: 16px;
+                            border-bottom: 2px solid #ddd;
+                        }
+                        
+                        .approval-title {
+                            font-size: 16px;
+                            font-weight: 700;
+                        }
+                        
+                        /* Signature */
+                        .signature-grid {
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 20px;
+                            margin-top: 120px;
+                        }
+                        
+                        .signature-box {
+                            text-align: center;
+                        }
+                        
+                        .signature-line {
+                            border-top: 1px solid #000;
+                            padding-top: 8px;
+                            margin-top: 4px;
+                            font-size: 12px;
+                        }
+                        
+                        
+                        .no-print {
+                            display: none;
+                        }
+                        
+                        @media print {
+                            body {
+                                padding: 15mm;
+                            }
+                            @page {
+                                size: A4;
+                                margin: 0;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-container">
+                        <!-- Header -->
+                        <div class="header">
+                            <div class="header-logo">
+                                <img src="${logo}" alt="Bodla Group Logo" />
+                            </div>
+                            <div class="header-company">
+                                <div class="company-name">BODLA GROUP</div>
+                                <div class="form-title">Leave Application Form</div>
+                            </div>
+                            <div class="app-info">
+                                <span><strong>Application ID:</strong> ${formData.applicationId}</span>
+                                <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
+                            </div>
+                        </div>
+
+                        <!-- Employee Information -->
+                        <div class="section">
+                            <div class="section-title">Employee Information</div>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">Employee Code</div>
+                                    <div class="info-value">${formData.employeeCode || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Employee Name</div>
+                                    <div class="info-value">${formData.employeeName || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Designation</div>
+                                    <div class="info-value">${formData.designation || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Department</div>
+                                    <div class="info-value">${formData.department || "—"}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leave Details -->
+                        <div class="section">
+                            <div class="section-title">Leave Details</div>
+                            <div class="details-grid">
+                                <div class="info-item">
+                                    <div class="info-label">Leave Type</div>
+                                    <div class="info-value highlight">${getLeaveTypeLabel()}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Paid / Unpaid</div>
+                                    <div class="info-value">${formData.paidStatus}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">From</div>
+                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">To</div>
+                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Total Days</div>
+                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
+                                </div>
+                            </div>
+                            <div class="full-width">
+                                <div class="info-label">Reason for Leave</div>
+                                <div class="reason-box">${formData.reason || "—"}</div>
+                            </div>
+                        </div>
+
+                        <!-- Leave Balance Summary -->
+                        <div class="section">
+                            <div class="section-title">Leave Balance Summary</div>
+                            <table class="balance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Leave Type</th>
+                                        <th class="right">Opening Balance</th>
+                                        <th class="right">Applied Days</th>
+                                        <th class="right">Closing Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${balanceRows}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Approval Information -->
+                        <div class="approval-header">
+                            <div class="approval-title">Approval Information</div>
+                            <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
+                        </div>
+
+                        <!-- Signature Section -->
+                        <div class="signature-grid">
+                            <div class="signature-box">
+                                <div class="signature-line">Employee</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">Reporting Manager</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">Department Head</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">HR</div>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() {
+                                window.close();
+                            }, 500);
+                        };
+                    </script>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+    };
+
+    // LeaveBalanceTable component
     const LeaveBalanceTable = ({ editable = false }) => (
         <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none" }}>
             <Table size="small">
@@ -398,7 +696,26 @@ const LeaveApplicationForm = () => {
                                     }),
                                 }}
                             >
-                                <TableCell>{lt.label}</TableCell>
+                                <TableCell>
+                                    {lt.label}
+                                    {/* {isActive && (
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                ml: 1,
+                                                px: 0.8,
+                                                py: 0.2,
+                                                bgcolor: theme.palette.primary.main,
+                                                color: "white",
+                                                borderRadius: 1,
+                                                fontSize: "0.65rem",
+                                                verticalAlign: "middle",
+                                            }}
+                                        >
+                                            SELECTED
+                                        </Box>
+                                    )} */}
+                                </TableCell>
                                 <TableCell align="right">
                                     {editable ? (
                                         <TextField
@@ -438,9 +755,6 @@ const LeaveApplicationForm = () => {
         </TableContainer>
     );
 
-    // ============================================
-    // SIGNATURE BLOCK
-    // ============================================
     const SignatureBlock = () => (
         <Grid container spacing={3} sx={{ mt: 6 }}>
             {["Employee", "Reporting Manager", "Department Head", "HR"].map((role) => (
@@ -458,9 +772,6 @@ const LeaveApplicationForm = () => {
         </Grid>
     );
 
-    // ============================================
-    // SECTION HEADER
-    // ============================================
     const SectionHeader = ({ title }) => (
         <Typography
             variant="h6"
@@ -476,357 +787,6 @@ const LeaveApplicationForm = () => {
         </Typography>
     );
 
-    // ============================================
-    // HANDLE PRINT
-    // ============================================
-    const handlePrint = () => {
-        const printWindow = window.open('', '_blank');
-
-        const balanceRows = leaveTypes.map((lt) => {
-            const opening = parseFloat(formData[lt.balanceKey]) || 0;
-            const isActive = formData.leaveType === lt.value;
-            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
-            const closing = Math.max(0, opening - applied);
-            const isHighlighted = isActive ? 'highlight' : '';
-
-            return `
-                <tr class="${isHighlighted}">
-                    <td>${lt.label}</td>
-                    <td class="right">${opening}</td>
-                    <td class="right"><strong>${applied}</strong></td>
-                    <td class="right"><strong>${closing}</strong></td>
-                </tr>
-            `;
-        }).join('');
-
-        const printHTML = `
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <title>Leave Application - ${formData.applicationId}</title>
-                    <style>
-                        * {
-                            margin: 0;
-                            padding: 0;
-                            box-sizing: border-box;
-                        }
-                        body {
-                            font-family: 'Segoe UI', Arial, sans-serif;
-                            background: white;
-                            padding: 40px;
-                            color: #333;
-                        }
-                        .print-container {
-                            max-width: 210mm;
-                            margin: 0 auto;
-                            background: white;
-                        }
-                        .header {
-                            margin-bottom: 16px;
-                            padding-bottom: 16px;
-                            border-bottom: 1px solid #333;
-                            grid-template-columns: 15% 85%;
-                            gap: 16px;
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                        }
-                        .header .header-logo {
-                            width: 100px;
-                            height: auto;
-                        }
-                        .header .header-logo img {
-                            width: 100%;
-                            height: auto;
-                            border:0;
-                        }
-                        .header .header-company {
-                            width: auto;
-                            height: auto;
-                            margin: 0 auto;
-                            text-align: center;
-                            padding-right: 15%; 
-                        }
-                        .header .header-company .company-name {
-                            font-size: 20px;
-                            font-weight: 800;
-                            letter-spacing: 2px;
-                        }
-                        .form-title {
-                            font-size: 24px;
-                            font-weight: 600;
-                            margin-top: 8px;
-                            color: #333;
-                        }
-                        .header .app-info {
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                            align-items: center;
-                            justify-content: space-between;
-                            width: 100%;
-                            margin-top: 0.5rem;
-                            font-size: 0.875rem;
-                            gap: 1rem;
-                        }
-                        .section {
-                            margin-bottom: 10px;
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                        }
-                        .section-title {
-                            font-size: 16px;
-                            font-weight: 700;
-                            margin-bottom: 15px;
-                            padding-bottom: 8px;
-                            border-bottom: 1px solid #ddd;
-                            width: 100%;
-                        }
-                        .info-grid {
-                            display: flex;
-                            gap: 16px;
-                            margin-bottom: 20px;
-                            width: 100%;
-                        }
-                        .info-item {
-                            margin-bottom: 8px;
-                            flex: 1;
-                            min-width: 0;
-                        }
-                        .info-label {
-                            font-size: 11px;
-                            color: #777;
-                            margin-bottom: 4px;
-                        }
-                        .info-value {
-                            font-size: 14px;
-                            font-weight: 500;
-                            padding-bottom: 6px;
-                            border-bottom: 1px solid #eee;
-                        }
-                        .info-value.highlight {
-                            font-weight: 700;
-                        }
-                        .details-grid {
-                            display: flex;
-                            gap: 16px;
-                            width: 100%;
-                        }
-                        .details-grid .info-item{
-                            flex: 1;
-                            min-width: 0;
-                        }
-                        .full-width {
-                            width: 100%;
-                            display: block;
-                            margin-bottom: 20px;
-                            margin-top: 16px;
-                        }
-                        .reason-box {
-                            padding: 12px;
-                            border: 1px solid #eee;
-                            border-radius: 4px;
-                            min-height: 80px;
-                            line-height: 1.6;
-                            width: 100%;
-                            background: #fffff
-                        }
-                        .balance-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin: 10px 0;
-                            font-size: 13px;
-                        }
-                        .balance-table th,
-                        .balance-table td {
-                            border: 1px solid #ddd;
-                            padding: 10px 12px;
-                            text-align: left;
-                        }
-                        .balance-table th {
-                            background: #f5f5f5;
-                            font-weight: 700;
-                        }
-                        .balance-table td.right,
-                        .balance-table th.right {
-                            text-align: right;
-                        }
-                        .balance-table td.center,
-                        .balance-table th.center {
-                            text-align: center;
-                        }
-                        .balance-table tr.highlight {
-                            background-color: #e3f2fd;
-                        }
-                        .balance-table tr.highlight td {
-                            font-weight: 700;
-                        }
-                        .approval-header {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-bottom: 16px;
-                            padding-bottom: 16px;
-                            border-bottom: 2px solid #ddd;
-                        }
-                        .approval-title {
-                            font-size: 16px;
-                            font-weight: 700;
-                        }
-                        .signature-grid {
-                            display: grid;
-                            grid-template-columns: repeat(4, 1fr);
-                            gap: 20px;
-                            margin-top: 120px;
-                        }
-                        .signature-box {
-                            text-align: center;
-                        }
-                        .signature-line {
-                            border-top: 1px solid #000;
-                            padding-top: 8px;
-                            margin-top: 4px;
-                            font-size: 12px;
-                        }
-                        .no-print {
-                            display: none;
-                        }
-                        @media print {
-                            body {
-                                padding: 15mm;
-                            }
-                            @page {
-                                size: A4;
-                                margin: 0;
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="print-container">
-                        <div class="header">
-                            <div class="header-logo">
-                                <img src="${logo}" alt="Bodla Group Logo" />
-                            </div>
-                            <div class="header-company">
-                                <div class="company-name">BODLA GROUP</div>
-                                <div class="form-title">Leave Application Form</div>
-                            </div>
-                            <div class="app-info">
-                                <span><strong>Application ID:</strong> ${formData.applicationId}</span>
-                                <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
-                            </div>
-                        </div>
-
-                        <div class="section">
-                            <div class="section-title">Employee Information</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Employee Code</div>
-                                    <div class="info-value">${formData.employeeCode || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Employee Name</div>
-                                    <div class="info-value">${formData.employeeName || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Designation</div>
-                                    <div class="info-value">${formData.designation || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Department</div>
-                                    <div class="info-value">${formData.department || "—"}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="section">
-                            <div class="section-title">Leave Details</div>
-                            <div class="details-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Leave Type</div>
-                                    <div class="info-value highlight">${getLeaveTypeLabel()}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Paid / Unpaid</div>
-                                    <div class="info-value">${formData.paidStatus}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">From</div>
-                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">To</div>
-                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Total Days</div>
-                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
-                                </div>
-                            </div>
-                            <div class="full-width">
-                                <div class="info-label">Reason for Leave</div>
-                                <div class="reason-box">${formData.reason || "—"}</div>
-                            </div>
-                        </div>
-
-                        <div class="section">
-                            <div class="section-title">Leave Balance Summary</div>
-                            <table class="balance-table">
-                                <thead>
-                                    <tr>
-                                        <th>Leave Type</th>
-                                        <th class="right">Opening Balance</th>
-                                        <th class="right">Applied Days</th>
-                                        <th class="right">Closing Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${balanceRows}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="approval-header">
-                            <div class="approval-title">Approval Information</div>
-                            <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
-                        </div>
-
-                        <div class="signature-grid">
-                            <div class="signature-box">
-                                <div class="signature-line">Employee</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Reporting Manager</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Department Head</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">HR</div>
-                            </div>
-                        </div>
-                    </div>
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() {
-                                window.close();
-                            }, 500);
-                        };
-                    </script>
-                </body>
-            </html>
-        `;
-
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
-    };
-
-    // ============================================
-    // RENDER
-    // ============================================
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Paper
@@ -845,7 +805,7 @@ const LeaveApplicationForm = () => {
                         <Box>
                             <Typography variant="h5" fontWeight="bold">Leave Application Form</Typography>
                             <Typography variant="light" sx={{ opacity: 0.9 }}>
-                                Enter employee code to auto-fill information
+                                Please fill in all required information
                             </Typography>
                         </Box>
                     </Stack>
@@ -904,69 +864,25 @@ const LeaveApplicationForm = () => {
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
                         <Grid container spacing={1}>
-                            {/* Employee Code - This triggers auto-fill */}
-                            <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Employee Code"
-                                    value={formData.employeeCode}
-                                    onChange={handleChange("employeeCode")}
-                                    required
-                                    error={!!errors.employeeCode}
-                                    helperText={errors.employeeCode}
-                                    size="small"
-                                    placeholder="Enter code to auto-fill"
-                                    InputProps={{
-                                        endAdornment: loading && (
-                                            <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center' }}>
-                                                <Spinner size="small" />
-                                            </Box>
-                                        )
-                                    }}
-                                />
-                            </Grid>
-                            <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Employee Name"
-                                    value={formData.employeeName}
-                                    onChange={handleChange("employeeName")}
-                                    required
-                                    error={!!errors.employeeName}
-                                    helperText={errors.employeeName}
-                                    size="small"
-                                    InputProps={{ readOnly: true }}
-                                    sx={{ "& input": { bgcolor: "#f9f9f9" } }}
-                                />
-                            </Grid>
-                            <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Designation"
-                                    value={formData.designation}
-                                    onChange={handleChange("designation")}
-                                    required
-                                    error={!!errors.designation}
-                                    helperText={errors.designation}
-                                    size="small"
-                                    InputProps={{ readOnly: true }}
-                                    sx={{ "& input": { bgcolor: "#f9f9f9" } }}
-                                />
-                            </Grid>
-                            <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Department"
-                                    value={formData.department}
-                                    onChange={handleChange("department")}
-                                    required
-                                    error={!!errors.department}
-                                    helperText={errors.department}
-                                    size="small"
-                                    InputProps={{ readOnly: true }}
-                                    sx={{ "& input": { bgcolor: "#f9f9f9" } }}
-                                />
-                            </Grid>
+                            {[
+                                { field: "employeeCode", label: "Employee Code" },
+                                { field: "employeeName", label: "Employee Name" },
+                                { field: "designation", label: "Designation" },
+                                { field: "department", label: "Department" },
+                            ].map(({ field, label }) => (
+                                <Grid item size={{ xs: 12, sm: 6, md: 3 }} key={field}>
+                                    <TextField
+                                        fullWidth
+                                        label={label}
+                                        value={formData[field]}
+                                        onChange={handleChange(field)}
+                                        required
+                                        error={!!errors[field]}
+                                        helperText={errors[field]}
+                                        size="small"
+                                    />
+                                </Grid>
+                            ))}
                         </Grid>
                     </Box>
 
@@ -1075,9 +991,8 @@ const LeaveApplicationForm = () => {
                         <Button
                             variant="contained" onClick={handleSubmit} startIcon={<SendIcon />} size="large"
                             sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
-                            disabled={loading}
                         >
-                            {loading ? "Submitting..." : "Submit Application"}
+                            Submit Application
                         </Button>
                     </Stack>
                 </Box>

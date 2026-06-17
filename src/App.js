@@ -26,10 +26,10 @@ import MobileCheckIn from '../src/modules/Mobilecheckin';
 import ApplyLeave from './modules/Leave/ApplyLeave';
 // import LeaveList from './modules/Leave/LeaveList';
 
+import LeaveDashboard from '../src/modules/Leave/LeaveDashboard';
 import LeaveTypes from '../src/modules/Leave/LeaveTypes';
 import LeaveRequests from '../src/modules/Leave/LeaveRequests';
 import LeaveApply from '../src/modules/Leave/LeaveApply';
-import LeaveDashboard from '../src/modules/Leave/LeaveDashboard';
 
 function App() {
   return (
@@ -65,6 +65,8 @@ function App() {
             <Route path="mobile-checkin" element={<MobileCheckIn />} />
             <Route path="ApplyLeave" element={<ApplyLeave />} />
             {/* <Route path="LeaveList" element={<LeaveList />} /> */}
+            
+            <Route path="leave-dashboard" element={<LeaveDashboard />} />
             <Route path="LeaveTypes" element={<LeaveTypes />} />
             <Route path="LeaveRequests" element={<LeaveRequests />} />
             <Route path="LeaveApply" element={<LeaveApply />} />
