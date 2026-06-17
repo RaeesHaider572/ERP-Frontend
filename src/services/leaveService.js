@@ -24,7 +24,8 @@ export const resetLeaveBalances = (year) => api.post(`${API_URL}/balances/reset`
 export const getEmployeeLeaveRequests = (employeeId) => 
     api.get(`${API_URL}/employee/${employeeId}`);
 
-export const getAllLeaveRequests = (filters = {}) => {
+// ✅ ADD THIS - FIX FOR THE ERROR
+export const getLeaveRequests = (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.status) params.append('status', filters.status);
     if (filters.employeeId) params.append('employeeId', filters.employeeId);
@@ -35,6 +36,7 @@ export const getAllLeaveRequests = (filters = {}) => {
     return api.get(`${API_URL}/requests${queryString ? `?${queryString}` : ''}`);
 };
 
+export const getAllLeaveRequests = getLeaveRequests; // Alias
 export const getLeaveRequestById = (id) => api.get(`${API_URL}/requests/${id}`);
 export const applyLeave = (data) => api.post(`${API_URL}/apply`, data);
 export const updateLeaveStatus = (id, data) => api.put(`${API_URL}/requests/${id}/status`, data);
@@ -43,3 +45,22 @@ export const updateLeaveStatus = (id, data) => api.put(`${API_URL}/requests/${id
 export const getLeaveStats = () => api.get(`${API_URL}/stats`);
 export const getLeaveCalendar = (month, year) => 
     api.get(`${API_URL}/calendar?month=${month}&year=${year}`);
+
+export default {
+    getLeaveTypes,
+    getLeaveTypeById,
+    createLeaveType,
+    updateLeaveType,
+    deleteLeaveType,
+    getLeaveBalances,
+    getAllLeaveBalances,
+    resetLeaveBalances,
+    getEmployeeLeaveRequests,
+    getLeaveRequests, // ✅ ADD THIS TOO
+    getAllLeaveRequests,
+    getLeaveRequestById,
+    applyLeave,
+    updateLeaveStatus,
+    getLeaveStats,
+    getLeaveCalendar
+};

@@ -4,7 +4,7 @@ import { Container, Table, Button, Badge, Spinner, Form, Row, Col, Modal } from 
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
-  getAllLeaveRequests, 
+  getLeaveRequests,
   updateLeaveStatus, 
   getLeaveTypes, 
   getEmployees,
@@ -32,7 +32,7 @@ function LeaveRequests() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await getAllLeaveRequests(filters);
+      const res = await getLeaveRequests(filters);
       setRequests(res.data?.data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);

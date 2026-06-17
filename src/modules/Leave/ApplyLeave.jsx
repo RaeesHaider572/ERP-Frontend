@@ -66,6 +66,7 @@ const LeaveApplicationForm = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [fetchingEmployee, setFetchingEmployee] = useState(false);
 
     // ============================================
     // FETCH EMPLOYEE DATA BY CODE
