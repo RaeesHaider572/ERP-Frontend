@@ -24,6 +24,7 @@ import {
     TableContainer,
     TableRow,
     TableHead,
+    CircularProgress,
 } from "@mui/material";
 import {
     EventNote as EventNoteIcon,
@@ -920,7 +921,7 @@ const LeaveApplicationForm = () => {
                                     InputProps={{
                                         endAdornment: loading && (
                                             <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center' }}>
-                                                <Spinner size="small" />
+                                                <CircularProgress size="small" />
                                             </Box>
                                         )
                                     }}

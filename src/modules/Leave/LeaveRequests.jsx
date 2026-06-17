@@ -4,12 +4,13 @@ import { Container, Table, Button, Badge, Spinner, Form, Row, Col, Modal } from 
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
-  getLeaveRequests,
-  updateLeaveStatus, 
-  getLeaveTypes, 
-  getEmployees,
-  getLeaveRequestById 
+    getLeaveRequests, 
+    updateLeaveStatus, 
+    getLeaveTypes, 
+    getLeaveRequestById 
 } from '../../services/leaveService';
+
+import { getEmployees } from '../../services/employeeService';
 
 function LeaveRequests() {
   const [requests, setRequests] = useState([]);
