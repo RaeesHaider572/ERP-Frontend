@@ -39,14 +39,14 @@ const LeaveApplicationForm = () => {
     const printRef = useRef();
 
     const getTodayDate = () => new Date().toISOString().split('T')[0];
-
+    
     const initialState = {
         employeeCode: "",
         employeeName: "",
         designation: "",
         department: "",
         preparedBy: "",
-        applicationId: "", // Will be auto-generated
+        applicationId: "", // Will store RequestCode (BGLA-XXXXXX)
         applicationDate: getTodayDate(),
         leaveType: "Sick",
         paidStatus: "Paid",
@@ -79,141 +79,76 @@ const LeaveApplicationForm = () => {
     }, []);
 
     // ============================================
-    // ✅ GENERATE APPLICATION ID FROM LEAVE REQUESTS TABLE
+    // ✅ GENERATE APPLICATION ID (RequestCode from database)
     // ============================================
     const generateApplicationId = async () => {
         setGeneratingId(true);
         try {
-            console.log("🆔 Generating Application ID from Leave Requests table...");
-
-            // ✅ Get all leave requests from database
+            console.log("🆔 Fetching next RequestCode from database...");
+            
+            // ✅ Get all leave requests to find max RequestCode
             const res = await api.get('/leave/requests');
-            console.log("📊 API Response:", res);
-            console.log("📊 Response data:", res.data);
-
+            console.log("📊 Response:", res.data);
+            
             let requests = [];
-
-            // ✅ Handle different response structures
-            if (res.data) {
-                // If data is directly an array
-                if (Array.isArray(res.data)) {
-                    requests = res.data;
-                    console.log("📊 Found array in res.data");
-                }
-                // If data is in res.data.data
-                else if (res.data.data && Array.isArray(res.data.data)) {
-                    requests = res.data.data;
-                    console.log("📊 Found array in res.data.data");
-                }
-                // If data is in res.data.requests
-                else if (res.data.requests && Array.isArray(res.data.requests)) {
-                    requests = res.data.requests;
-                    console.log("📊 Found array in res.data.requests");
-                }
-                // If data is in res.data.result
-                else if (res.data.result && Array.isArray(res.data.result)) {
-                    requests = res.data.result;
-                    console.log("📊 Found array in res.data.result");
-                }
-                // Try to find any array in the response
-                else {
-                    for (let key in res.data) {
-                        if (Array.isArray(res.data[key])) {
-                            requests = res.data[key];
-                            console.log(`📊 Found array in res.data.${key}`);
-                            break;
-                        }
-                    }
-                }
+            if (res.data?.data) {
+                requests = res.data.data;
+            } else if (Array.isArray(res.data)) {
+                requests = res.data;
             }
-
-            console.log("📊 Processed requests:", requests);
-            console.log("📊 Number of requests:", requests.length);
-
+            
             let nextId = 1;
-
+            
             if (requests && requests.length > 0) {
-                // ✅ Find the maximum RequestID
-                const ids = requests.map(r => r.RequestID || r.id || r.requestId || 0);
-                console.log("📊 All IDs:", ids);
-
-                const maxId = Math.max(...ids);
-                nextId = maxId + 1;
-                console.log(`📊 Last RequestID: ${maxId}, Next ID: ${nextId}`);
+                // ✅ Extract numbers from RequestCode (BGLA-XXXXXX)
+                const codes = requests
+                    .filter(r => r.RequestCode && r.RequestCode.startsWith('BGLA-'))
+                    .map(r => {
+                        const num = r.RequestCode.replace('BGLA-', '');
+                        return parseInt(num, 10);
+                    })
+                    .filter(num => !isNaN(num));
+                
+                console.log("📊 Existing RequestCodes:", codes);
+                
+                if (codes.length > 0) {
+                    const maxId = Math.max(...codes);
+                    nextId = maxId + 1;
+                    console.log(`📊 Last ID: ${maxId}, Next ID: ${nextId}`);
+                } else {
+                    // Fallback to RequestID
+                    const ids = requests.map(r => r.RequestID || 0);
+                    const maxId = Math.max(...ids);
+                    nextId = maxId + 1;
+                    console.log(`📊 Using RequestID fallback: ${nextId}`);
+                }
             } else {
                 console.log("📊 No existing requests, starting from 1");
             }
-
-            // ✅ Format as 6 digits with leading zeros (000001, 000002, etc.)
-            const formattedId = String(nextId).padStart(6, '0');
+            
+            // ✅ Format as BGLA-XXXXXX (6 digits)
+            const formattedId = `BGLA-${String(nextId).padStart(6, '0')}`;
             console.log(`✅ Generated Application ID: ${formattedId}`);
-
+            
             setFormData((prev) => ({
                 ...prev,
                 applicationId: formattedId,
                 requestId: nextId,
             }));
-
-            // ✅ Show success message
-            setSnackbar({
-                open: true,
-                message: `Application ID generated: ${formattedId}`,
-                severity: "success",
-            });
-
+            
         } catch (error) {
             console.error("❌ Error generating application ID:", error);
-            console.error("❌ Error details:", error.response || error.message);
-
-            // ✅ Try an alternative approach - fetch last request ID using a different endpoint
-            try {
-                console.log("🔄 Trying alternative endpoint...");
-                // Try to get the last request ID directly
-                const altRes = await api.get('/leave/requests/last');
-                console.log("📊 Alternative response:", altRes.data);
-
-                let lastId = 0;
-                if (altRes.data?.data) {
-                    lastId = altRes.data.data || 0;
-                } else if (altRes.data) {
-                    lastId = altRes.data || 0;
-                }
-
-                const nextId = lastId + 1;
-                const formattedId = String(nextId).padStart(6, '0');
-
-                console.log(`✅ Generated Application ID (alternative): ${formattedId}`);
-
-                setFormData((prev) => ({
-                    ...prev,
-                    applicationId: formattedId,
-                    requestId: nextId,
-                }));
-
-                setSnackbar({
-                    open: true,
-                    message: `Application ID generated: ${formattedId}`,
-                    severity: "success",
-                });
-
-            } catch (altError) {
-                console.error("❌ Alternative also failed:", altError);
-
-                // ✅ Last resort: Use a default starting ID
-                console.log("📊 Using default starting ID");
-                const defaultId = '000001';
-                setFormData((prev) => ({
-                    ...prev,
-                    applicationId: defaultId,
-                    requestId: 1,
-                }));
-
-                setSnackbar({
-                    open: true,
-                    message: "Using default Application ID. Please refresh if needed.",
-                    severity: "warning",
-                });
-            }
+            // ✅ Fallback
+            setFormData((prev) => ({
+                ...prev,
+                applicationId: 'BGLA-000001',
+                requestId: 1,
+            }));
+            setSnackbar({
+                open: true,
+                message: "Using default Application ID. Please refresh if needed.",
+                severity: "warning",
+            });
         } finally {
             setGeneratingId(false);
         }
@@ -224,7 +159,7 @@ const LeaveApplicationForm = () => {
     // ============================================
     const fetchEmployeeByCode = async (code) => {
         console.log("🔍 Fetching employee with code:", code);
-
+        
         if (!code || code.trim() === "") {
             setFormData((prev) => ({
                 ...prev,
@@ -244,13 +179,13 @@ const LeaveApplicationForm = () => {
         try {
             const res = await api.get(`/employees/code/${code}`);
             console.log("✅ API Response:", res.data);
-
+            
             const emp = res.data?.data;
             console.log("✅ Employee data:", emp);
 
             if (emp) {
                 console.log("✅ Employee found:", emp.Name);
-
+                
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
@@ -263,7 +198,7 @@ const LeaveApplicationForm = () => {
                     console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
                 }
-
+                
                 setSnackbar({
                     open: true,
                     message: `Employee ${emp.Name} loaded successfully`,
@@ -340,9 +275,9 @@ const LeaveApplicationForm = () => {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
                     const totalAllowed = bal.TotalAllowed || bal.totalAllowed || 0;
-
+                    
                     console.log(`📊 Processing ${name}: Total=${totalAllowed}`);
-
+                    
                     if (name.toLowerCase().includes("sick")) {
                         balanceMap.sickLeaves = totalAllowed;
                     } else if (name.toLowerCase().includes("casual")) {
@@ -466,17 +401,17 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // HANDLE SUBMIT
+    // ✅ HANDLE SUBMIT - Uses RequestCode from database
     // ============================================
     const handleSubmit = async () => {
         console.log("📝 Submitting form...");
         console.log("📝 Form data:", formData);
-
+        
         if (!validateForm()) {
-            setSnackbar({
-                open: true,
-                message: "Please fill in all required fields",
-                severity: "error"
+            setSnackbar({ 
+                open: true, 
+                message: "Please fill in all required fields", 
+                severity: "error" 
             });
             return;
         }
@@ -505,28 +440,31 @@ const LeaveApplicationForm = () => {
             const response = await applyLeave(payload);
             console.log("✅ Submit response:", response);
 
+            // ✅ Extract RequestCode from response
             const requestId = response.data?.data?.RequestID || response.data?.RequestID;
-
+            const requestCode = response.data?.data?.RequestCode || response.data?.RequestCode;
+            
             if (requestId) {
                 console.log("✅ RequestID from database:", requestId);
-
-                // ✅ Update with the actual database ID
-                const formattedId = `LVE-${String(requestId).padStart(6, '0')}`;
-
+                console.log("✅ RequestCode from database:", requestCode);
+                
+                // ✅ Use the RequestCode from the database
+                const formattedCode = requestCode || `BGLA-${String(requestId).padStart(6, '0')}`;
+                
                 setFormData((prev) => ({
                     ...prev,
                     requestId: requestId,
-                    applicationId: formattedId,
+                    applicationId: formattedCode,
                 }));
             }
 
             setSnackbar({
                 open: true,
-                message: `Leave application submitted successfully! Application ID: ${formData.applicationId}`,
+                message: `Leave application submitted! ID: ${formData.applicationId}`,
                 severity: "success",
             });
 
-            // ✅ Regenerate ID for next application
+            // ✅ Regenerate next ID after submit
             setTimeout(() => {
                 generateApplicationId();
             }, 2000);
@@ -536,7 +474,7 @@ const LeaveApplicationForm = () => {
         } catch (error) {
             console.error("❌ Submit error:", error);
             console.error("❌ Error details:", error.response);
-
+            
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || "Failed to submit leave application",
@@ -952,11 +890,11 @@ const LeaveApplicationForm = () => {
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="body2">
-                                    <strong>Application ID:</strong>
+                                    <strong>Application ID:</strong> 
                                     {generatingId ? (
                                         <CircularProgress size={16} sx={{ ml: 1 }} />
                                     ) : formData.applicationId ? (
-                                        ` ${formData.applicationId}`  // ✅ Shows as 000001, 000002, etc.
+                                        ` ${formData.applicationId}`
                                     ) : (
                                         <span style={{ color: '#d32f2f', fontWeight: 'bold', marginLeft: '8px' }}>
                                             ⚠️ Failed to load
@@ -1074,35 +1012,35 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth
-                                    label="Start Date *"
+                                    fullWidth 
+                                    label="Start Date *" 
                                     type="date"
                                     value={formData.startDate}
                                     onChange={handleChange("startDate")}
-                                    required
-                                    error={!!errors.startDate}
+                                    required 
+                                    error={!!errors.startDate} 
                                     helperText={errors.startDate}
-                                    size="small"
+                                    size="small" 
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth
-                                    label="End Date *"
+                                    fullWidth 
+                                    label="End Date *" 
                                     type="date"
                                     value={formData.endDate}
                                     onChange={handleChange("endDate")}
-                                    required
-                                    error={!!errors.endDate}
+                                    required 
+                                    error={!!errors.endDate} 
                                     helperText={errors.endDate}
-                                    size="small"
+                                    size="small" 
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 1 }}>
                                 <TextField
-                                    fullWidth
+                                    fullWidth 
                                     label="Total Days"
                                     value={formData.weight}
                                     InputProps={{ readOnly: true }}
@@ -1112,14 +1050,14 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={12}>
                                 <TextField
-                                    fullWidth
+                                    fullWidth 
                                     label="Reason for Leave *"
                                     value={formData.reason}
                                     onChange={handleChange("reason")}
-                                    required
-                                    error={!!errors.reason}
+                                    required 
+                                    error={!!errors.reason} 
                                     helperText={errors.reason}
-                                    multiline
+                                    multiline 
                                     rows={3}
                                     placeholder="Please provide a detailed reason for leave..."
                                 />
@@ -1143,11 +1081,11 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
-                                    fullWidth
+                                    fullWidth 
                                     label="Prepared By *"
                                     value={formData.preparedBy}
                                     onChange={handleChange("preparedBy")}
-                                    error={!!errors.preparedBy}
+                                    error={!!errors.preparedBy} 
                                     helperText={errors.preparedBy}
                                     size="small"
                                 />
@@ -1163,9 +1101,9 @@ const LeaveApplicationForm = () => {
                             Reset
                         </Button>
                         <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                            startIcon={<SendIcon />}
+                            variant="contained" 
+                            onClick={handleSubmit} 
+                            startIcon={<SendIcon />} 
                             size="large"
                             sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
                             disabled={loading}
@@ -1177,7 +1115,7 @@ const LeaveApplicationForm = () => {
             ) : (
                 /* Print Preview */
                 <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
-                    {/* Print Preview Content - Same as before */}
+                    {/* Print Preview Content */}
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
