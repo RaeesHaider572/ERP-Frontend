@@ -46,7 +46,7 @@ const LeaveApplicationForm = () => {
         designation: "",
         department: "",
         preparedBy: "",
-        applicationId: "", // Will be set after submission
+        applicationId: "", // Will be auto-generated
         applicationDate: getTodayDate(),
         leaveType: "Sick",
         paidStatus: "Paid",
@@ -60,7 +60,7 @@ const LeaveApplicationForm = () => {
         annualLeaves: 0,
         compensatoryLeaves: 0,
         employeeId: null,
-        requestId: null, // Store the actual RequestID from database
+        requestId: null,
     };
 
     const [formData, setFormData] = useState(initialState);
@@ -69,7 +69,72 @@ const LeaveApplicationForm = () => {
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [loading, setLoading] = useState(false);
     const [fetchingEmployee, setFetchingEmployee] = useState(false);
-    const [submittedData, setSubmittedData] = useState(null); // Store submitted data for print
+    const [generatingId, setGeneratingId] = useState(false);
+
+    // ============================================
+    // ✅ AUTO-GENERATE APPLICATION ID ON LOAD
+    // ============================================
+    useEffect(() => {
+        generateApplicationId();
+    }, []);
+
+    // ============================================
+    // ✅ GENERATE APPLICATION ID FROM DATABASE
+    // ============================================
+    const generateApplicationId = async () => {
+        setGeneratingId(true);
+        try {
+            console.log("🆔 Generating Application ID...");
+            
+            // ✅ Get the latest leave request from database
+            const res = await api.get('/leave/requests');
+            console.log("📊 Latest requests response:", res.data);
+            
+            let requests = [];
+            if (res.data?.data) {
+                requests = res.data.data;
+            } else if (Array.isArray(res.data)) {
+                requests = res.data;
+            }
+            
+            let nextId = 1;
+            
+            if (requests && requests.length > 0) {
+                // ✅ Find the maximum RequestID
+                const maxId = Math.max(...requests.map(r => r.RequestID || 0));
+                nextId = maxId + 1;
+                console.log(`📊 Last RequestID: ${maxId}, Next ID: ${nextId}`);
+            } else {
+                console.log("📊 No existing requests, starting from 1");
+            }
+            
+            // ✅ Format as LVE-XXXXXX (e.g., LVE-000001)
+            const formattedId = `LVE-${String(nextId).padStart(6, '0')}`;
+            console.log(`✅ Generated Application ID: ${formattedId}`);
+            
+            setFormData((prev) => ({
+                ...prev,
+                applicationId: formattedId,
+                requestId: nextId,
+            }));
+            
+        } catch (error) {
+            console.error("❌ Error generating application ID:", error);
+            // ✅ Fallback: Generate a temporary ID if API fails
+            const fallbackId = `LVE-${String(Date.now()).slice(-6)}`;
+            setFormData((prev) => ({
+                ...prev,
+                applicationId: fallbackId,
+            }));
+            setSnackbar({
+                open: true,
+                message: "Using temporary ID. Please refresh if needed.",
+                severity: "warning",
+            });
+        } finally {
+            setGeneratingId(false);
+        }
+    };
 
     // ============================================
     // FETCH EMPLOYEE DATA BY CODE
@@ -111,7 +176,6 @@ const LeaveApplicationForm = () => {
                     employeeId: emp.EmployeeID || null,
                 }));
 
-                // ✅ Fetch leave balances
                 if (emp.EmployeeID) {
                     console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
@@ -319,7 +383,7 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // ✅ HANDLE SUBMIT - Fetches RequestID from database
+    // HANDLE SUBMIT
     // ============================================
     const handleSubmit = async () => {
         console.log("📝 Submitting form...");
@@ -355,36 +419,34 @@ const LeaveApplicationForm = () => {
 
             console.log("📤 Submitting payload:", payload);
 
-            // ✅ Apply leave and get the response with RequestID
             const response = await applyLeave(payload);
             console.log("✅ Submit response:", response);
 
-            // ✅ Extract the RequestID from the response
             const requestId = response.data?.data?.RequestID || response.data?.RequestID;
             
             if (requestId) {
                 console.log("✅ RequestID from database:", requestId);
                 
-                // ✅ Update form with the database RequestID
+                // ✅ Update with the actual database ID
+                const formattedId = `LVE-${String(requestId).padStart(6, '0')}`;
+                
                 setFormData((prev) => ({
                     ...prev,
                     requestId: requestId,
-                    applicationId: `LVE-${String(requestId).padStart(6, '0')}`, // Format as LVE-000001
+                    applicationId: formattedId,
                 }));
-
-                // ✅ Store submitted data for print
-                setSubmittedData({
-                    ...formData,
-                    requestId: requestId,
-                    applicationId: `LVE-${String(requestId).padStart(6, '0')}`,
-                });
             }
 
             setSnackbar({
                 open: true,
-                message: `Leave application submitted successfully! Application ID: LVE-${String(requestId).padStart(6, '0')}`,
+                message: `Leave application submitted successfully! Application ID: ${formData.applicationId}`,
                 severity: "success",
             });
+
+            // ✅ Regenerate ID for next application
+            setTimeout(() => {
+                generateApplicationId();
+            }, 2000);
 
             setTimeout(() => setShowPrintPreview(true), 1000);
 
@@ -408,11 +470,11 @@ const LeaveApplicationForm = () => {
     const handleReset = () => {
         setFormData({
             ...initialState,
-            applicationDate: getTodayDate()
+            applicationDate: getTodayDate(),
+            applicationId: formData.applicationId, // Keep the generated ID
         });
         setErrors({});
         setShowPrintPreview(false);
-        setSubmittedData(null);
     };
 
     // ============================================
@@ -444,79 +506,74 @@ const LeaveApplicationForm = () => {
     // ============================================
     // LEAVE BALANCE TABLE
     // ============================================
-    const LeaveBalanceTable = ({ editable = false }) => {
-        // Use submitted data for print preview if available
-        const data = submittedData || formData;
-        
-        return (
-            <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none" }}>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                            <TableCell><strong>Leave Type</strong></TableCell>
-                            <TableCell align="right"><strong>Opening Balance</strong></TableCell>
-                            <TableCell align="right"><strong>Applied Days</strong></TableCell>
-                            <TableCell align="right"><strong>Closing Balance</strong></TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {leaveTypes.map((lt, i) => {
-                            const opening = parseFloat(data[lt.balanceKey]) || 0;
-                            const isActive = data.leaveType === lt.value;
-                            const applied = isActive ? parseFloat(data.weight) || 0 : 0;
-                            const closing = Math.max(0, opening - applied);
+    const LeaveBalanceTable = ({ editable = false }) => (
+        <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none" }}>
+            <Table size="small">
+                <TableHead>
+                    <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                        <TableCell><strong>Leave Type</strong></TableCell>
+                        <TableCell align="right"><strong>Opening Balance</strong></TableCell>
+                        <TableCell align="right"><strong>Applied Days</strong></TableCell>
+                        <TableCell align="right"><strong>Closing Balance</strong></TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {leaveTypes.map((lt, i) => {
+                        const opening = parseFloat(formData[lt.balanceKey]) || 0;
+                        const isActive = formData.leaveType === lt.value;
+                        const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
+                        const closing = Math.max(0, opening - applied);
 
-                            return (
-                                <TableRow
-                                    key={lt.value}
+                        return (
+                            <TableRow
+                                key={lt.value}
+                                sx={{
+                                    bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
+                                    ...(isActive && {
+                                        bgcolor: `${theme.palette.primary.main}10`,
+                                        "& td": { fontWeight: "bold" },
+                                    }),
+                                }}
+                            >
+                                <TableCell>{lt.label}</TableCell>
+                                <TableCell align="right">
+                                    {editable ? (
+                                        <TextField
+                                            type="number"
+                                            value={formData[lt.balanceKey]}
+                                            onChange={handleBalanceChange(lt.balanceKey)}
+                                            size="small"
+                                            placeholder="0"
+                                            inputProps={{ min: 0, style: { textAlign: "right", width: 70 } }}
+                                            variant="standard"
+                                            sx={{ width: 80 }}
+                                        />
+                                    ) : (
+                                        opening
+                                    )}
+                                </TableCell>
+                                <TableCell
+                                    align="right"
+                                    sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
+                                >
+                                    {applied || 0}
+                                </TableCell>
+                                <TableCell
+                                    align="right"
                                     sx={{
-                                        bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
-                                        ...(isActive && {
-                                            bgcolor: `${theme.palette.primary.main}10`,
-                                            "& td": { fontWeight: "bold" },
-                                        }),
+                                        fontWeight: "bold",
+                                        color: closing < 0 ? "error.main" : "inherit",
                                     }}
                                 >
-                                    <TableCell>{lt.label}</TableCell>
-                                    <TableCell align="right">
-                                        {editable ? (
-                                            <TextField
-                                                type="number"
-                                                value={data[lt.balanceKey]}
-                                                onChange={handleBalanceChange(lt.balanceKey)}
-                                                size="small"
-                                                placeholder="0"
-                                                inputProps={{ min: 0, style: { textAlign: "right", width: 70 } }}
-                                                variant="standard"
-                                                sx={{ width: 80 }}
-                                            />
-                                        ) : (
-                                            opening
-                                        )}
-                                    </TableCell>
-                                    <TableCell
-                                        align="right"
-                                        sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
-                                    >
-                                        {applied || 0}
-                                    </TableCell>
-                                    <TableCell
-                                        align="right"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            color: closing < 0 ? "error.main" : "inherit",
-                                        }}
-                                    >
-                                        {closing}
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        );
-    };
+                                    {closing}
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                </TableBody>
+            </Table>
+        </TableContainer>
+    );
 
     // ============================================
     // SIGNATURE BLOCK
@@ -557,19 +614,15 @@ const LeaveApplicationForm = () => {
     );
 
     // ============================================
-    // ✅ HANDLE PRINT - Uses database RequestID
+    // HANDLE PRINT
     // ============================================
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
-        
-        // Use submitted data for print
-        const printData = submittedData || formData;
-        const appId = printData.applicationId || formData.applicationId || 'N/A';
 
         const balanceRows = leaveTypes.map((lt) => {
-            const opening = parseFloat(printData[lt.balanceKey]) || 0;
-            const isActive = printData.leaveType === lt.value;
-            const applied = isActive ? parseFloat(printData.weight) || 0 : 0;
+            const opening = parseFloat(formData[lt.balanceKey]) || 0;
+            const isActive = formData.leaveType === lt.value;
+            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
             const closing = Math.max(0, opening - applied);
             const isHighlighted = isActive ? 'highlight' : '';
 
@@ -587,7 +640,7 @@ const LeaveApplicationForm = () => {
             <!DOCTYPE html>
             <html>
                 <head>
-                    <title>Leave Application - ${appId}</title>
+                    <title>Leave Application - ${formData.applicationId}</title>
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
@@ -636,8 +689,8 @@ const LeaveApplicationForm = () => {
                                 <div class="form-title">Leave Application Form</div>
                             </div>
                             <div class="app-info">
-                                <span><strong>Application ID:</strong> ${appId}</span>
-                                <span><strong>Application Date:</strong> ${formatDate(printData.applicationDate)}</span>
+                                <span><strong>Application ID:</strong> ${formData.applicationId}</span>
+                                <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
                             </div>
                         </div>
 
@@ -646,19 +699,19 @@ const LeaveApplicationForm = () => {
                             <div class="info-grid">
                                 <div class="info-item">
                                     <div class="info-label">Employee Code</div>
-                                    <div class="info-value">${printData.employeeCode || "—"}</div>
+                                    <div class="info-value">${formData.employeeCode || "—"}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">Employee Name</div>
-                                    <div class="info-value">${printData.employeeName || "—"}</div>
+                                    <div class="info-value">${formData.employeeName || "—"}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">Designation</div>
-                                    <div class="info-value">${printData.designation || "—"}</div>
+                                    <div class="info-value">${formData.designation || "—"}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">Department</div>
-                                    <div class="info-value">${printData.department || "—"}</div>
+                                    <div class="info-value">${formData.department || "—"}</div>
                                 </div>
                             </div>
                         </div>
@@ -672,24 +725,24 @@ const LeaveApplicationForm = () => {
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">Paid / Unpaid</div>
-                                    <div class="info-value">${printData.paidStatus}</div>
+                                    <div class="info-value">${formData.paidStatus}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">From</div>
-                                    <div class="info-value highlight">${formatDate(printData.startDate)}</div>
+                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">To</div>
-                                    <div class="info-value highlight">${formatDate(printData.endDate)}</div>
+                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">Total Days</div>
-                                    <div class="info-value highlight">${printData.weight || "0"} day${printData.weight !== "1" ? "s" : ""}</div>
+                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
                                 </div>
                             </div>
                             <div class="full-width">
                                 <div class="info-label">Reason for Leave</div>
-                                <div class="reason-box">${printData.reason || "—"}</div>
+                                <div class="reason-box">${formData.reason || "—"}</div>
                             </div>
                         </div>
 
@@ -712,7 +765,7 @@ const LeaveApplicationForm = () => {
 
                         <div class="approval-header">
                             <div class="approval-title">Approval Information</div>
-                            <div><strong>Prepared By:</strong> ${printData.preparedBy || "—"}</div>
+                            <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
                         </div>
 
                         <div class="signature-grid">
@@ -817,7 +870,11 @@ const LeaveApplicationForm = () => {
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="body2">
                                     <strong>Application ID:</strong> 
-                                    {formData.applicationId ? ` ${formData.applicationId}` : ' Will be generated on submit'}
+                                    {generatingId ? (
+                                        <CircularProgress size={16} sx={{ ml: 1 }} />
+                                    ) : (
+                                        ` ${formData.applicationId || 'Loading...'}`
+                                    )}
                                 </Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }} sx={{ textAlign: { xs: "left", md: "right" } }}>
@@ -1031,10 +1088,9 @@ const LeaveApplicationForm = () => {
                     </Stack>
                 </Box>
             ) : (
-                /* Print Preview - Using submitted data with database RequestID */
+                /* Print Preview */
                 <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
-                    {/* Same as print preview above but uses submittedData */}
-                    {/* Company Header */}
+                    {/* Print Preview Content - Same as before */}
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
@@ -1050,9 +1106,7 @@ const LeaveApplicationForm = () => {
                         </Grid>
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2">
-                                    <strong>Application ID:</strong> {submittedData?.applicationId || formData.applicationId || 'N/A'}
-                                </Typography>
+                                <Typography variant="body2"><strong>Application ID:</strong> {formData.applicationId}</Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }} sx={{ textAlign: { xs: "left", md: "right" } }}>
                                 <Typography variant="body2"><strong>Application Date:</strong> {formatDate(formData.applicationDate)}</Typography>
