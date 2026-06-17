@@ -39,7 +39,7 @@ const LeaveApplicationForm = () => {
     const printRef = useRef();
 
     const getTodayDate = () => new Date().toISOString().split('T')[0];
-    
+
     const initialState = {
         employeeCode: "",
         employeeName: "",
@@ -85,20 +85,20 @@ const LeaveApplicationForm = () => {
         setGeneratingId(true);
         try {
             console.log("🆔 Generating Application ID...");
-            
+
             // ✅ Get the latest leave request from database
             const res = await api.get('/leave/requests');
             console.log("📊 Latest requests response:", res.data);
-            
+
             let requests = [];
             if (res.data?.data) {
                 requests = res.data.data;
             } else if (Array.isArray(res.data)) {
                 requests = res.data;
             }
-            
+
             let nextId = 1;
-            
+
             if (requests && requests.length > 0) {
                 // ✅ Find the maximum RequestID
                 const maxId = Math.max(...requests.map(r => r.RequestID || 0));
@@ -107,29 +107,28 @@ const LeaveApplicationForm = () => {
             } else {
                 console.log("📊 No existing requests, starting from 1");
             }
-            
+
             // ✅ Format as LVE-XXXXXX (e.g., LVE-000001)
             const formattedId = `LVE-${String(nextId).padStart(6, '0')}`;
             console.log(`✅ Generated Application ID: ${formattedId}`);
-            
+
             setFormData((prev) => ({
                 ...prev,
                 applicationId: formattedId,
                 requestId: nextId,
             }));
-            
+
         } catch (error) {
             console.error("❌ Error generating application ID:", error);
-            // ✅ Fallback: Generate a temporary ID if API fails
-            const fallbackId = `LVE-${String(Date.now()).slice(-6)}`;
+            // ✅ Show error and keep ID empty
             setFormData((prev) => ({
                 ...prev,
-                applicationId: fallbackId,
+                applicationId: "",
             }));
             setSnackbar({
                 open: true,
-                message: "Using temporary ID. Please refresh if needed.",
-                severity: "warning",
+                message: "Failed to generate Application ID. Please refresh the page.",
+                severity: "error",
             });
         } finally {
             setGeneratingId(false);
@@ -141,7 +140,7 @@ const LeaveApplicationForm = () => {
     // ============================================
     const fetchEmployeeByCode = async (code) => {
         console.log("🔍 Fetching employee with code:", code);
-        
+
         if (!code || code.trim() === "") {
             setFormData((prev) => ({
                 ...prev,
@@ -161,13 +160,13 @@ const LeaveApplicationForm = () => {
         try {
             const res = await api.get(`/employees/code/${code}`);
             console.log("✅ API Response:", res.data);
-            
+
             const emp = res.data?.data;
             console.log("✅ Employee data:", emp);
 
             if (emp) {
                 console.log("✅ Employee found:", emp.Name);
-                
+
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
@@ -180,7 +179,7 @@ const LeaveApplicationForm = () => {
                     console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
                 }
-                
+
                 setSnackbar({
                     open: true,
                     message: `Employee ${emp.Name} loaded successfully`,
@@ -257,9 +256,9 @@ const LeaveApplicationForm = () => {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
                     const totalAllowed = bal.TotalAllowed || bal.totalAllowed || 0;
-                    
+
                     console.log(`📊 Processing ${name}: Total=${totalAllowed}`);
-                    
+
                     if (name.toLowerCase().includes("sick")) {
                         balanceMap.sickLeaves = totalAllowed;
                     } else if (name.toLowerCase().includes("casual")) {
@@ -388,12 +387,12 @@ const LeaveApplicationForm = () => {
     const handleSubmit = async () => {
         console.log("📝 Submitting form...");
         console.log("📝 Form data:", formData);
-        
+
         if (!validateForm()) {
-            setSnackbar({ 
-                open: true, 
-                message: "Please fill in all required fields", 
-                severity: "error" 
+            setSnackbar({
+                open: true,
+                message: "Please fill in all required fields",
+                severity: "error"
             });
             return;
         }
@@ -423,13 +422,13 @@ const LeaveApplicationForm = () => {
             console.log("✅ Submit response:", response);
 
             const requestId = response.data?.data?.RequestID || response.data?.RequestID;
-            
+
             if (requestId) {
                 console.log("✅ RequestID from database:", requestId);
-                
+
                 // ✅ Update with the actual database ID
                 const formattedId = `LVE-${String(requestId).padStart(6, '0')}`;
-                
+
                 setFormData((prev) => ({
                     ...prev,
                     requestId: requestId,
@@ -453,7 +452,7 @@ const LeaveApplicationForm = () => {
         } catch (error) {
             console.error("❌ Submit error:", error);
             console.error("❌ Error details:", error.response);
-            
+
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || "Failed to submit leave application",
@@ -869,11 +868,13 @@ const LeaveApplicationForm = () => {
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="body2">
-                                    <strong>Application ID:</strong> 
+                                    <strong>Application ID:</strong>
                                     {generatingId ? (
                                         <CircularProgress size={16} sx={{ ml: 1 }} />
+                                    ) : formData.applicationId ? (
+                                        ` ${formData.applicationId}`
                                     ) : (
-                                        ` ${formData.applicationId || 'Loading...'}`
+                                        <span style={{ color: 'red', fontWeight: 'bold' }}> Failed to load</span>
                                     )}
                                 </Typography>
                             </Grid>
@@ -987,35 +988,35 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth 
-                                    label="Start Date *" 
+                                    fullWidth
+                                    label="Start Date *"
                                     type="date"
                                     value={formData.startDate}
                                     onChange={handleChange("startDate")}
-                                    required 
-                                    error={!!errors.startDate} 
+                                    required
+                                    error={!!errors.startDate}
                                     helperText={errors.startDate}
-                                    size="small" 
+                                    size="small"
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth 
-                                    label="End Date *" 
+                                    fullWidth
+                                    label="End Date *"
                                     type="date"
                                     value={formData.endDate}
                                     onChange={handleChange("endDate")}
-                                    required 
-                                    error={!!errors.endDate} 
+                                    required
+                                    error={!!errors.endDate}
                                     helperText={errors.endDate}
-                                    size="small" 
+                                    size="small"
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 1 }}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Total Days"
                                     value={formData.weight}
                                     InputProps={{ readOnly: true }}
@@ -1025,14 +1026,14 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={12}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Reason for Leave *"
                                     value={formData.reason}
                                     onChange={handleChange("reason")}
-                                    required 
-                                    error={!!errors.reason} 
+                                    required
+                                    error={!!errors.reason}
                                     helperText={errors.reason}
-                                    multiline 
+                                    multiline
                                     rows={3}
                                     placeholder="Please provide a detailed reason for leave..."
                                 />
@@ -1056,11 +1057,11 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Prepared By *"
                                     value={formData.preparedBy}
                                     onChange={handleChange("preparedBy")}
-                                    error={!!errors.preparedBy} 
+                                    error={!!errors.preparedBy}
                                     helperText={errors.preparedBy}
                                     size="small"
                                 />
@@ -1076,9 +1077,9 @@ const LeaveApplicationForm = () => {
                             Reset
                         </Button>
                         <Button
-                            variant="contained" 
-                            onClick={handleSubmit} 
-                            startIcon={<SendIcon />} 
+                            variant="contained"
+                            onClick={handleSubmit}
+                            startIcon={<SendIcon />}
                             size="large"
                             sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
                             disabled={loading}
