@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { applyLeave } from "../../services/leaveService";
 import api from "../../services/authService";
 import {
@@ -38,12 +38,9 @@ const LeaveApplicationForm = () => {
     const theme = useTheme();
     const printRef = useRef();
 
-    // ── debounce ref ──────────────────────────────────────────
-    const debounceTimer = useRef(null);
-
     const generateAppId = () => `LVE-${Date.now().toString().slice(-8)}`;
-    const getTodayDate = () => new Date().toISOString().split("T")[0];
-
+    const getTodayDate = () => new Date().toISOString().split('T')[0];
+    
     const initialState = {
         employeeCode: "",
         employeeName: "",
@@ -59,10 +56,11 @@ const LeaveApplicationForm = () => {
         weight: "",
         reason: "",
         status: "Pending",
-        sickLeaves: "",
-        casualLeaves: "",
-        annualLeaves: "",
-        compensatoryLeaves: "",
+        sickLeaves: 0,
+        casualLeaves: 0,
+        annualLeaves: 0,
+        compensatoryLeaves: 0,
+        employeeId: null,
     };
 
     const [formData, setFormData] = useState(initialState);
@@ -73,144 +71,164 @@ const LeaveApplicationForm = () => {
     const [fetchingEmployee, setFetchingEmployee] = useState(false);
 
     // ============================================
-    // FETCH LEAVE BALANCES BY EMPLOYEE ID
-    // ============================================
-    const fetchLeaveBalances = async (employeeId) => {
-        try {
-            const res = await api.get(`/leave/balances/employee/${employeeId}`);
-            console.log("Leave balances response:", res.data);
-
-            let balances = [];
-            if (Array.isArray(res.data?.data)) {
-                balances = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                balances = res.data;
-            }
-
-            console.log("Parsed balances array:", balances);
-
-            if (balances.length > 0) {
-                const balanceMap = {};
-                balances.forEach((bal) => {
-                    const name = (bal.LeaveName || bal.leaveName || "").toLowerCase();
-                    const remaining =
-                        bal.RemainingDays ?? bal.remainingDays ?? bal.TotalAllowed ?? 0;
-
-                    if (name.includes("sick")) {
-                        balanceMap.sickLeaves = remaining;
-                    } else if (name.includes("casual")) {
-                        balanceMap.casualLeaves = remaining;
-                    } else if (name.includes("annual")) {
-                        balanceMap.annualLeaves = remaining;
-                    } else if (name.includes("compensatory")) {
-                        balanceMap.compensatoryLeaves = remaining;
-                    }
-                });
-
-                console.log("Mapped balances:", balanceMap);
-
-                setFormData((prev) => ({
-                    ...prev,
-                    sickLeaves: balanceMap.sickLeaves ?? "",
-                    casualLeaves: balanceMap.casualLeaves ?? "",
-                    annualLeaves: balanceMap.annualLeaves ?? "",
-                    compensatoryLeaves: balanceMap.compensatoryLeaves ?? "",
-                }));
-            } else {
-                console.warn("No balance records returned for employee:", employeeId);
-            }
-        } catch (err) {
-            console.error("Error fetching leave balances:", err);
-            // silently ignore – leave balance fields stay empty
-        }
-    };
-
-    // ============================================
     // FETCH EMPLOYEE DATA BY CODE
     // ============================================
-    const fetchEmployeeByCode = useCallback(async (code) => {
-        const trimmed = code?.trim();
-
-        if (!trimmed) {
-            // Clear employee-related fields when input is cleared
+    const fetchEmployeeByCode = async (code) => {
+        console.log("🔍 Fetching employee with code:", code);
+        
+        if (!code || code.trim() === "") {
             setFormData((prev) => ({
                 ...prev,
                 employeeName: "",
                 designation: "",
                 department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
+                sickLeaves: 0,
+                casualLeaves: 0,
+                annualLeaves: 0,
+                compensatoryLeaves: 0,
+                employeeId: null,
             }));
             return;
         }
 
         setFetchingEmployee(true);
         try {
-            const res = await api.get(`/employees/code/${trimmed}`);
-            console.log("Employee API response:", res.data);
+            const res = await api.get(`/employees/code/${code}`);
+            console.log("✅ API Response:", res.data);
+            
+            const emp = res.data?.data;
+            console.log("✅ Employee data:", emp);
 
-            // Backend wraps data in { data: { data: emp } } via success() util
-            const emp = res.data?.data ?? res.data;
-
-            if (emp && emp.EmployeeID) {
-                console.log("Employee found:", emp.Name, "ID:", emp.EmployeeID);
-
+            if (emp) {
+                console.log("✅ Employee found:", emp.Name);
+                
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
                     designation: emp.Designation || "",
                     department: emp.Department || "",
+                    employeeId: emp.EmployeeID || null,
                 }));
 
-                // Fetch leave balances using the resolved EmployeeID
-                await fetchLeaveBalances(emp.EmployeeID);
-
+                // ✅ Fetch leave balances
+                if (emp.EmployeeID) {
+                    console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
+                    await fetchLeaveBalances(emp.EmployeeID);
+                }
+                
                 setSnackbar({
                     open: true,
-                    message: `Employee "${emp.Name}" loaded successfully`,
+                    message: `Employee ${emp.Name} loaded successfully`,
                     severity: "success",
                 });
             } else {
-                // Employee not found – clear fields
+                console.log("❌ No employee found");
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: "",
                     designation: "",
                     department: "",
-                    sickLeaves: "",
-                    casualLeaves: "",
-                    annualLeaves: "",
-                    compensatoryLeaves: "",
+                    sickLeaves: 0,
+                    casualLeaves: 0,
+                    annualLeaves: 0,
+                    compensatoryLeaves: 0,
+                    employeeId: null,
                 }));
                 setSnackbar({
                     open: true,
-                    message: `No employee found for code "${trimmed}"`,
+                    message: `Employee with code "${code}" not found`,
                     severity: "error",
                 });
             }
-        } catch (err) {
-            console.error("Employee fetch error:", err);
+        } catch (error) {
+            console.error("❌ Employee fetch error:", error);
             setFormData((prev) => ({
                 ...prev,
                 employeeName: "",
                 designation: "",
                 department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
+                sickLeaves: 0,
+                casualLeaves: 0,
+                annualLeaves: 0,
+                compensatoryLeaves: 0,
+                employeeId: null,
             }));
             setSnackbar({
                 open: true,
-                message: err.response?.data?.message || "Failed to fetch employee data",
+                message: error.response?.data?.message || "Failed to fetch employee data",
                 severity: "error",
             });
         } finally {
             setFetchingEmployee(false);
         }
-    }, []);
+    };
+
+    // ============================================
+    // FETCH LEAVE BALANCES
+    // ============================================
+    const fetchLeaveBalances = async (employeeId) => {
+        try {
+            console.log("📊 Fetching balances for Employee ID:", employeeId);
+            const res = await api.get(`/leave/balances/employee/${employeeId}`);
+            console.log("📊 Leave balances response:", res.data);
+
+            let balances = [];
+            if (res.data?.data) {
+                balances = res.data.data;
+            } else if (Array.isArray(res.data)) {
+                balances = res.data;
+            }
+
+            console.log("📊 Processed balances:", balances);
+
+            // ✅ Initialize balance map with all leave types
+            const balanceMap = {
+                sickLeaves: 0,
+                casualLeaves: 0,
+                annualLeaves: 0,
+                compensatoryLeaves: 0
+            };
+
+            if (balances && balances.length > 0) {
+                balances.forEach((bal) => {
+                    const name = bal.LeaveName || bal.leaveName || "";
+                    const totalAllowed = bal.TotalAllowed || bal.totalAllowed || 0;
+                    
+                    console.log(`📊 Processing ${name}: Total=${totalAllowed}`);
+                    
+                    if (name.toLowerCase().includes("sick")) {
+                        balanceMap.sickLeaves = totalAllowed;
+                    } else if (name.toLowerCase().includes("casual")) {
+                        balanceMap.casualLeaves = totalAllowed;
+                    } else if (name.toLowerCase().includes("annual")) {
+                        balanceMap.annualLeaves = totalAllowed;
+                    } else if (name.toLowerCase().includes("compensatory")) {
+                        balanceMap.compensatoryLeaves = totalAllowed;
+                    }
+                });
+            }
+
+            console.log("✅ Balance map:", balanceMap);
+
+            setFormData((prev) => ({
+                ...prev,
+                sickLeaves: balanceMap.sickLeaves,
+                casualLeaves: balanceMap.casualLeaves,
+                annualLeaves: balanceMap.annualLeaves,
+                compensatoryLeaves: balanceMap.compensatoryLeaves,
+            }));
+        } catch (error) {
+            console.error("❌ Error fetching leave balances:", error);
+            // ✅ Set to 0 on error
+            setFormData((prev) => ({
+                ...prev,
+                sickLeaves: 0,
+                casualLeaves: 0,
+                annualLeaves: 0,
+                compensatoryLeaves: 0,
+            }));
+        }
+    };
 
     // ============================================
     // CALCULATE DAYS
@@ -221,14 +239,25 @@ const LeaveApplicationForm = () => {
             const end = new Date(formData.endDate);
             if (end >= start) {
                 const diff = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
-                setFormData((prev) => ({ ...prev, weight: diff.toString() }));
+                setFormData(prev => ({ ...prev, weight: diff.toString() }));
             } else {
-                setFormData((prev) => ({ ...prev, weight: "" }));
+                setFormData(prev => ({ ...prev, weight: "" }));
             }
         } else {
-            setFormData((prev) => ({ ...prev, weight: "" }));
+            setFormData(prev => ({ ...prev, weight: "" }));
         }
     }, [formData.startDate, formData.endDate]);
+
+    // ============================================
+    // GET CLOSING BALANCE (Opening - Applied)
+    // ============================================
+    const getClosingBalance = (balanceKey, leaveTypeValue) => {
+        const opening = parseFloat(formData[balanceKey]) || 0;
+        const applied = formData.leaveType === leaveTypeValue
+            ? parseFloat(formData.weight) || 0
+            : 0;
+        return Math.max(0, opening - applied);
+    };
 
     // ============================================
     // HANDLE CHANGE
@@ -236,10 +265,8 @@ const LeaveApplicationForm = () => {
     const handleChange = (field) => (event) => {
         const value = event.target.value;
 
-        // Update form state immediately so the input feels responsive
         setFormData((prev) => ({ ...prev, [field]: value }));
 
-        // Clear validation error for this field
         if (errors[field]) {
             setErrors((prev) => {
                 const e = { ...prev };
@@ -248,29 +275,15 @@ const LeaveApplicationForm = () => {
             });
         }
 
-        // ── Auto-fetch employee with 600 ms debounce ──────────
         if (field === "employeeCode") {
-            clearTimeout(debounceTimer.current);
-            debounceTimer.current = setTimeout(() => {
-                fetchEmployeeByCode(value);
-            }, 600);
+            fetchEmployeeByCode(value);
         }
     };
 
     const handleBalanceChange = (field) => (event) => {
         const value = event.target.value === "" ? "" : parseFloat(event.target.value) || 0;
-        setFormData((prev) => ({ ...prev, [field]: value }));
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
-
-    // ============================================
-    // LEAVE TYPES CONFIG
-    // ============================================
-    const leaveTypes = [
-        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
-        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
-        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
-        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
-    ];
 
     // ============================================
     // VALIDATE FORM
@@ -285,11 +298,8 @@ const LeaveApplicationForm = () => {
         if (!formData.startDate) newErrors.startDate = "Start Date is required";
         if (!formData.endDate) newErrors.endDate = "End Date is required";
         if (!formData.reason) newErrors.reason = "Reason is required";
-        if (
-            formData.startDate &&
-            formData.endDate &&
-            new Date(formData.startDate) > new Date(formData.endDate)
-        ) {
+        if (formData.startDate && formData.endDate &&
+            new Date(formData.startDate) > new Date(formData.endDate)) {
             newErrors.endDate = "End Date must be after Start Date";
         }
         setErrors(newErrors);
@@ -297,38 +307,59 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
+    // GET LEAVE TYPE ID
+    // ============================================
+    const getLeaveTypeId = (leaveTypeName) => {
+        const mapping = {
+            "Sick": 2,
+            "Casual": 3,
+            "Annual": 1,
+            "Compensatory": 4
+        };
+        return mapping[leaveTypeName] || 1;
+    };
+
+    // ============================================
     // HANDLE SUBMIT
     // ============================================
     const handleSubmit = async () => {
+        console.log("📝 Submitting form...");
+        console.log("📝 Form data:", formData);
+        
         if (!validateForm()) {
-            setSnackbar({ open: true, message: "Please fill in all required fields", severity: "error" });
+            setSnackbar({ 
+                open: true, 
+                message: "Please fill in all required fields", 
+                severity: "error" 
+            });
+            return;
+        }
+
+        // ✅ Check if employee ID exists
+        if (!formData.employeeId) {
+            setSnackbar({
+                open: true,
+                message: "Employee not found. Please enter a valid employee code.",
+                severity: "error",
+            });
             return;
         }
 
         setLoading(true);
         try {
+            // ✅ Use employeeId from the form data
             const payload = {
-                employeeCode: formData.employeeCode,
-                employeeName: formData.employeeName,
-                designation: formData.designation,
-                department: formData.department,
-                preparedBy: formData.preparedBy,
-                leaveType: formData.leaveType,
-                paidStatus: formData.paidStatus,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                reason: formData.reason,
-                totalDays: formData.weight,
-                status: "Pending",
-                balances: {
-                    sickLeaves: formData.sickLeaves,
-                    casualLeaves: formData.casualLeaves,
-                    annualLeaves: formData.annualLeaves,
-                    compensatoryLeaves: formData.compensatoryLeaves,
-                },
+                EmployeeID: parseInt(formData.employeeId),
+                LeaveTypeID: getLeaveTypeId(formData.leaveType),
+                StartDate: formData.startDate,
+                EndDate: formData.endDate,
+                Reason: formData.reason || "",
             };
 
-            await applyLeave(payload);
+            console.log("📤 Submitting payload:", payload);
+
+            const response = await applyLeave(payload);
+            console.log("✅ Submit response:", response);
 
             setSnackbar({
                 open: true,
@@ -337,11 +368,14 @@ const LeaveApplicationForm = () => {
             });
 
             setTimeout(() => setShowPrintPreview(true), 1000);
-        } catch (err) {
-            console.error("Submit error:", err);
+
+        } catch (error) {
+            console.error("❌ Submit error:", error);
+            console.error("❌ Error details:", error.response);
+            
             setSnackbar({
                 open: true,
-                message: err.response?.data?.message || "Failed to submit leave application",
+                message: error.response?.data?.message || "Failed to submit leave application",
                 severity: "error",
             });
         } finally {
@@ -353,11 +387,10 @@ const LeaveApplicationForm = () => {
     // HANDLE RESET
     // ============================================
     const handleReset = () => {
-        clearTimeout(debounceTimer.current);
         setFormData({
             ...initialState,
             applicationId: generateAppId(),
-            applicationDate: getTodayDate(),
+            applicationDate: getTodayDate()
         });
         setErrors({});
         setShowPrintPreview(false);
@@ -368,20 +401,26 @@ const LeaveApplicationForm = () => {
     // ============================================
     const formatDate = (date) => {
         if (!date) return "—";
-        return new Date(date).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
+        return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
     // ============================================
     // GET LEAVE TYPE LABEL
     // ============================================
     const getLeaveTypeLabel = () => {
-        const lt = leaveTypes.find((l) => l.value === formData.leaveType);
-        return lt ? lt.label : formData.leaveType;
+        const leaveType = leaveTypes.find(lt => lt.value === formData.leaveType);
+        return leaveType ? leaveType.label : formData.leaveType;
     };
+
+    // ============================================
+    // LEAVE TYPES
+    // ============================================
+    const leaveTypes = [
+        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
+        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
+        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
+        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
+    ];
 
     // ============================================
     // LEAVE BALANCE TABLE
@@ -399,9 +438,7 @@ const LeaveApplicationForm = () => {
                 </TableHead>
                 <TableBody>
                     {leaveTypes.map((lt, i) => {
-                        // opening balance: use the fetched/entered value; fall back to 0 for display
-                        const opening =
-                            formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
+                        const opening = parseFloat(formData[lt.balanceKey]) || 0;
                         const isActive = formData.leaveType === lt.value;
                         const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
                         const closing = Math.max(0, opening - applied);
@@ -418,8 +455,6 @@ const LeaveApplicationForm = () => {
                                 }}
                             >
                                 <TableCell>{lt.label}</TableCell>
-
-                                {/* Opening Balance */}
                                 <TableCell align="right">
                                     {editable ? (
                                         <TextField
@@ -436,16 +471,12 @@ const LeaveApplicationForm = () => {
                                         opening
                                     )}
                                 </TableCell>
-
-                                {/* Applied Days */}
                                 <TableCell
                                     align="right"
                                     sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
                                 >
                                     {applied || 0}
                                 </TableCell>
-
-                                {/* Closing Balance */}
                                 <TableCell
                                     align="right"
                                     sx={{
@@ -502,21 +533,19 @@ const LeaveApplicationForm = () => {
     );
 
     // ============================================
-    // HANDLE PRINT  (unchanged)
+    // HANDLE PRINT
     // ============================================
     const handlePrint = () => {
-        const printWindow = window.open("", "_blank");
+        const printWindow = window.open('', '_blank');
 
-        const balanceRows = leaveTypes
-            .map((lt) => {
-                const opening =
-                    formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
-                const isActive = formData.leaveType === lt.value;
-                const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
-                const closing = Math.max(0, opening - applied);
-                const isHighlighted = isActive ? "highlight" : "";
+        const balanceRows = leaveTypes.map((lt) => {
+            const opening = parseFloat(formData[lt.balanceKey]) || 0;
+            const isActive = formData.leaveType === lt.value;
+            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
+            const closing = Math.max(0, opening - applied);
+            const isHighlighted = isActive ? 'highlight' : '';
 
-                return `
+            return `
                 <tr class="${isHighlighted}">
                     <td>${lt.label}</td>
                     <td class="right">${opening}</td>
@@ -524,8 +553,7 @@ const LeaveApplicationForm = () => {
                     <td class="right"><strong>${closing}</strong></td>
                 </tr>
             `;
-            })
-            .join("");
+        }).join('');
 
         const printHTML = `
             <!DOCTYPE html>
@@ -536,7 +564,7 @@ const LeaveApplicationForm = () => {
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
                         .print-container { max-width: 210mm; margin: 0 auto; background: white; }
-                        .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; grid-template-columns: 15% 85%; gap: 16px; display: flex; flex-wrap: wrap; flex-direction: row; }
+                        .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; flex-direction: row; }
                         .header .header-logo { width: 100px; height: auto; }
                         .header .header-logo img { width: 100%; height: auto; border:0; }
                         .header .header-company { width: auto; height: auto; margin: 0 auto; text-align: center; padding-right: 15%; }
@@ -551,14 +579,13 @@ const LeaveApplicationForm = () => {
                         .info-value { font-size: 14px; font-weight: 500; padding-bottom: 6px; border-bottom: 1px solid #eee; }
                         .info-value.highlight { font-weight: 700; }
                         .details-grid { display: flex; gap: 16px; width: 100%; }
-                        .details-grid .info-item { flex: 1; min-width: 0; }
+                        .details-grid .info-item{ flex: 1; min-width: 0; }
                         .full-width { width: 100%; display: block; margin-bottom: 20px; margin-top: 16px; }
-                        .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #ffffff; }
+                        .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #fffff; }
                         .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
                         .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
                         .balance-table th { background: #f5f5f5; font-weight: 700; }
                         .balance-table td.right, .balance-table th.right { text-align: right; }
-                        .balance-table td.center, .balance-table th.center { text-align: center; }
                         .balance-table tr.highlight { background-color: #e3f2fd; }
                         .balance-table tr.highlight td { font-weight: 700; }
                         .approval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #ddd; }
@@ -573,7 +600,9 @@ const LeaveApplicationForm = () => {
                 <body>
                     <div class="print-container">
                         <div class="header">
-                            <div class="header-logo"><img src="${logo}" alt="Bodla Group Logo" /></div>
+                            <div class="header-logo">
+                                <img src="${logo}" alt="Bodla Group Logo" />
+                            </div>
                             <div class="header-company">
                                 <div class="company-name">BODLA GROUP</div>
                                 <div class="form-title">Leave Application Form</div>
@@ -583,29 +612,59 @@ const LeaveApplicationForm = () => {
                                 <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
                             </div>
                         </div>
+
                         <div class="section">
                             <div class="section-title">Employee Information</div>
                             <div class="info-grid">
-                                <div class="info-item"><div class="info-label">Employee Code</div><div class="info-value">${formData.employeeCode || "—"}</div></div>
-                                <div class="info-item"><div class="info-label">Employee Name</div><div class="info-value">${formData.employeeName || "—"}</div></div>
-                                <div class="info-item"><div class="info-label">Designation</div><div class="info-value">${formData.designation || "—"}</div></div>
-                                <div class="info-item"><div class="info-label">Department</div><div class="info-value">${formData.department || "—"}</div></div>
+                                <div class="info-item">
+                                    <div class="info-label">Employee Code</div>
+                                    <div class="info-value">${formData.employeeCode || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Employee Name</div>
+                                    <div class="info-value">${formData.employeeName || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Designation</div>
+                                    <div class="info-value">${formData.designation || "—"}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Department</div>
+                                    <div class="info-value">${formData.department || "—"}</div>
+                                </div>
                             </div>
                         </div>
+
                         <div class="section">
                             <div class="section-title">Leave Details</div>
                             <div class="details-grid">
-                                <div class="info-item"><div class="info-label">Leave Type</div><div class="info-value highlight">${getLeaveTypeLabel()}</div></div>
-                                <div class="info-item"><div class="info-label">Paid / Unpaid</div><div class="info-value">${formData.paidStatus}</div></div>
-                                <div class="info-item"><div class="info-label">From</div><div class="info-value highlight">${formatDate(formData.startDate)}</div></div>
-                                <div class="info-item"><div class="info-label">To</div><div class="info-value highlight">${formatDate(formData.endDate)}</div></div>
-                                <div class="info-item"><div class="info-label">Total Days</div><div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div></div>
+                                <div class="info-item">
+                                    <div class="info-label">Leave Type</div>
+                                    <div class="info-value highlight">${getLeaveTypeLabel()}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Paid / Unpaid</div>
+                                    <div class="info-value">${formData.paidStatus}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">From</div>
+                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">To</div>
+                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Total Days</div>
+                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
+                                </div>
                             </div>
                             <div class="full-width">
                                 <div class="info-label">Reason for Leave</div>
                                 <div class="reason-box">${formData.reason || "—"}</div>
                             </div>
                         </div>
+
                         <div class="section">
                             <div class="section-title">Leave Balance Summary</div>
                             <table class="balance-table">
@@ -617,22 +676,39 @@ const LeaveApplicationForm = () => {
                                         <th class="right">Closing Balance</th>
                                     </tr>
                                 </thead>
-                                <tbody>${balanceRows}</tbody>
+                                <tbody>
+                                    ${balanceRows}
+                                </tbody>
                             </table>
                         </div>
+
                         <div class="approval-header">
                             <div class="approval-title">Approval Information</div>
                             <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
                         </div>
+
                         <div class="signature-grid">
-                            <div class="signature-box"><div class="signature-line">Employee</div></div>
-                            <div class="signature-box"><div class="signature-line">Reporting Manager</div></div>
-                            <div class="signature-box"><div class="signature-line">Department Head</div></div>
-                            <div class="signature-box"><div class="signature-line">HR</div></div>
+                            <div class="signature-box">
+                                <div class="signature-line">Employee</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">Reporting Manager</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">Department Head</div>
+                            </div>
+                            <div class="signature-box">
+                                <div class="signature-line">HR</div>
+                            </div>
                         </div>
                     </div>
                     <script>
-                        window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() {
+                                window.close();
+                            }, 500);
+                        };
                     </script>
                 </body>
             </html>
@@ -683,7 +759,7 @@ const LeaveApplicationForm = () => {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}
-                onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+                onClose={() => setSnackbar(s => ({ ...s, open: false }))}
                 anchorOrigin={{ vertical: "top", horizontal: "right" }}
             >
                 <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
@@ -695,12 +771,8 @@ const LeaveApplicationForm = () => {
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #ddd" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
-                                <Box
-                                    component="img"
-                                    src={logo}
-                                    alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }}
-                                />
+                                <Box component="img" src={logo} alt="Bodla Group"
+                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
@@ -727,32 +799,32 @@ const LeaveApplicationForm = () => {
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
                         <Grid container spacing={1}>
-                            {/* ── Employee Code – triggers auto-fill ── */}
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
-                                    label="Employee Code"
+                                    label="Employee Code *"
+                                    name="employeeCode"
                                     value={formData.employeeCode}
                                     onChange={handleChange("employeeCode")}
                                     required
                                     error={!!errors.employeeCode}
-                                    // helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "")}
-                                    // helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "Enter code to auto-fill")}
+                                    helperText={errors.employeeCode}
                                     size="small"
-                                    placeholder="e.g. EMP0001"
+                                    placeholder="Enter code to auto-fill"
                                     InputProps={{
-                                        endAdornment: fetchingEmployee ? (
-                                            <CircularProgress size={16} sx={{ mr: 1 }} />
-                                        ) : null,
+                                        endAdornment: fetchingEmployee && (
+                                            <CircularProgress size={20} />
+                                        )
                                     }}
                                 />
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
-                                    label="Employee Name"
+                                    label="Employee Name *"
+                                    name="employeeName"
                                     value={formData.employeeName}
+                                    onChange={handleChange("employeeName")}
                                     required
                                     error={!!errors.employeeName}
                                     helperText={errors.employeeName}
@@ -764,8 +836,10 @@ const LeaveApplicationForm = () => {
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
-                                    label="Designation"
+                                    label="Designation *"
+                                    name="designation"
                                     value={formData.designation}
+                                    onChange={handleChange("designation")}
                                     required
                                     error={!!errors.designation}
                                     helperText={errors.designation}
@@ -777,8 +851,10 @@ const LeaveApplicationForm = () => {
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
-                                    label="Department"
+                                    label="Department *"
+                                    name="department"
                                     value={formData.department}
+                                    onChange={handleChange("department")}
                                     required
                                     error={!!errors.department}
                                     helperText={errors.department}
@@ -802,7 +878,7 @@ const LeaveApplicationForm = () => {
                                         onChange={handleChange("leaveType")}
                                         label="Leave Type"
                                     >
-                                        {leaveTypes.map((lt) => (
+                                        {leaveTypes.map(lt => (
                                             <MenuItem key={lt.value} value={lt.value}>{lt.label}</MenuItem>
                                         ))}
                                     </Select>
@@ -823,25 +899,36 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth label="Start Date" type="date"
+                                    fullWidth 
+                                    label="Start Date *" 
+                                    type="date"
                                     value={formData.startDate}
                                     onChange={handleChange("startDate")}
-                                    required error={!!errors.startDate} helperText={errors.startDate}
-                                    size="small" InputLabelProps={{ shrink: true }}
+                                    required 
+                                    error={!!errors.startDate} 
+                                    helperText={errors.startDate}
+                                    size="small" 
+                                    InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth label="End Date" type="date"
+                                    fullWidth 
+                                    label="End Date *" 
+                                    type="date"
                                     value={formData.endDate}
                                     onChange={handleChange("endDate")}
-                                    required error={!!errors.endDate} helperText={errors.endDate}
-                                    size="small" InputLabelProps={{ shrink: true }}
+                                    required 
+                                    error={!!errors.endDate} 
+                                    helperText={errors.endDate}
+                                    size="small" 
+                                    InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 1 }}>
                                 <TextField
-                                    fullWidth label="Total Days"
+                                    fullWidth 
+                                    label="Total Days"
                                     value={formData.weight}
                                     InputProps={{ readOnly: true }}
                                     size="small"
@@ -850,11 +937,15 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={12}>
                                 <TextField
-                                    fullWidth label="Reason for Leave"
+                                    fullWidth 
+                                    label="Reason for Leave *"
                                     value={formData.reason}
                                     onChange={handleChange("reason")}
-                                    required error={!!errors.reason} helperText={errors.reason}
-                                    multiline rows={3}
+                                    required 
+                                    error={!!errors.reason} 
+                                    helperText={errors.reason}
+                                    multiline 
+                                    rows={3}
                                     placeholder="Please provide a detailed reason for leave..."
                                 />
                             </Grid>
@@ -864,14 +955,7 @@ const LeaveApplicationForm = () => {
                     {/* Leave Balance Summary */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
-                        {fetchingEmployee ? (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2, color: "text.secondary" }}>
-                                <CircularProgress size={16} />
-                                <Typography variant="body2">Loading leave balances…</Typography>
-                            </Box>
-                        ) : (
-                            <LeaveBalanceTable editable={true} />
-                        )}
+                        <LeaveBalanceTable editable={true} />
                     </Box>
 
                     {/* Approval Information */}
@@ -884,10 +968,12 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
-                                    fullWidth label="Prepared By"
+                                    fullWidth 
+                                    label="Prepared By *"
                                     value={formData.preparedBy}
                                     onChange={handleChange("preparedBy")}
-                                    error={!!errors.preparedBy} helperText={errors.preparedBy}
+                                    error={!!errors.preparedBy} 
+                                    helperText={errors.preparedBy}
                                     size="small"
                                 />
                             </Grid>
@@ -902,35 +988,26 @@ const LeaveApplicationForm = () => {
                             Reset
                         </Button>
                         <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                            startIcon={<SendIcon />}
+                            variant="contained" 
+                            onClick={handleSubmit} 
+                            startIcon={<SendIcon />} 
                             size="large"
-                            disabled={loading || fetchingEmployee}
-                            sx={{
-                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                            }}
+                            sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
+                            disabled={loading}
                         >
-                            {loading ? "Submitting…" : "Submit Application"}
+                            {loading ? "Submitting..." : "Submit Application"}
                         </Button>
                     </Stack>
                 </Box>
             ) : (
-                /* ── Print Preview (layout unchanged) ── */
-                <Box
-                    ref={printRef}
-                    sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}
-                >
+                /* Print Preview */
+                <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
                     {/* Company Header */}
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
-                                <Box
-                                    component="img"
-                                    src={logo}
-                                    alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }}
-                                />
+                                <Box component="img" src={logo} alt="Bodla Group"
+                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
@@ -949,7 +1026,7 @@ const LeaveApplicationForm = () => {
                         </Grid>
                     </Box>
 
-                    {/* Employee Information */}
+                    {/* Employee Information - Print */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
                         <Grid container spacing={2}>
@@ -969,14 +1046,14 @@ const LeaveApplicationForm = () => {
                         </Grid>
                     </Box>
 
-                    {/* Leave Details */}
+                    {/* Leave Details - Print */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Details" />
                         <Grid container spacing={2}>
                             <Grid item size={{ xs: 6, md: 2 }}>
                                 <Typography variant="caption" color="text.secondary">Leave Type</Typography>
                                 <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>
-                                    {leaveTypes.find((lt) => lt.value === formData.leaveType)?.label || "—"}
+                                    {leaveTypes.find(lt => lt.value === formData.leaveType)?.label || "—"}
                                 </Typography>
                             </Grid>
                             <Grid item size={{ xs: 6, md: 2 }}>
@@ -1012,13 +1089,13 @@ const LeaveApplicationForm = () => {
                         </Grid>
                     </Box>
 
-                    {/* Leave Balance Summary */}
+                    {/* Leave Balance Summary - Print */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
                         <LeaveBalanceTable editable={false} />
                     </Box>
 
-                    {/* Approval Information */}
+                    {/* Approval Information - Print */}
                     <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #ddd" }}>
                         <Grid container spacing={2} alignItems="center">
                             <Grid size={{ xs: 12, md: 6 }}>
