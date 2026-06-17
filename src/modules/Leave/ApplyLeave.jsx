@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { applyLeave } from "../../services/leaveService";
 import api from "../../services/authService";
 import {
@@ -38,9 +38,12 @@ const LeaveApplicationForm = () => {
     const theme = useTheme();
     const printRef = useRef();
 
+    // ── debounce ref ──────────────────────────────────────────
+    const debounceTimer = useRef(null);
+
     const generateAppId = () => `LVE-${Date.now().toString().slice(-8)}`;
-    const getTodayDate = () => new Date().toISOString().split('T')[0];
-    
+    const getTodayDate = () => new Date().toISOString().split("T")[0];
+
     const initialState = {
         employeeCode: "",
         employeeName: "",
@@ -70,138 +73,125 @@ const LeaveApplicationForm = () => {
     const [fetchingEmployee, setFetchingEmployee] = useState(false);
 
     // ============================================
+    // FETCH LEAVE BALANCES BY EMPLOYEE ID
+    // ============================================
+    const fetchLeaveBalances = async (employeeId) => {
+        try {
+            const res = await api.get(`/leave/balances/employee/${employeeId}`);
+            console.log("Leave balances response:", res.data);
+
+            let balances = [];
+            if (Array.isArray(res.data?.data)) {
+                balances = res.data.data;
+            } else if (Array.isArray(res.data)) {
+                balances = res.data;
+            }
+
+            console.log("Parsed balances array:", balances);
+
+            if (balances.length > 0) {
+                const balanceMap = {};
+                balances.forEach((bal) => {
+                    const name = (bal.LeaveName || bal.leaveName || "").toLowerCase();
+                    const remaining =
+                        bal.RemainingDays ?? bal.remainingDays ?? bal.TotalAllowed ?? 0;
+
+                    if (name.includes("sick")) {
+                        balanceMap.sickLeaves = remaining;
+                    } else if (name.includes("casual")) {
+                        balanceMap.casualLeaves = remaining;
+                    } else if (name.includes("annual")) {
+                        balanceMap.annualLeaves = remaining;
+                    } else if (name.includes("compensatory")) {
+                        balanceMap.compensatoryLeaves = remaining;
+                    }
+                });
+
+                console.log("Mapped balances:", balanceMap);
+
+                setFormData((prev) => ({
+                    ...prev,
+                    sickLeaves: balanceMap.sickLeaves ?? "",
+                    casualLeaves: balanceMap.casualLeaves ?? "",
+                    annualLeaves: balanceMap.annualLeaves ?? "",
+                    compensatoryLeaves: balanceMap.compensatoryLeaves ?? "",
+                }));
+            } else {
+                console.warn("No balance records returned for employee:", employeeId);
+            }
+        } catch (err) {
+            console.error("Error fetching leave balances:", err);
+            // silently ignore – leave balance fields stay empty
+        }
+    };
+
+    // ============================================
     // FETCH EMPLOYEE DATA BY CODE
     // ============================================
-    // const fetchEmployeeByCode = async (code) => {
-    //     if (!code || code.trim() === "") {
-    //         setFormData((prev) => ({
-    //             ...prev,
-    //             employeeName: "",
-    //             designation: "",
-    //             department: "",
-    //             sickLeaves: "",
-    //             casualLeaves: "",
-    //             annualLeaves: "",
-    //             compensatoryLeaves: "",
-    //         }));
-    //         return;
-    //     }
+    const fetchEmployeeByCode = useCallback(async (code) => {
+        const trimmed = code?.trim();
 
-    //     setLoading(true);
-    //     try {
-    //         // Fetch employee by code
-    //         const res = await api.get(`/employees/code/${code}`);
-    //         console.log("Employee data:", res.data);
-
-    //         // Extract employee data from response
-    //         let emp = null;
-    //         if (res.data?.data) {
-    //             emp = res.data.data;
-    //         } else if (res.data) {
-    //             emp = res.data;
-    //         }
-
-    //         if (emp) {
-    //             // Update form with employee data
-    //             setFormData((prev) => ({
-    //                 ...prev,
-    //                 employeeName: emp.Name || emp.name || "",
-    //                 designation: emp.Designation || emp.designation || "",
-    //                 department: emp.Department || emp.department || "",
-    //             }));
-
-    //             // Fetch leave balances for this employee
-    //             await fetchLeaveBalances(emp.EmployeeID || emp.id);
-    //         } else {
-    //             // Employee not found
-    //             setFormData((prev) => ({
-    //                 ...prev,
-    //                 employeeName: "",
-    //                 designation: "",
-    //                 department: "",
-    //                 sickLeaves: "",
-    //                 casualLeaves: "",
-    //                 annualLeaves: "",
-    //                 compensatoryLeaves: "",
-    //             }));
-    //             setSnackbar({
-    //                 open: true,
-    //                 message: "Employee not found with this code",
-    //                 severity: "error",
-    //             });
-    //         }
-    //     } catch (error) {
-    //         console.error("Employee fetch error:", error);
-    //         setFormData((prev) => ({
-    //             ...prev,
-    //             employeeName: "",
-    //             designation: "",
-    //             department: "",
-    //             sickLeaves: "",
-    //             casualLeaves: "",
-    //             annualLeaves: "",
-    //             compensatoryLeaves: "",
-    //         }));
-    //         setSnackbar({
-    //             open: true,
-    //             message: error.response?.data?.message || "Failed to fetch employee data",
-    //             severity: "error",
-    //         });
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
-const fetchEmployeeByCode = async (code) => {
-    console.log("🔍 Fetching employee with code:", code);
-    
-    if (!code || code.trim() === "") {
-        setFormData((prev) => ({
-            ...prev,
-            employeeName: "",
-            designation: "",
-            department: "",
-            sickLeaves: "",
-            casualLeaves: "",
-            annualLeaves: "",
-            compensatoryLeaves: "",
-        }));
-        return;
-    }
-
-    setFetchingEmployee(true);
-    try {
-        // ✅ The API call
-        const res = await api.get(`/employees/code/${code}`);
-        console.log("✅ Full API Response:", res);
-        
-        // ✅ FIX: Extract employee from res.data.data (not res.data)
-        const emp = res.data?.data;
-        console.log("✅ Employee data:", emp);
-
-        if (emp) {
-            console.log("✅ Employee found:", emp.Name);
-            
-            // ✅ Update form fields
+        if (!trimmed) {
+            // Clear employee-related fields when input is cleared
             setFormData((prev) => ({
                 ...prev,
-                employeeName: emp.Name || "",
-                designation: emp.Designation || "",
-                department: emp.Department || "",
+                employeeName: "",
+                designation: "",
+                department: "",
+                sickLeaves: "",
+                casualLeaves: "",
+                annualLeaves: "",
+                compensatoryLeaves: "",
             }));
+            return;
+        }
 
-            // ✅ Fetch leave balances
-            if (emp.EmployeeID) {
-                console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
+        setFetchingEmployee(true);
+        try {
+            const res = await api.get(`/employees/code/${trimmed}`);
+            console.log("Employee API response:", res.data);
+
+            // Backend wraps data in { data: { data: emp } } via success() util
+            const emp = res.data?.data ?? res.data;
+
+            if (emp && emp.EmployeeID) {
+                console.log("Employee found:", emp.Name, "ID:", emp.EmployeeID);
+
+                setFormData((prev) => ({
+                    ...prev,
+                    employeeName: emp.Name || "",
+                    designation: emp.Designation || "",
+                    department: emp.Department || "",
+                }));
+
+                // Fetch leave balances using the resolved EmployeeID
                 await fetchLeaveBalances(emp.EmployeeID);
+
+                setSnackbar({
+                    open: true,
+                    message: `Employee "${emp.Name}" loaded successfully`,
+                    severity: "success",
+                });
+            } else {
+                // Employee not found – clear fields
+                setFormData((prev) => ({
+                    ...prev,
+                    employeeName: "",
+                    designation: "",
+                    department: "",
+                    sickLeaves: "",
+                    casualLeaves: "",
+                    annualLeaves: "",
+                    compensatoryLeaves: "",
+                }));
+                setSnackbar({
+                    open: true,
+                    message: `No employee found for code "${trimmed}"`,
+                    severity: "error",
+                });
             }
-            
-            setSnackbar({
-                open: true,
-                message: `Employee ${emp.Name} loaded successfully`,
-                severity: "success",
-            });
-        } else {
-            console.log("❌ No employee found for code:", code);
+        } catch (err) {
+            console.error("Employee fetch error:", err);
             setFormData((prev) => ({
                 ...prev,
                 employeeName: "",
@@ -214,74 +204,13 @@ const fetchEmployeeByCode = async (code) => {
             }));
             setSnackbar({
                 open: true,
-                message: `Employee with code "${code}" not found`,
+                message: err.response?.data?.message || "Failed to fetch employee data",
                 severity: "error",
             });
+        } finally {
+            setFetchingEmployee(false);
         }
-    } catch (error) {
-        console.error("❌ Employee fetch error:", error);
-        setFormData((prev) => ({
-            ...prev,
-            employeeName: "",
-            designation: "",
-            department: "",
-            sickLeaves: "",
-            annualLeaves: "",
-            compensatoryLeaves: "",
-        }));
-        setSnackbar({
-            open: true,
-            message: error.response?.data?.message || "Failed to fetch employee data",
-            severity: "error",
-        });
-    } finally {
-        setFetchingEmployee(false);
-    }
-};
-    // ============================================
-    // FETCH LEAVE BALANCES BY EMPLOYEE ID
-    // ============================================
-    const fetchLeaveBalances = async (employeeId) => {
-        try {
-            const res = await api.get(`/leave/balances/employee/${employeeId}`);
-            console.log("Leave balances:", res.data);
-
-            let balances = [];
-            if (res.data?.data) {
-                balances = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                balances = res.data;
-            }
-
-            if (balances.length > 0) {
-                // Map balances to form fields
-                const balanceMap = {};
-                balances.forEach((bal) => {
-                    const name = bal.LeaveName || bal.leaveName || "";
-                    if (name.toLowerCase().includes("sick")) {
-                        balanceMap.sickLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("casual")) {
-                        balanceMap.casualLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("annual")) {
-                        balanceMap.annualLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    } else if (name.toLowerCase().includes("compensatory")) {
-                        balanceMap.compensatoryLeaves = bal.RemainingDays || bal.remainingDays || 0;
-                    }
-                });
-
-                setFormData((prev) => ({
-                    ...prev,
-                    sickLeaves: balanceMap.sickLeaves || "",
-                    casualLeaves: balanceMap.casualLeaves || "",
-                    annualLeaves: balanceMap.annualLeaves || "",
-                    compensatoryLeaves: balanceMap.compensatoryLeaves || "",
-                }));
-            }
-        } catch (error) {
-            console.error("Error fetching leave balances:", error);
-            // Don't show error for balances, just leave empty
-        }
-    };
+    }, []);
 
     // ============================================
     // CALCULATE DAYS
@@ -292,12 +221,12 @@ const fetchEmployeeByCode = async (code) => {
             const end = new Date(formData.endDate);
             if (end >= start) {
                 const diff = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
-                setFormData(prev => ({ ...prev, weight: diff.toString() }));
+                setFormData((prev) => ({ ...prev, weight: diff.toString() }));
             } else {
-                setFormData(prev => ({ ...prev, weight: "" }));
+                setFormData((prev) => ({ ...prev, weight: "" }));
             }
         } else {
-            setFormData(prev => ({ ...prev, weight: "" }));
+            setFormData((prev) => ({ ...prev, weight: "" }));
         }
     }, [formData.startDate, formData.endDate]);
 
@@ -307,37 +236,41 @@ const fetchEmployeeByCode = async (code) => {
     const handleChange = (field) => (event) => {
         const value = event.target.value;
 
+        // Update form state immediately so the input feels responsive
         setFormData((prev) => ({ ...prev, [field]: value }));
 
+        // Clear validation error for this field
         if (errors[field]) {
             setErrors((prev) => {
                 const e = { ...prev };
                 delete e[field];
                 return e;
             });
+        }
 
-            // Auto fetch employee when employeeCode changes
-            if (field === "employeeCode") {
+        // ── Auto-fetch employee with 600 ms debounce ──────────
+        if (field === "employeeCode") {
+            clearTimeout(debounceTimer.current);
+            debounceTimer.current = setTimeout(() => {
                 fetchEmployeeByCode(value);
-            }
+            }, 600);
         }
     };
 
     const handleBalanceChange = (field) => (event) => {
         const value = event.target.value === "" ? "" : parseFloat(event.target.value) || 0;
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
     // ============================================
-    // GET CLOSING BALANCE
+    // LEAVE TYPES CONFIG
     // ============================================
-    const getClosingBalance = (balanceKey, leaveTypeValue) => {
-        const opening = parseFloat(formData[balanceKey]) || 0;
-        const applied = formData.leaveType === leaveTypeValue
-            ? parseFloat(formData.weight) || 0
-            : 0;
-        return Math.max(0, opening - applied);
-    };
+    const leaveTypes = [
+        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
+        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
+        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
+        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
+    ];
 
     // ============================================
     // VALIDATE FORM
@@ -352,8 +285,11 @@ const fetchEmployeeByCode = async (code) => {
         if (!formData.startDate) newErrors.startDate = "Start Date is required";
         if (!formData.endDate) newErrors.endDate = "End Date is required";
         if (!formData.reason) newErrors.reason = "Reason is required";
-        if (formData.startDate && formData.endDate &&
-            new Date(formData.startDate) > new Date(formData.endDate)) {
+        if (
+            formData.startDate &&
+            formData.endDate &&
+            new Date(formData.startDate) > new Date(formData.endDate)
+        ) {
             newErrors.endDate = "End Date must be after Start Date";
         }
         setErrors(newErrors);
@@ -389,7 +325,7 @@ const fetchEmployeeByCode = async (code) => {
                     casualLeaves: formData.casualLeaves,
                     annualLeaves: formData.annualLeaves,
                     compensatoryLeaves: formData.compensatoryLeaves,
-                }
+                },
             };
 
             await applyLeave(payload);
@@ -401,12 +337,11 @@ const fetchEmployeeByCode = async (code) => {
             });
 
             setTimeout(() => setShowPrintPreview(true), 1000);
-
-        } catch (error) {
-            console.error("Submit error:", error);
+        } catch (err) {
+            console.error("Submit error:", err);
             setSnackbar({
                 open: true,
-                message: error.response?.data?.message || "Failed to submit leave application",
+                message: err.response?.data?.message || "Failed to submit leave application",
                 severity: "error",
             });
         } finally {
@@ -418,10 +353,11 @@ const fetchEmployeeByCode = async (code) => {
     // HANDLE RESET
     // ============================================
     const handleReset = () => {
+        clearTimeout(debounceTimer.current);
         setFormData({
             ...initialState,
             applicationId: generateAppId(),
-            applicationDate: getTodayDate()
+            applicationDate: getTodayDate(),
         });
         setErrors({});
         setShowPrintPreview(false);
@@ -432,26 +368,20 @@ const fetchEmployeeByCode = async (code) => {
     // ============================================
     const formatDate = (date) => {
         if (!date) return "—";
-        return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        return new Date(date).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        });
     };
 
     // ============================================
     // GET LEAVE TYPE LABEL
     // ============================================
     const getLeaveTypeLabel = () => {
-        const leaveType = leaveTypes.find(lt => lt.value === formData.leaveType);
-        return leaveType ? leaveType.label : formData.leaveType;
+        const lt = leaveTypes.find((l) => l.value === formData.leaveType);
+        return lt ? lt.label : formData.leaveType;
     };
-
-    // ============================================
-    // LEAVE TYPES
-    // ============================================
-    const leaveTypes = [
-        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
-        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
-        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
-        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
-    ];
 
     // ============================================
     // LEAVE BALANCE TABLE
@@ -469,7 +399,9 @@ const fetchEmployeeByCode = async (code) => {
                 </TableHead>
                 <TableBody>
                     {leaveTypes.map((lt, i) => {
-                        const opening = parseFloat(formData[lt.balanceKey]) || 0;
+                        // opening balance: use the fetched/entered value; fall back to 0 for display
+                        const opening =
+                            formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
                         const isActive = formData.leaveType === lt.value;
                         const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
                         const closing = Math.max(0, opening - applied);
@@ -486,6 +418,8 @@ const fetchEmployeeByCode = async (code) => {
                                 }}
                             >
                                 <TableCell>{lt.label}</TableCell>
+
+                                {/* Opening Balance */}
                                 <TableCell align="right">
                                     {editable ? (
                                         <TextField
@@ -502,12 +436,16 @@ const fetchEmployeeByCode = async (code) => {
                                         opening
                                     )}
                                 </TableCell>
+
+                                {/* Applied Days */}
                                 <TableCell
                                     align="right"
                                     sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
                                 >
                                     {applied || 0}
                                 </TableCell>
+
+                                {/* Closing Balance */}
                                 <TableCell
                                     align="right"
                                     sx={{
@@ -564,19 +502,21 @@ const fetchEmployeeByCode = async (code) => {
     );
 
     // ============================================
-    // HANDLE PRINT
+    // HANDLE PRINT  (unchanged)
     // ============================================
     const handlePrint = () => {
-        const printWindow = window.open('', '_blank');
+        const printWindow = window.open("", "_blank");
 
-        const balanceRows = leaveTypes.map((lt) => {
-            const opening = parseFloat(formData[lt.balanceKey]) || 0;
-            const isActive = formData.leaveType === lt.value;
-            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
-            const closing = Math.max(0, opening - applied);
-            const isHighlighted = isActive ? 'highlight' : '';
+        const balanceRows = leaveTypes
+            .map((lt) => {
+                const opening =
+                    formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
+                const isActive = formData.leaveType === lt.value;
+                const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
+                const closing = Math.max(0, opening - applied);
+                const isHighlighted = isActive ? "highlight" : "";
 
-            return `
+                return `
                 <tr class="${isHighlighted}">
                     <td>${lt.label}</td>
                     <td class="right">${opening}</td>
@@ -584,7 +524,8 @@ const fetchEmployeeByCode = async (code) => {
                     <td class="right"><strong>${closing}</strong></td>
                 </tr>
             `;
-        }).join('');
+            })
+            .join("");
 
         const printHTML = `
             <!DOCTYPE html>
@@ -592,210 +533,47 @@ const fetchEmployeeByCode = async (code) => {
                 <head>
                     <title>Leave Application - ${formData.applicationId}</title>
                     <style>
-                        * {
-                            margin: 0;
-                            padding: 0;
-                            box-sizing: border-box;
-                        }
-                        body {
-                            font-family: 'Segoe UI', Arial, sans-serif;
-                            background: white;
-                            padding: 40px;
-                            color: #333;
-                        }
-                        .print-container {
-                            max-width: 210mm;
-                            margin: 0 auto;
-                            background: white;
-                        }
-                        .header {
-                            margin-bottom: 16px;
-                            padding-bottom: 16px;
-                            border-bottom: 1px solid #333;
-                            grid-template-columns: 15% 85%;
-                            gap: 16px;
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                        }
-                        .header .header-logo {
-                            width: 100px;
-                            height: auto;
-                        }
-                        .header .header-logo img {
-                            width: 100%;
-                            height: auto;
-                            border:0;
-                        }
-                        .header .header-company {
-                            width: auto;
-                            height: auto;
-                            margin: 0 auto;
-                            text-align: center;
-                            padding-right: 15%; 
-                        }
-                        .header .header-company .company-name {
-                            font-size: 20px;
-                            font-weight: 800;
-                            letter-spacing: 2px;
-                        }
-                        .form-title {
-                            font-size: 24px;
-                            font-weight: 600;
-                            margin-top: 8px;
-                            color: #333;
-                        }
-                        .header .app-info {
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                            align-items: center;
-                            justify-content: space-between;
-                            width: 100%;
-                            margin-top: 0.5rem;
-                            font-size: 0.875rem;
-                            gap: 1rem;
-                        }
-                        .section {
-                            margin-bottom: 10px;
-                            display: flex;
-                            flex-wrap: wrap;
-                            flex-direction: row;
-                        }
-                        .section-title {
-                            font-size: 16px;
-                            font-weight: 700;
-                            margin-bottom: 15px;
-                            padding-bottom: 8px;
-                            border-bottom: 1px solid #ddd;
-                            width: 100%;
-                        }
-                        .info-grid {
-                            display: flex;
-                            gap: 16px;
-                            margin-bottom: 20px;
-                            width: 100%;
-                        }
-                        .info-item {
-                            margin-bottom: 8px;
-                            flex: 1;
-                            min-width: 0;
-                        }
-                        .info-label {
-                            font-size: 11px;
-                            color: #777;
-                            margin-bottom: 4px;
-                        }
-                        .info-value {
-                            font-size: 14px;
-                            font-weight: 500;
-                            padding-bottom: 6px;
-                            border-bottom: 1px solid #eee;
-                        }
-                        .info-value.highlight {
-                            font-weight: 700;
-                        }
-                        .details-grid {
-                            display: flex;
-                            gap: 16px;
-                            width: 100%;
-                        }
-                        .details-grid .info-item{
-                            flex: 1;
-                            min-width: 0;
-                        }
-                        .full-width {
-                            width: 100%;
-                            display: block;
-                            margin-bottom: 20px;
-                            margin-top: 16px;
-                        }
-                        .reason-box {
-                            padding: 12px;
-                            border: 1px solid #eee;
-                            border-radius: 4px;
-                            min-height: 80px;
-                            line-height: 1.6;
-                            width: 100%;
-                            background: #fffff
-                        }
-                        .balance-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin: 10px 0;
-                            font-size: 13px;
-                        }
-                        .balance-table th,
-                        .balance-table td {
-                            border: 1px solid #ddd;
-                            padding: 10px 12px;
-                            text-align: left;
-                        }
-                        .balance-table th {
-                            background: #f5f5f5;
-                            font-weight: 700;
-                        }
-                        .balance-table td.right,
-                        .balance-table th.right {
-                            text-align: right;
-                        }
-                        .balance-table td.center,
-                        .balance-table th.center {
-                            text-align: center;
-                        }
-                        .balance-table tr.highlight {
-                            background-color: #e3f2fd;
-                        }
-                        .balance-table tr.highlight td {
-                            font-weight: 700;
-                        }
-                        .approval-header {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-bottom: 16px;
-                            padding-bottom: 16px;
-                            border-bottom: 2px solid #ddd;
-                        }
-                        .approval-title {
-                            font-size: 16px;
-                            font-weight: 700;
-                        }
-                        .signature-grid {
-                            display: grid;
-                            grid-template-columns: repeat(4, 1fr);
-                            gap: 20px;
-                            margin-top: 120px;
-                        }
-                        .signature-box {
-                            text-align: center;
-                        }
-                        .signature-line {
-                            border-top: 1px solid #000;
-                            padding-top: 8px;
-                            margin-top: 4px;
-                            font-size: 12px;
-                        }
-                        .no-print {
-                            display: none;
-                        }
-                        @media print {
-                            body {
-                                padding: 15mm;
-                            }
-                            @page {
-                                size: A4;
-                                margin: 0;
-                            }
-                        }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
+                        .print-container { max-width: 210mm; margin: 0 auto; background: white; }
+                        .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; grid-template-columns: 15% 85%; gap: 16px; display: flex; flex-wrap: wrap; flex-direction: row; }
+                        .header .header-logo { width: 100px; height: auto; }
+                        .header .header-logo img { width: 100%; height: auto; border:0; }
+                        .header .header-company { width: auto; height: auto; margin: 0 auto; text-align: center; padding-right: 15%; }
+                        .header .header-company .company-name { font-size: 20px; font-weight: 800; letter-spacing: 2px; }
+                        .form-title { font-size: 24px; font-weight: 600; margin-top: 8px; color: #333; }
+                        .header .app-info { display: flex; flex-wrap: wrap; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 0.5rem; font-size: 0.875rem; gap: 1rem; }
+                        .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
+                        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #ddd; width: 100%; }
+                        .info-grid { display: flex; gap: 16px; margin-bottom: 20px; width: 100%; }
+                        .info-item { margin-bottom: 8px; flex: 1; min-width: 0; }
+                        .info-label { font-size: 11px; color: #777; margin-bottom: 4px; }
+                        .info-value { font-size: 14px; font-weight: 500; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+                        .info-value.highlight { font-weight: 700; }
+                        .details-grid { display: flex; gap: 16px; width: 100%; }
+                        .details-grid .info-item { flex: 1; min-width: 0; }
+                        .full-width { width: 100%; display: block; margin-bottom: 20px; margin-top: 16px; }
+                        .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #ffffff; }
+                        .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+                        .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+                        .balance-table th { background: #f5f5f5; font-weight: 700; }
+                        .balance-table td.right, .balance-table th.right { text-align: right; }
+                        .balance-table td.center, .balance-table th.center { text-align: center; }
+                        .balance-table tr.highlight { background-color: #e3f2fd; }
+                        .balance-table tr.highlight td { font-weight: 700; }
+                        .approval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #ddd; }
+                        .approval-title { font-size: 16px; font-weight: 700; }
+                        .signature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 120px; }
+                        .signature-box { text-align: center; }
+                        .signature-line { border-top: 1px solid #000; padding-top: 8px; margin-top: 4px; font-size: 12px; }
+                        .no-print { display: none; }
+                        @media print { body { padding: 15mm; } @page { size: A4; margin: 0; } }
                     </style>
                 </head>
                 <body>
                     <div class="print-container">
                         <div class="header">
-                            <div class="header-logo">
-                                <img src="${logo}" alt="Bodla Group Logo" />
-                            </div>
+                            <div class="header-logo"><img src="${logo}" alt="Bodla Group Logo" /></div>
                             <div class="header-company">
                                 <div class="company-name">BODLA GROUP</div>
                                 <div class="form-title">Leave Application Form</div>
@@ -805,59 +583,29 @@ const fetchEmployeeByCode = async (code) => {
                                 <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
                             </div>
                         </div>
-
                         <div class="section">
                             <div class="section-title">Employee Information</div>
                             <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Employee Code</div>
-                                    <div class="info-value">${formData.employeeCode || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Employee Name</div>
-                                    <div class="info-value">${formData.employeeName || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Designation</div>
-                                    <div class="info-value">${formData.designation || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Department</div>
-                                    <div class="info-value">${formData.department || "—"}</div>
-                                </div>
+                                <div class="info-item"><div class="info-label">Employee Code</div><div class="info-value">${formData.employeeCode || "—"}</div></div>
+                                <div class="info-item"><div class="info-label">Employee Name</div><div class="info-value">${formData.employeeName || "—"}</div></div>
+                                <div class="info-item"><div class="info-label">Designation</div><div class="info-value">${formData.designation || "—"}</div></div>
+                                <div class="info-item"><div class="info-label">Department</div><div class="info-value">${formData.department || "—"}</div></div>
                             </div>
                         </div>
-
                         <div class="section">
                             <div class="section-title">Leave Details</div>
                             <div class="details-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Leave Type</div>
-                                    <div class="info-value highlight">${getLeaveTypeLabel()}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Paid / Unpaid</div>
-                                    <div class="info-value">${formData.paidStatus}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">From</div>
-                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">To</div>
-                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Total Days</div>
-                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
-                                </div>
+                                <div class="info-item"><div class="info-label">Leave Type</div><div class="info-value highlight">${getLeaveTypeLabel()}</div></div>
+                                <div class="info-item"><div class="info-label">Paid / Unpaid</div><div class="info-value">${formData.paidStatus}</div></div>
+                                <div class="info-item"><div class="info-label">From</div><div class="info-value highlight">${formatDate(formData.startDate)}</div></div>
+                                <div class="info-item"><div class="info-label">To</div><div class="info-value highlight">${formatDate(formData.endDate)}</div></div>
+                                <div class="info-item"><div class="info-label">Total Days</div><div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div></div>
                             </div>
                             <div class="full-width">
                                 <div class="info-label">Reason for Leave</div>
                                 <div class="reason-box">${formData.reason || "—"}</div>
                             </div>
                         </div>
-
                         <div class="section">
                             <div class="section-title">Leave Balance Summary</div>
                             <table class="balance-table">
@@ -869,39 +617,22 @@ const fetchEmployeeByCode = async (code) => {
                                         <th class="right">Closing Balance</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    ${balanceRows}
-                                </tbody>
+                                <tbody>${balanceRows}</tbody>
                             </table>
                         </div>
-
                         <div class="approval-header">
                             <div class="approval-title">Approval Information</div>
                             <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
                         </div>
-
                         <div class="signature-grid">
-                            <div class="signature-box">
-                                <div class="signature-line">Employee</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Reporting Manager</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Department Head</div>
-                            </div>
-                            <div class="signature-box">
-                                <div class="signature-line">HR</div>
-                            </div>
+                            <div class="signature-box"><div class="signature-line">Employee</div></div>
+                            <div class="signature-box"><div class="signature-line">Reporting Manager</div></div>
+                            <div class="signature-box"><div class="signature-line">Department Head</div></div>
+                            <div class="signature-box"><div class="signature-line">HR</div></div>
                         </div>
                     </div>
                     <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() {
-                                window.close();
-                            }, 500);
-                        };
+                        window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };
                     </script>
                 </body>
             </html>
@@ -952,7 +683,7 @@ const fetchEmployeeByCode = async (code) => {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}
-                onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+                onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
                 anchorOrigin={{ vertical: "top", horizontal: "right" }}
             >
                 <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
@@ -964,8 +695,12 @@ const fetchEmployeeByCode = async (code) => {
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #ddd" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
-                                <Box component="img" src={logo} alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
+                                <Box
+                                    component="img"
+                                    src={logo}
+                                    alt="Bodla Group"
+                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }}
+                                />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
@@ -988,10 +723,11 @@ const fetchEmployeeByCode = async (code) => {
                         </Grid>
                     </Box>
 
+                    {/* Employee Information */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
                         <Grid container spacing={1}>
-                            {/* Employee Code - This triggers auto-fill */}
+                            {/* ── Employee Code – triggers auto-fill ── */}
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
@@ -1000,24 +736,22 @@ const fetchEmployeeByCode = async (code) => {
                                     onChange={handleChange("employeeCode")}
                                     required
                                     error={!!errors.employeeCode}
-                                    helperText={errors.employeeCode}
+                                    helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "Enter code to auto-fill")}
                                     size="small"
-                                    placeholder="Enter code to auto-fill"
+                                    placeholder="e.g. EMP0001"
                                     InputProps={{
-                                        endAdornment: loading && (
-                                            <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center' }}>
-                                                <CircularProgress size="small" />
-                                            </Box>
-                                        )
+                                        endAdornment: fetchingEmployee ? (
+                                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                                        ) : null,
                                     }}
                                 />
                             </Grid>
+
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     label="Employee Name"
                                     value={formData.employeeName}
-                                    onChange={handleChange("employeeName")}
                                     required
                                     error={!!errors.employeeName}
                                     helperText={errors.employeeName}
@@ -1031,7 +765,6 @@ const fetchEmployeeByCode = async (code) => {
                                     fullWidth
                                     label="Designation"
                                     value={formData.designation}
-                                    onChange={handleChange("designation")}
                                     required
                                     error={!!errors.designation}
                                     helperText={errors.designation}
@@ -1045,7 +778,6 @@ const fetchEmployeeByCode = async (code) => {
                                     fullWidth
                                     label="Department"
                                     value={formData.department}
-                                    onChange={handleChange("department")}
                                     required
                                     error={!!errors.department}
                                     helperText={errors.department}
@@ -1057,6 +789,7 @@ const fetchEmployeeByCode = async (code) => {
                         </Grid>
                     </Box>
 
+                    {/* Leave Details */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Details" />
                         <Grid container spacing={1}>
@@ -1068,7 +801,7 @@ const fetchEmployeeByCode = async (code) => {
                                         onChange={handleChange("leaveType")}
                                         label="Leave Type"
                                     >
-                                        {leaveTypes.map(lt => (
+                                        {leaveTypes.map((lt) => (
                                             <MenuItem key={lt.value} value={lt.value}>{lt.label}</MenuItem>
                                         ))}
                                     </Select>
@@ -1127,11 +860,20 @@ const fetchEmployeeByCode = async (code) => {
                         </Grid>
                     </Box>
 
+                    {/* Leave Balance Summary */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
-                        <LeaveBalanceTable editable={true} />
+                        {fetchingEmployee ? (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2, color: "text.secondary" }}>
+                                <CircularProgress size={16} />
+                                <Typography variant="body2">Loading leave balances…</Typography>
+                            </Box>
+                        ) : (
+                            <LeaveBalanceTable editable={true} />
+                        )}
                     </Box>
 
+                    {/* Approval Information */}
                     <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #ddd" }}>
                         <Grid container spacing={2} alignItems="center">
                             <Grid size={{ xs: 12, md: 6 }}>
@@ -1146,7 +888,6 @@ const fetchEmployeeByCode = async (code) => {
                                     onChange={handleChange("preparedBy")}
                                     error={!!errors.preparedBy} helperText={errors.preparedBy}
                                     size="small"
-                                    sx={{ textAlign: "right" }}
                                 />
                             </Grid>
                         </Grid>
@@ -1160,23 +901,35 @@ const fetchEmployeeByCode = async (code) => {
                             Reset
                         </Button>
                         <Button
-                            variant="contained" onClick={handleSubmit} startIcon={<SendIcon />} size="large"
-                            sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
-                            disabled={loading}
+                            variant="contained"
+                            onClick={handleSubmit}
+                            startIcon={<SendIcon />}
+                            size="large"
+                            disabled={loading || fetchingEmployee}
+                            sx={{
+                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                            }}
                         >
-                            {loading ? "Submitting..." : "Submit Application"}
+                            {loading ? "Submitting…" : "Submit Application"}
                         </Button>
                     </Stack>
                 </Box>
             ) : (
-                /* Print Preview */
-                <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
+                /* ── Print Preview (layout unchanged) ── */
+                <Box
+                    ref={printRef}
+                    sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}
+                >
                     {/* Company Header */}
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
-                                <Box component="img" src={logo} alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
+                                <Box
+                                    component="img"
+                                    src={logo}
+                                    alt="Bodla Group"
+                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }}
+                                />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
@@ -1222,7 +975,7 @@ const fetchEmployeeByCode = async (code) => {
                             <Grid item size={{ xs: 6, md: 2 }}>
                                 <Typography variant="caption" color="text.secondary">Leave Type</Typography>
                                 <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>
-                                    {leaveTypes.find(lt => lt.value === formData.leaveType)?.label || "—"}
+                                    {leaveTypes.find((lt) => lt.value === formData.leaveType)?.label || "—"}
                                 </Typography>
                             </Grid>
                             <Grid item size={{ xs: 6, md: 2 }}>
