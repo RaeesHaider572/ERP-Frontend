@@ -41,28 +41,30 @@ const LeaveApplicationForm = () => {
     // ── debounce ref ──────────────────────────────────────────
     const debounceTimer = useRef(null);
 
-    const generateAppId = () => `LVE-${Date.now().toString().slice(-8)}`;
     const getTodayDate = () => new Date().toISOString().split("T")[0];
 
+    // Builds the user-facing Application ID directly from the database RequestID,
+    // so it always matches the LeaveRequest table's primary key (no client-side guessing).
+    const formatApplicationId = (requestId) => `LVE-${requestId}`;
+
     const initialState = {
+        employeeId: "",
         employeeCode: "",
         employeeName: "",
         designation: "",
         department: "",
         preparedBy: "",
-        applicationId: generateAppId(),
+        applicationId: "Loading…",
         applicationDate: getTodayDate(),
-        leaveType: "Sick",
+        leaveTypeId: "",
         paidStatus: "Paid",
         startDate: "",
         endDate: "",
         weight: "",
         reason: "",
         status: "Pending",
-        sickLeaves: "",
-        casualLeaves: "",
-        annualLeaves: "",
-        compensatoryLeaves: "",
+        // Opening (remaining) balance per LeaveTypeID, e.g. { 1: 9, 2: 12, 3: 12 }
+        balances: {},
     };
 
     const [formData, setFormData] = useState(initialState);
@@ -71,6 +73,71 @@ const LeaveApplicationForm = () => {
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [loading, setLoading] = useState(false);
     const [fetchingEmployee, setFetchingEmployee] = useState(false);
+
+    // Leave types loaded from the LeaveType table ({ LeaveTypeID, LeaveName, DefaultDays, IsPaid, IsActive })
+    const [leaveTypeOptions, setLeaveTypeOptions] = useState([]);
+    const [loadingLeaveTypes, setLoadingLeaveTypes] = useState(true);
+
+    // ============================================
+    // FETCH LEAVE TYPES (LeaveType table)
+    // ============================================
+    const fetchLeaveTypes = useCallback(async () => {
+        setLoadingLeaveTypes(true);
+        try {
+            // NOTE: adjust this URL if your backend exposes leave types under a different route
+            const res = await api.get("/leave/types");
+            const types = Array.isArray(res.data?.data)
+                ? res.data.data
+                : Array.isArray(res.data)
+                ? res.data
+                : [];
+
+            const active = types.filter(
+                (t) => t.IsActive === undefined || t.IsActive === 1 || t.IsActive === true
+            );
+
+            setLeaveTypeOptions(active);
+
+            if (active.length > 0) {
+                setFormData((prev) => ({
+                    ...prev,
+                    leaveTypeId: prev.leaveTypeId || active[0].LeaveTypeID,
+                    paidStatus: prev.leaveTypeId ? prev.paidStatus : (active[0].IsPaid ? "Paid" : "Unpaid"),
+                }));
+            }
+        } catch (err) {
+            console.error("Error fetching leave types:", err);
+            setSnackbar({ open: true, message: "Failed to load leave types", severity: "error" });
+        } finally {
+            setLoadingLeaveTypes(false);
+        }
+    }, []);
+
+    // ============================================
+    // FETCH NEXT REQUEST ID (best-effort preview of the Application ID)
+    // ============================================
+    const fetchNextRequestId = useCallback(async () => {
+        try {
+            // OPTIONAL endpoint — should return the RequestID the next insert will receive,
+            // e.g. SELECT IDENT_CURRENT('LeaveRequest') + 1. Safe to skip on the backend:
+            // if it 404s, the Application ID is simply set after a successful submit instead.
+            const res = await api.get("/leave/requests/next-id");
+            const nextId = res.data?.data?.nextId ?? res.data?.nextId;
+            if (nextId) {
+                setFormData((prev) => ({ ...prev, applicationId: formatApplicationId(nextId) }));
+                return;
+            }
+        } catch (err) {
+            // Endpoint not available — fall through to the placeholder below
+        }
+        setFormData((prev) => ({ ...prev, applicationId: "Auto-generated on submit" }));
+    }, []);
+
+    useEffect(() => {
+        fetchLeaveTypes();
+        fetchNextRequestId();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ============================================
     // FETCH LEAVE BALANCES BY EMPLOYEE ID
@@ -87,41 +154,23 @@ const LeaveApplicationForm = () => {
                 balances = res.data;
             }
 
-            console.log("Parsed balances array:", balances);
+            // Key the opening balance directly by LeaveTypeID — matches the LeaveBalance
+            // table exactly, so no fragile name-matching is needed.
+            const balanceMap = {};
+            balances.forEach((bal) => {
+                const typeId = bal.LeaveTypeID ?? bal.leaveTypeId;
+                const remaining = bal.RemainingDays ?? bal.remainingDays ?? bal.TotalAllowed ?? 0;
+                if (typeId !== undefined && typeId !== null) {
+                    balanceMap[typeId] = remaining;
+                }
+            });
 
-            if (balances.length > 0) {
-                const balanceMap = {};
-                balances.forEach((bal) => {
-                    const name = (bal.LeaveName || bal.leaveName || "").toLowerCase();
-                    const remaining =
-                        bal.RemainingDays ?? bal.remainingDays ?? bal.TotalAllowed ?? 0;
+            console.log("Mapped balances:", balanceMap);
 
-                    if (name.includes("sick")) {
-                        balanceMap.sickLeaves = remaining;
-                    } else if (name.includes("casual")) {
-                        balanceMap.casualLeaves = remaining;
-                    } else if (name.includes("annual")) {
-                        balanceMap.annualLeaves = remaining;
-                    } else if (name.includes("compensatory")) {
-                        balanceMap.compensatoryLeaves = remaining;
-                    }
-                });
-
-                console.log("Mapped balances:", balanceMap);
-
-                setFormData((prev) => ({
-                    ...prev,
-                    sickLeaves: balanceMap.sickLeaves ?? "",
-                    casualLeaves: balanceMap.casualLeaves ?? "",
-                    annualLeaves: balanceMap.annualLeaves ?? "",
-                    compensatoryLeaves: balanceMap.compensatoryLeaves ?? "",
-                }));
-            } else {
-                console.warn("No balance records returned for employee:", employeeId);
-            }
+            setFormData((prev) => ({ ...prev, balances: balanceMap }));
         } catch (err) {
             console.error("Error fetching leave balances:", err);
-            // silently ignore – leave balance fields stay empty
+            setFormData((prev) => ({ ...prev, balances: {} }));
         }
     };
 
@@ -135,13 +184,11 @@ const LeaveApplicationForm = () => {
             // Clear employee-related fields when input is cleared
             setFormData((prev) => ({
                 ...prev,
+                employeeId: "",
                 employeeName: "",
                 designation: "",
                 department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
+                balances: {},
             }));
             return;
         }
@@ -159,6 +206,7 @@ const LeaveApplicationForm = () => {
 
                 setFormData((prev) => ({
                     ...prev,
+                    employeeId: emp.EmployeeID,
                     employeeName: emp.Name || "",
                     designation: emp.Designation || "",
                     department: emp.Department || "",
@@ -176,13 +224,11 @@ const LeaveApplicationForm = () => {
                 // Employee not found – clear fields
                 setFormData((prev) => ({
                     ...prev,
+                    employeeId: "",
                     employeeName: "",
                     designation: "",
                     department: "",
-                    sickLeaves: "",
-                    casualLeaves: "",
-                    annualLeaves: "",
-                    compensatoryLeaves: "",
+                    balances: {},
                 }));
                 setSnackbar({
                     open: true,
@@ -194,13 +240,11 @@ const LeaveApplicationForm = () => {
             console.error("Employee fetch error:", err);
             setFormData((prev) => ({
                 ...prev,
+                employeeId: "",
                 employeeName: "",
                 designation: "",
                 department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
+                balances: {},
             }));
             setSnackbar({
                 open: true,
@@ -257,20 +301,17 @@ const LeaveApplicationForm = () => {
         }
     };
 
-    const handleBalanceChange = (field) => (event) => {
-        const value = event.target.value === "" ? "" : parseFloat(event.target.value) || 0;
-        setFormData((prev) => ({ ...prev, [field]: value }));
+    // Leave Type selection — also defaults Paid/Unpaid from the type's IsPaid flag
+    // (HR can still override Paid/Unpaid manually afterwards).
+    const handleLeaveTypeChange = (event) => {
+        const id = Number(event.target.value);
+        const selected = leaveTypeOptions.find((t) => t.LeaveTypeID === id);
+        setFormData((prev) => ({
+            ...prev,
+            leaveTypeId: id,
+            paidStatus: selected ? (selected.IsPaid ? "Paid" : "Unpaid") : prev.paidStatus,
+        }));
     };
-
-    // ============================================
-    // LEAVE TYPES CONFIG
-    // ============================================
-    const leaveTypes = [
-        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
-        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
-        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
-        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
-    ];
 
     // ============================================
     // VALIDATE FORM
@@ -308,31 +349,41 @@ const LeaveApplicationForm = () => {
         setLoading(true);
         try {
             const payload = {
+                employeeId: formData.employeeId,
                 employeeCode: formData.employeeCode,
                 employeeName: formData.employeeName,
                 designation: formData.designation,
                 department: formData.department,
                 preparedBy: formData.preparedBy,
-                leaveType: formData.leaveType,
+                leaveTypeId: formData.leaveTypeId,
                 paidStatus: formData.paidStatus,
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 reason: formData.reason,
                 totalDays: formData.weight,
                 status: "Pending",
-                balances: {
-                    sickLeaves: formData.sickLeaves,
-                    casualLeaves: formData.casualLeaves,
-                    annualLeaves: formData.annualLeaves,
-                    compensatoryLeaves: formData.compensatoryLeaves,
-                },
+                appliedDate: getTodayDate(),
             };
 
-            await applyLeave(payload);
+            const res = await applyLeave(payload);
+
+            // The Application ID is the database's own RequestID — read it back from
+            // whatever applyLeave's response returns after the INSERT.
+            const created = res?.data?.data ?? res?.data ?? {};
+            const newRequestId = created.RequestID ?? created.requestId;
+
+            setFormData((prev) => ({
+                ...prev,
+                applicationId: newRequestId ? formatApplicationId(newRequestId) : prev.applicationId,
+                applicationDate: getTodayDate(),
+                status: created.Status || "Pending",
+            }));
 
             setSnackbar({
                 open: true,
-                message: "Leave application submitted successfully!",
+                message: newRequestId
+                    ? `Leave application submitted successfully! Application ID: ${formatApplicationId(newRequestId)}`
+                    : "Leave application submitted successfully!",
                 severity: "success",
             });
 
@@ -354,13 +405,18 @@ const LeaveApplicationForm = () => {
     // ============================================
     const handleReset = () => {
         clearTimeout(debounceTimer.current);
+        const defaultType = leaveTypeOptions[0];
         setFormData({
             ...initialState,
-            applicationId: generateAppId(),
             applicationDate: getTodayDate(),
+            applicationId: "Auto-generated on submit",
+            leaveTypeId: defaultType ? defaultType.LeaveTypeID : "",
+            paidStatus: defaultType ? (defaultType.IsPaid ? "Paid" : "Unpaid") : "Paid",
         });
         setErrors({});
         setShowPrintPreview(false);
+        // Refresh the previewed next Request ID for the new application
+        fetchNextRequestId();
     };
 
     // ============================================
@@ -379,14 +435,14 @@ const LeaveApplicationForm = () => {
     // GET LEAVE TYPE LABEL
     // ============================================
     const getLeaveTypeLabel = () => {
-        const lt = leaveTypes.find((l) => l.value === formData.leaveType);
-        return lt ? lt.label : formData.leaveType;
+        const lt = leaveTypeOptions.find((l) => l.LeaveTypeID === formData.leaveTypeId);
+        return lt ? lt.LeaveName : "—";
     };
 
     // ============================================
-    // LEAVE BALANCE TABLE
+    // LEAVE BALANCE TABLE (always reflects DB-sourced balances; read-only)
     // ============================================
-    const LeaveBalanceTable = ({ editable = false }) => (
+    const LeaveBalanceTable = () => (
         <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none" }}>
             <Table size="small">
                 <TableHead>
@@ -398,17 +454,15 @@ const LeaveApplicationForm = () => {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {leaveTypes.map((lt, i) => {
-                        // opening balance: use the fetched/entered value; fall back to 0 for display
-                        const opening =
-                            formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
-                        const isActive = formData.leaveType === lt.value;
+                    {leaveTypeOptions.map((lt, i) => {
+                        const opening = formData.balances[lt.LeaveTypeID] ?? 0;
+                        const isActive = formData.leaveTypeId === lt.LeaveTypeID;
                         const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
                         const closing = Math.max(0, opening - applied);
 
                         return (
                             <TableRow
-                                key={lt.value}
+                                key={lt.LeaveTypeID}
                                 sx={{
                                     bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
                                     ...(isActive && {
@@ -417,35 +471,14 @@ const LeaveApplicationForm = () => {
                                     }),
                                 }}
                             >
-                                <TableCell>{lt.label}</TableCell>
-
-                                {/* Opening Balance */}
-                                <TableCell align="right">
-                                    {editable ? (
-                                        <TextField
-                                            type="number"
-                                            value={formData[lt.balanceKey]}
-                                            onChange={handleBalanceChange(lt.balanceKey)}
-                                            size="small"
-                                            placeholder="0"
-                                            inputProps={{ min: 0, style: { textAlign: "right", width: 70 } }}
-                                            variant="standard"
-                                            sx={{ width: 80 }}
-                                        />
-                                    ) : (
-                                        opening
-                                    )}
-                                </TableCell>
-
-                                {/* Applied Days */}
+                                <TableCell>{lt.LeaveName}</TableCell>
+                                <TableCell align="right">{opening}</TableCell>
                                 <TableCell
                                     align="right"
                                     sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
                                 >
                                     {applied || 0}
                                 </TableCell>
-
-                                {/* Closing Balance */}
                                 <TableCell
                                     align="right"
                                     sx={{
@@ -502,23 +535,22 @@ const LeaveApplicationForm = () => {
     );
 
     // ============================================
-    // HANDLE PRINT  (unchanged)
+    // HANDLE PRINT  (layout unchanged, data source updated)
     // ============================================
     const handlePrint = () => {
         const printWindow = window.open("", "_blank");
 
-        const balanceRows = leaveTypes
+        const balanceRows = leaveTypeOptions
             .map((lt) => {
-                const opening =
-                    formData[lt.balanceKey] === "" ? 0 : parseFloat(formData[lt.balanceKey]) || 0;
-                const isActive = formData.leaveType === lt.value;
+                const opening = formData.balances[lt.LeaveTypeID] ?? 0;
+                const isActive = formData.leaveTypeId === lt.LeaveTypeID;
                 const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
                 const closing = Math.max(0, opening - applied);
                 const isHighlighted = isActive ? "highlight" : "";
 
                 return `
                 <tr class="${isHighlighted}">
-                    <td>${lt.label}</td>
+                    <td>${lt.LeaveName}</td>
                     <td class="right">${opening}</td>
                     <td class="right"><strong>${applied}</strong></td>
                     <td class="right"><strong>${closing}</strong></td>
@@ -581,6 +613,7 @@ const LeaveApplicationForm = () => {
                             <div class="app-info">
                                 <span><strong>Application ID:</strong> ${formData.applicationId}</span>
                                 <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
+                                <span><strong>Status:</strong> ${formData.status}</span>
                             </div>
                         </div>
                         <div class="section">
@@ -715,7 +748,11 @@ const LeaveApplicationForm = () => {
                         </Grid>
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2"><strong>Application ID:</strong> {formData.applicationId}</Typography>
+                                <Typography variant="body2">
+                                    <strong>Application ID:</strong> {formData.applicationId}
+                                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                                    <strong>Status:</strong> {formData.status}
+                                </Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }} sx={{ textAlign: { xs: "left", md: "right" } }}>
                                 <Typography variant="body2"><strong>Application Date:</strong> {formatDate(formData.applicationDate)}</Typography>
@@ -797,12 +834,13 @@ const LeaveApplicationForm = () => {
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Leave Type</InputLabel>
                                     <Select
-                                        value={formData.leaveType}
-                                        onChange={handleChange("leaveType")}
+                                        value={formData.leaveTypeId || ""}
+                                        onChange={handleLeaveTypeChange}
                                         label="Leave Type"
+                                        disabled={loadingLeaveTypes}
                                     >
-                                        {leaveTypes.map((lt) => (
-                                            <MenuItem key={lt.value} value={lt.value}>{lt.label}</MenuItem>
+                                        {leaveTypeOptions.map((lt) => (
+                                            <MenuItem key={lt.LeaveTypeID} value={lt.LeaveTypeID}>{lt.LeaveName}</MenuItem>
                                         ))}
                                     </Select>
                                 </FormControl>
@@ -863,13 +901,13 @@ const LeaveApplicationForm = () => {
                     {/* Leave Balance Summary */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
-                        {fetchingEmployee ? (
+                        {fetchingEmployee || loadingLeaveTypes ? (
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2, color: "text.secondary" }}>
                                 <CircularProgress size={16} />
                                 <Typography variant="body2">Loading leave balances…</Typography>
                             </Box>
                         ) : (
-                            <LeaveBalanceTable editable={true} />
+                            <LeaveBalanceTable />
                         )}
                     </Box>
 
@@ -940,7 +978,11 @@ const LeaveApplicationForm = () => {
                         </Grid>
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2"><strong>Application ID:</strong> {formData.applicationId}</Typography>
+                                <Typography variant="body2">
+                                    <strong>Application ID:</strong> {formData.applicationId}
+                                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                                    <strong>Status:</strong> {formData.status}
+                                </Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }} sx={{ textAlign: { xs: "left", md: "right" } }}>
                                 <Typography variant="body2"><strong>Application Date:</strong> {formatDate(formData.applicationDate)}</Typography>
@@ -975,7 +1017,7 @@ const LeaveApplicationForm = () => {
                             <Grid item size={{ xs: 6, md: 2 }}>
                                 <Typography variant="caption" color="text.secondary">Leave Type</Typography>
                                 <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>
-                                    {leaveTypes.find((lt) => lt.value === formData.leaveType)?.label || "—"}
+                                    {getLeaveTypeLabel()}
                                 </Typography>
                             </Grid>
                             <Grid item size={{ xs: 6, md: 2 }}>
@@ -1014,7 +1056,7 @@ const LeaveApplicationForm = () => {
                     {/* Leave Balance Summary */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
-                        <LeaveBalanceTable editable={false} />
+                        <LeaveBalanceTable />
                     </Box>
 
                     {/* Approval Information */}
