@@ -72,67 +72,136 @@ const LeaveApplicationForm = () => {
     // ============================================
     // FETCH EMPLOYEE DATA BY CODE
     // ============================================
-    const fetchEmployeeByCode = async (code) => {
-        if (!code || code.trim() === "") {
-            // Clear employee fields if code is empty
+    // const fetchEmployeeByCode = async (code) => {
+    //     if (!code || code.trim() === "") {
+    //         setFormData((prev) => ({
+    //             ...prev,
+    //             employeeName: "",
+    //             designation: "",
+    //             department: "",
+    //             sickLeaves: "",
+    //             casualLeaves: "",
+    //             annualLeaves: "",
+    //             compensatoryLeaves: "",
+    //         }));
+    //         return;
+    //     }
+
+    //     setLoading(true);
+    //     try {
+    //         // Fetch employee by code
+    //         const res = await api.get(`/employees/code/${code}`);
+    //         console.log("Employee data:", res.data);
+
+    //         // Extract employee data from response
+    //         let emp = null;
+    //         if (res.data?.data) {
+    //             emp = res.data.data;
+    //         } else if (res.data) {
+    //             emp = res.data;
+    //         }
+
+    //         if (emp) {
+    //             // Update form with employee data
+    //             setFormData((prev) => ({
+    //                 ...prev,
+    //                 employeeName: emp.Name || emp.name || "",
+    //                 designation: emp.Designation || emp.designation || "",
+    //                 department: emp.Department || emp.department || "",
+    //             }));
+
+    //             // Fetch leave balances for this employee
+    //             await fetchLeaveBalances(emp.EmployeeID || emp.id);
+    //         } else {
+    //             // Employee not found
+    //             setFormData((prev) => ({
+    //                 ...prev,
+    //                 employeeName: "",
+    //                 designation: "",
+    //                 department: "",
+    //                 sickLeaves: "",
+    //                 casualLeaves: "",
+    //                 annualLeaves: "",
+    //                 compensatoryLeaves: "",
+    //             }));
+    //             setSnackbar({
+    //                 open: true,
+    //                 message: "Employee not found with this code",
+    //                 severity: "error",
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error("Employee fetch error:", error);
+    //         setFormData((prev) => ({
+    //             ...prev,
+    //             employeeName: "",
+    //             designation: "",
+    //             department: "",
+    //             sickLeaves: "",
+    //             casualLeaves: "",
+    //             annualLeaves: "",
+    //             compensatoryLeaves: "",
+    //         }));
+    //         setSnackbar({
+    //             open: true,
+    //             message: error.response?.data?.message || "Failed to fetch employee data",
+    //             severity: "error",
+    //         });
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+const fetchEmployeeByCode = async (code) => {
+    console.log("🔍 Fetching employee with code:", code);
+    
+    if (!code || code.trim() === "") {
+        setFormData((prev) => ({
+            ...prev,
+            employeeName: "",
+            designation: "",
+            department: "",
+            sickLeaves: "",
+            casualLeaves: "",
+            annualLeaves: "",
+            compensatoryLeaves: "",
+        }));
+        return;
+    }
+
+    setFetchingEmployee(true);
+    try {
+        // ✅ The API call
+        const res = await api.get(`/employees/code/${code}`);
+        console.log("✅ Full API Response:", res);
+        
+        // ✅ FIX: Extract employee from res.data.data (not res.data)
+        const emp = res.data?.data;
+        console.log("✅ Employee data:", emp);
+
+        if (emp) {
+            console.log("✅ Employee found:", emp.Name);
+            
+            // ✅ Update form fields
             setFormData((prev) => ({
                 ...prev,
-                employeeName: "",
-                designation: "",
-                department: "",
-                sickLeaves: "",
-                casualLeaves: "",
-                annualLeaves: "",
-                compensatoryLeaves: "",
+                employeeName: emp.Name || "",
+                designation: emp.Designation || "",
+                department: emp.Department || "",
             }));
-            return;
-        }
 
-        setLoading(true);
-        try {
-            // Fetch employee by code
-            const res = await api.get(`/employees/code/${code}`);
-            console.log("Employee data:", res.data);
-
-            // Extract employee data from response
-            let emp = null;
-            if (res.data?.data) {
-                emp = res.data.data;
-            } else if (res.data) {
-                emp = res.data;
+            // ✅ Fetch leave balances
+            if (emp.EmployeeID) {
+                console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
+                await fetchLeaveBalances(emp.EmployeeID);
             }
-
-            if (emp) {
-                // Update form with employee data
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeName: emp.Name || emp.name || "",
-                    designation: emp.Designation || emp.designation || "",
-                    department: emp.Department || emp.department || "",
-                }));
-
-                // Fetch leave balances for this employee
-                await fetchLeaveBalances(emp.EmployeeID || emp.id);
-            } else {
-                // Employee not found
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeName: "",
-                    designation: "",
-                    department: "",
-                    sickLeaves: "",
-                    casualLeaves: "",
-                    annualLeaves: "",
-                    compensatoryLeaves: "",
-                }));
-                setSnackbar({
-                    open: true,
-                    message: "Employee not found with this code",
-                    severity: "error",
-                });
-            }
-        } catch (error) {
-            console.error("Employee fetch error:", error);
+            
+            setSnackbar({
+                open: true,
+                message: `Employee ${emp.Name} loaded successfully`,
+                severity: "success",
+            });
+        } else {
+            console.log("❌ No employee found for code:", code);
             setFormData((prev) => ({
                 ...prev,
                 employeeName: "",
@@ -145,14 +214,30 @@ const LeaveApplicationForm = () => {
             }));
             setSnackbar({
                 open: true,
-                message: error.response?.data?.message || "Failed to fetch employee data",
+                message: `Employee with code "${code}" not found`,
                 severity: "error",
             });
-        } finally {
-            setLoading(false);
         }
-    };
-
+    } catch (error) {
+        console.error("❌ Employee fetch error:", error);
+        setFormData((prev) => ({
+            ...prev,
+            employeeName: "",
+            designation: "",
+            department: "",
+            sickLeaves: "",
+            annualLeaves: "",
+            compensatoryLeaves: "",
+        }));
+        setSnackbar({
+            open: true,
+            message: error.response?.data?.message || "Failed to fetch employee data",
+            severity: "error",
+        });
+    } finally {
+        setFetchingEmployee(false);
+    }
+};
     // ============================================
     // FETCH LEAVE BALANCES BY EMPLOYEE ID
     // ============================================
