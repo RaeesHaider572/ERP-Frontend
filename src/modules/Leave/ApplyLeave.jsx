@@ -736,7 +736,8 @@ const LeaveApplicationForm = () => {
                                     onChange={handleChange("employeeCode")}
                                     required
                                     error={!!errors.employeeCode}
-                                    helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "Enter code to auto-fill")}
+                                    // helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "")}
+                                    // helperText={errors.employeeCode || (fetchingEmployee ? "Looking up employee…" : "Enter code to auto-fill")}
                                     size="small"
                                     placeholder="e.g. EMP0001"
                                     InputProps={{
