@@ -14,17 +14,19 @@ export const getLeaveBalances = (employeeId, year) => {
     const query = year ? `?year=${year}` : '';
     return api.get(`${API_URL}/balances/employee/${employeeId}${query}`);
 };
+
 export const getAllLeaveBalances = (year) => {
     const query = year ? `?year=${year}` : '';
     return api.get(`${API_URL}/balances${query}`);
 };
+
 export const resetLeaveBalances = (year) => api.post(`${API_URL}/balances/reset`, { year });
 
 // ==================== LEAVE REQUESTS ====================
 export const getEmployeeLeaveRequests = (employeeId) => 
     api.get(`${API_URL}/employee/${employeeId}`);
 
-// ✅ ADD THIS - The missing export
+// ✅ EXPORT getLeaveRequests
 export const getLeaveRequests = (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.status) params.append('status', filters.status);
@@ -36,7 +38,7 @@ export const getLeaveRequests = (filters = {}) => {
     return api.get(`${API_URL}/requests${queryString ? `?${queryString}` : ''}`);
 };
 
-// Alias for backward compatibility
+// Alias for compatibility
 export const getAllLeaveRequests = getLeaveRequests;
 
 export const getLeaveRequestById = (id) => api.get(`${API_URL}/requests/${id}`);
@@ -49,7 +51,7 @@ export const getLeaveCalendar = (month, year) =>
     api.get(`${API_URL}/calendar?month=${month}&year=${year}`);
 
 // ==================== DEFAULT EXPORT ====================
-const leaveService = {
+export default {
     getLeaveTypes,
     getLeaveTypeById,
     createLeaveType,
@@ -59,7 +61,7 @@ const leaveService = {
     getAllLeaveBalances,
     resetLeaveBalances,
     getEmployeeLeaveRequests,
-    getLeaveRequests,  // ✅ Added here too
+    getLeaveRequests,
     getAllLeaveRequests,
     getLeaveRequestById,
     applyLeave,
@@ -67,5 +69,3 @@ const leaveService = {
     getLeaveStats,
     getLeaveCalendar
 };
-
-export default leaveService;
