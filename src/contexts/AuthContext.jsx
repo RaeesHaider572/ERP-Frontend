@@ -1,6 +1,112 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { authService } from "../services/authService";
 
+// ============================================
+// MODULE ACCESS DEFINITIONS
+// ============================================
+export const MODULES = {
+    DASHBOARD: 'dashboard',
+    LEAVE: 'leave',
+    EMPLOYEES: 'employees',
+    CUSTOMERS: 'customers',
+    RECEIPTS: 'receipts',
+    INSTALLMENT: 'installment',
+    INVENTORY: 'inventory',
+    TAX_RATES: 'tax_rates',
+    CASH_BANK: 'cash_bank',
+    PROJECTS: 'projects',
+    PAYMENT_TYPES: 'payment_types',
+    ATTENDANCE: 'attendance',
+    MOBILE_CHECKIN: 'mobile_checkin',
+};
+
+// ✅ Define which roles can access which modules
+export const ROLE_MODULE_ACCESS = {
+    // Employee: Only Leave module
+    employee: {
+        modules: [MODULES.DASHBOARD, MODULES.LEAVE],
+        routes: [
+            '/dashboard',
+            '/leave/*',
+            '/leave/apply',
+            '/leave/requests',
+            '/leave/balance',
+            '/leave-dashboard',
+            '/LeaveTypes',
+            '/LeaveRequests',
+            '/LeaveApply',
+            '/ApplyLeave',
+        ]
+    },
+    // Custodian: Leave + Employees (Team Management)
+    custodian: {
+        modules: [MODULES.DASHBOARD, MODULES.LEAVE, MODULES.EMPLOYEES],
+        routes: [
+            '/dashboard',
+            '/leave/*',
+            '/leave/apply',
+            '/leave/requests',
+            '/leave/balance',
+            '/leave-dashboard',
+            '/LeaveTypes',
+            '/LeaveRequests',
+            '/LeaveApply',
+            '/ApplyLeave',
+            '/employees'
+        ]
+    },
+    // HR: Leave + Employees Only (No other modules)
+    HR: {
+        modules: [MODULES.DASHBOARD, MODULES.LEAVE, MODULES.EMPLOYEES],
+        routes: [
+            '/dashboard',
+            '/leave/*',
+            '/leave/apply',
+            '/leave/requests',
+            '/leave/balance',
+            '/leave-dashboard',
+            '/LeaveTypes',
+            '/LeaveRequests',
+            '/LeaveApply',
+            '/ApplyLeave',
+            '/employees'
+        ]
+    }
+};
+
+// ✅ Check if a route is allowed for a user
+export const isRouteAllowed = (user, path) => {
+    if (!user) return false;
+    
+    const access = ROLE_MODULE_ACCESS[user.Role];
+    if (!access) return false;
+    
+    return access.routes.some(route => {
+        if (route === '/*') return true;
+        if (route.endsWith('/*')) {
+            const baseRoute = route.replace('/*', '');
+            return path.startsWith(baseRoute);
+        }
+        return path === route;
+    });
+};
+
+// ✅ Check if a module is accessible
+export const isModuleAccessible = (user, moduleName) => {
+    if (!user) return false;
+    
+    const access = ROLE_MODULE_ACCESS[user.Role];
+    if (!access) return false;
+    
+    return access.modules.includes(moduleName);
+};
+
+// ✅ Check if user has specific role
+export const hasRole = (user, role) => {
+    if (!user) return false;
+    return user.Role === role;
+};
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -23,19 +129,17 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authService.login(email, password);
             if (response.status === "success") {
-                setUser(response.data.user);
+                const userData = response.data.user;
+                setUser(userData);
                 setIsAuthenticated(true);
                 return { success: true };
             }
             return { success: false, message: response.message || "Login failed" };
         } catch (error) {
             console.error("Login error in AuthContext:", error);
-            const errorMessage = error.response?.data?.message 
-                || error.message 
-                || "Login failed. Please check your connection and try again.";
             return {
                 success: false,
-                message: errorMessage
+                message: error.response?.data?.message || "Login failed"
             };
         }
     };
@@ -49,12 +153,9 @@ export const AuthProvider = ({ children }) => {
             return { success: false, message: response.message || "Registration failed" };
         } catch (error) {
             console.error("Registration error in AuthContext:", error);
-            const errorMessage = error.response?.data?.message 
-                || error.message 
-                || "Registration failed. Please check your connection and try again.";
             return {
                 success: false,
-                message: errorMessage
+                message: error.response?.data?.message || "Registration failed"
             };
         }
     };
@@ -90,30 +191,21 @@ export const AuthProvider = ({ children }) => {
         return user?.teamMembers || [];
     };
 
-    const canAccessModule = (module) => {
-        if (!user) return false;
-        
-        // All roles can access dashboard and leave
-        if (module === 'dashboard' || module === 'leave') {
-            return true;
-        }
-        
-        // Employees can only access leave
-        if (user.Role === 'employee') {
-            return false;
-        }
-        
-        // Custodians can access employees
-        if (user.Role === 'custodian') {
-            return module === 'employees';
-        }
-        
-        // HR can access employees only
-        if (user.Role === 'HR') {
-            return module === 'employees';
-        }
-        
-        return false;
+    // ✅ Check if user can access a specific module
+    const canAccessModule = (moduleName) => {
+        return isModuleAccessible(user, moduleName);
+    };
+
+    // ✅ Check if user can access a specific route
+    const canAccessRoute = (path) => {
+        return isRouteAllowed(user, path);
+    };
+
+    // ✅ Get all modules user can access
+    const getAccessibleModules = () => {
+        if (!user) return [];
+        const access = ROLE_MODULE_ACCESS[user.Role];
+        return access?.modules || [];
     };
 
     const value = {
@@ -131,6 +223,8 @@ export const AuthProvider = ({ children }) => {
         canApplyForOthers,
         getTeamMembers,
         canAccessModule,
+        canAccessRoute,
+        getAccessibleModules,
         // Convenience
         role: user?.Role,
         isEmployeeRole: user?.Role === 'employee',

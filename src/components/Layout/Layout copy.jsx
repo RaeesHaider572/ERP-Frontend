@@ -1,11 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { 
-  AppBar, Box, CssBaseline, Divider, Drawer, IconButton, 
-  List, ListItem, ListItemButton, ListItemIcon, ListItemText, 
-  Toolbar, Typography, useMediaQuery, useTheme, Tooltip, 
-  Badge, Avatar, styled, Collapse 
-} from '@mui/material';
+import React, { useState } from 'react';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom'; 
+import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useMediaQuery, useTheme, Tooltip, Badge, Avatar, styled, } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -21,18 +16,10 @@ import {
   Percent as PercentIcon,
   AccountBalance as AccountBalanceIcon,
   People as EmployeeIcon,
-  EventNote as EventNoteIcon,
-  Logout,
-  InstallmentPlan as InstallmentIcon,
-  Work as WorkIcon,
-  Payment as PaymentIcon,
-  QrCodeScanner as QrCodeScannerIcon,
-  CameraAlt as CameraAltIcon,
-  ExpandLess,
-  ExpandMore,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import { useAuth, MODULES } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Logout } from '@mui/icons-material';
 
 const StyledDrawer = styled(Drawer, {
   shouldForwardProp: (prop) => prop !== 'open',
@@ -40,7 +27,7 @@ const StyledDrawer = styled(Drawer, {
   '& .MuiDrawer-paper': {
     position: 'relative',
     whiteSpace: 'nowrap',
-    width: open ? 240 : 60,
+    width: open ? 220 : 60,
     height: '100vh',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.easeInOut,
@@ -54,43 +41,54 @@ const StyledDrawer = styled(Drawer, {
   },
 }));
 
-function Layout() {
+function Layout({ children }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { mode, toggleTheme, sidebarOpen, toggleSidebar } = useThemeContext();
-  const { 
-    logout, 
-    user, 
-    isEmployee, 
-    isCustodian, 
-    isHR, 
-    getRoleDisplay,
-    canAccessModule 
-  } = useAuth();
+  const { logout, user } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [openSubMenus, setOpenSubMenus] = useState({});
-
-  // ✅ Check if user is authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const handleSubMenuToggle = (menuText) => {
-    setOpenSubMenus(prev => ({
-      ...prev,
-      [menuText]: !prev[menuText]
-    }));
-  };
+  const menuItems = [
+    {
+      text: 'Dashboard',
+      icon: <DashboardIcon />, path: '/dashboard', badge: 0
+    },
+    {
+      text: 'Customers',
+      icon: <People />,
+      path: '/customers',
+      badge: 0
+    },
+    {
+      text: 'Receipts',
+      icon: <ReceiptIcon />,
+      path: '/receipts',
+      badge: 0
+    },
+    {
+      text: 'Installment Plan',
+      icon: <ReceiptIcon />,
+      path: '/installment-plans',
+      badge: 0
+    },
+    {
+      text: 'Inventory',
+      icon: <Warehouse />,
+      path: '/inventory',
+      badge: 0
+    },
+    { text: "Tax Rates", icon: <PercentIcon />, path: "/tax-rates", badge: 0 },
+    { text: "Cash and Bank", icon: <AccountBalanceIcon />, path: "/cash-and-bank", badge: 0 },
+    { text: "Employees", icon: <EmployeeIcon />, path: "/employees", badge: 0 },
+  ];
 
   const handleDrawerClose = () => {
     setIsClosing(true);
@@ -108,243 +106,7 @@ function Layout() {
   };
 
   const isActive = (path) => {
-    return location.pathname === path || location.pathname.startsWith(path);
-  };
-
-  // ✅ Role-based menu items with complete module definitions
-  const getMenuItems = () => {
-    const allItems = [
-      { 
-        text: 'Dashboard', 
-        icon: <DashboardIcon />, 
-        path: '/dashboard', 
-        module: MODULES.DASHBOARD,
-        show: true // Always show
-      },
-      { 
-        text: 'Leave Module', 
-        icon: <EventNoteIcon />, 
-        path: '/leave-dashboard', 
-        module: MODULES.LEAVE,
-        show: canAccessModule(MODULES.LEAVE),
-        subItems: [
-          { text: 'Dashboard', path: '/leave-dashboard' },
-          { text: 'Apply Leave', path: '/LeaveApply' },
-          { text: 'My Requests', path: '/LeaveRequests' },
-          { text: 'Leave Balance', path: '/leave/balance' },
-          { text: 'Leave Types', path: '/LeaveTypes' },
-        ]
-      },
-      { 
-        text: 'Employees', 
-        icon: <EmployeeIcon />, 
-        path: '/employees', 
-        module: MODULES.EMPLOYEES,
-        show: canAccessModule(MODULES.EMPLOYEES)
-      },
-      { 
-        text: 'Customers', 
-        icon: <People />, 
-        path: '/customers', 
-        module: MODULES.CUSTOMERS,
-        show: canAccessModule(MODULES.CUSTOMERS)
-      },
-      { 
-        text: 'Projects', 
-        icon: <WorkIcon />, 
-        path: '/projects', 
-        module: MODULES.PROJECTS,
-        show: canAccessModule(MODULES.PROJECTS)
-      },
-      { 
-        text: 'Receipts', 
-        icon: <ReceiptIcon />, 
-        path: '/receipts', 
-        module: MODULES.RECEIPTS,
-        show: canAccessModule(MODULES.RECEIPTS)
-      },
-      { 
-        text: 'Payment Types', 
-        icon: <PaymentIcon />, 
-        path: '/payment-types', 
-        module: MODULES.PAYMENT_TYPES,
-        show: canAccessModule(MODULES.PAYMENT_TYPES)
-      },
-      { 
-        text: 'Installment Plan', 
-        icon: <InstallmentIcon />, 
-        path: '/installment-plans', 
-        module: MODULES.INSTALLMENT,
-        show: canAccessModule(MODULES.INSTALLMENT)
-      },
-      { 
-        text: 'Inventory', 
-        icon: <Warehouse />, 
-        path: '/inventory', 
-        module: MODULES.INVENTORY,
-        show: canAccessModule(MODULES.INVENTORY)
-      },
-      { 
-        text: 'Tax Rates', 
-        icon: <PercentIcon />, 
-        path: '/tax-rates', 
-        module: MODULES.TAX_RATES,
-        show: canAccessModule(MODULES.TAX_RATES)
-      },
-      { 
-        text: 'Cash and Bank', 
-        icon: <AccountBalanceIcon />, 
-        path: '/cash-and-bank', 
-        module: MODULES.CASH_BANK,
-        show: canAccessModule(MODULES.CASH_BANK)
-      },
-      { 
-        text: 'Attendance', 
-        icon: <CameraAltIcon />, 
-        path: '/AttendanceLiveFeed', 
-        module: MODULES.ATTENDANCE,
-        show: canAccessModule(MODULES.ATTENDANCE)
-      },
-      { 
-        text: 'Mobile Checkin', 
-        icon: <QrCodeScannerIcon />, 
-        path: '/mobile-checkin', 
-        module: MODULES.MOBILE_CHECKIN,
-        show: canAccessModule(MODULES.MOBILE_CHECKIN)
-      },
-    ];
-
-    return allItems.filter(item => item.show !== false);
-  };
-
-  const menuItems = getMenuItems();
-
-  const renderMenuItem = (item) => {
-    const hasSubItems = item.subItems && item.subItems.length > 0;
-    const isSubMenuOpen = openSubMenus[item.text] || false;
-    const isItemActive = isActive(item.path);
-
-    return (
-      <React.Fragment key={item.text}>
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <Tooltip title={item.text} placement="right" disableHoverListener={sidebarOpen}>
-            <ListItemButton
-              onClick={() => {
-                if (hasSubItems) {
-                  handleSubMenuToggle(item.text);
-                } else {
-                  navigate(item.path);
-                }
-              }}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                px: sidebarOpen ? 1.5 : 1,
-                minHeight: 48,
-                display: 'flex',
-                alignItems: 'center',
-                whiteSpace: 'nowrap',
-                backgroundColor: isItemActive
-                  ? (mode === 'light' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)')
-                  : 'transparent',
-                '&:hover': {
-                  backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
-                }
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: sidebarOpen ? 32 : 'auto',
-                  mr: sidebarOpen ? 1.5 : 0,
-                  justifyContent: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: isItemActive
-                    ? theme.palette.primary.main
-                    : (mode === 'light' ? '#64748b' : '#94a3b8'),
-                  position: 'relative',
-                  flexShrink: 0,
-                }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              {sidebarOpen && (
-                <>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: isItemActive ? 600 : 400,
-                      color: isItemActive
-                        ? theme.palette.primary.main
-                        : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
-                      noWrap: true,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    sx={{
-                      m: 0,
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  />
-                  {hasSubItems && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubMenuToggle(item.text);
-                      }}
-                      sx={{ ml: 1 }}
-                    >
-                      {isSubMenuOpen ? <ExpandLess /> : <ExpandMore />}
-                    </IconButton>
-                  )}
-                </>
-              )}
-            </ListItemButton>
-          </Tooltip>
-        </ListItem>
-        {hasSubItems && sidebarOpen && (
-          <Collapse in={isSubMenuOpen} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding>
-              {item.subItems.map((subItem) => (
-                <ListItem key={subItem.text} disablePadding>
-                  <ListItemButton
-                    onClick={() => navigate(subItem.path)}
-                    sx={{
-                      pl: 4,
-                      py: 0.75,
-                      borderRadius: 2,
-                      mb: 0.25,
-                      mx: 1,
-                      backgroundColor: isActive(subItem.path)
-                        ? (mode === 'light' ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.15)')
-                        : 'transparent',
-                      '&:hover': {
-                        backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
-                      }
-                    }}
-                  >
-                    <ListItemText
-                      primary={subItem.text}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: isActive(subItem.path) ? 500 : 400,
-                        color: isActive(subItem.path)
-                          ? theme.palette.primary.main
-                          : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
-                        noWrap: true,
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-        )}
-      </React.Fragment>
-    );
+    return location.pathname === path;
   };
 
   const drawer = (
@@ -379,7 +141,7 @@ function Layout() {
                 fontSize: '1.25rem',
                 flexShrink: 0,
               }}>
-                {user?.Name?.charAt(0) || 'U'}
+                A
               </Avatar>
               <Box sx={{
                 flexGrow: 1,
@@ -397,7 +159,7 @@ function Layout() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {user?.Name || 'User'}
+                  Admin Dashboard
                 </Typography>
                 <Typography
                   variant="body2"
@@ -409,7 +171,7 @@ function Layout() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {getRoleDisplay()}
+                  Administrator
                 </Typography>
               </Box>
             </>
@@ -421,7 +183,7 @@ function Layout() {
               height: 40,
               fontWeight: 'bold',
             }}>
-              {user?.Name?.charAt(0) || 'U'}
+              A
             </Avatar>
           )}
         </Toolbar>
@@ -435,6 +197,7 @@ function Layout() {
         display: 'flex',
         justifyContent: 'flex-end',
         p: 1,
+        // display: isMobile ? 'none' : 'flex',
       }}>
         <Tooltip title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
           <IconButton
@@ -468,14 +231,160 @@ function Layout() {
         },
       }}>
         <List sx={{ px: sidebarOpen ? 1.5 : 1, pt: 1 }}>
-          {menuItems.map(item => renderMenuItem(item))}
+          {/* Menu Items */}
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
+              <Tooltip title={item.text} placement="right" disableHoverListener={sidebarOpen}>
+                <ListItemButton
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 1,
+                    justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                    px: sidebarOpen ? 1.5 : 1,
+                    minHeight: 48,
+                    display: 'flex',
+                    alignItems: 'center',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: isActive(item.path)
+                      ? (mode === 'light' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)')
+                      : 'transparent',
+                    '&:hover': {
+                      backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
+                    }
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: sidebarOpen ? 32 : 'auto',
+                      mr: sidebarOpen ? 1.5 : 0,
+                      justifyContent: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: isActive(item.path)
+                        ? theme.palette.primary.main
+                        : (mode === 'light' ? '#64748b' : '#94a3b8'),
+                      position: 'relative',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.icon}
+                    {item.badge > 0 && !sidebarOpen && (
+                      <Badge
+                        badgeContent={item.badge}
+                        color="error"
+                        sx={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -6,
+                          '& .MuiBadge-badge': {
+                            fontSize: '0.65rem',
+                            minWidth: '16px',
+                            height: '16px',
+                            padding: '0 4px',
+                          }
+                        }}
+                      />
+                    )}
+                  </ListItemIcon>
+                  {sidebarOpen && (
+                    <>
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontWeight: isActive(item.path) ? 600 : 400,
+                          color: isActive(item.path)
+                            ? theme.palette.primary.main
+                            : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
+                          noWrap: true,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        sx={{
+                          m: 0,
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      />
+                      {item.badge > 0 && (
+                        <Badge
+                          badgeContent={item.badge}
+                          color="error"
+                          sx={{
+                            ml: 1,
+                            flexShrink: 0,
+                            '& .MuiBadge-badge': {
+                              fontSize: '0.7rem',
+                              minWidth: '18px',
+                              height: '18px',
+                              padding: '0 5px',
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          ))}
         </List>
       </Box>
 
-      {/* Logout Button */}
+      {/* Settings at Bottom */}
       <Box sx={{ flexShrink: 0 }}>
         <Divider sx={{ my: 2 }} />
         <List sx={{ px: sidebarOpen ? 2 : 1 }}>
+          <ListItem disablePadding sx={{ display: 'block' }}>
+            <Tooltip title="Settings" placement="right" disableHoverListener={sidebarOpen}>
+              <ListItemButton
+                onClick={() => navigate('/settings')}
+                sx={{
+                  borderRadius: 2,
+                  mb: 1,
+                  justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                  px: sidebarOpen ? 1.5 : 1,
+                  minHeight: 48,
+                  display: 'flex',
+                  alignItems: 'center',
+                  whiteSpace: 'nowrap',
+                  '&:hover': {
+                    backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
+                  }
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: sidebarOpen ? 40 : 'auto',
+                    mr: sidebarOpen ? 2 : 0,
+                    justifyContent: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: mode === 'light' ? '#64748b' : '#94a3b8',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Settings />
+                </ListItemIcon>
+                {sidebarOpen && (
+                  <ListItemText
+                    primary="Settings"
+                    primaryTypographyProps={{
+                      color: mode === 'light' ? 'text.secondary' : '#94a3b8',
+                      noWrap: true,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    sx={{
+                      m: 0,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
+          </ListItem>
           <ListItem disablePadding sx={{ display: 'block' }}>
             <Tooltip title="Logout" placement="right" disableHoverListener={sidebarOpen}>
               <ListItemButton
@@ -532,20 +441,20 @@ function Layout() {
   );
 
   // Update AppBar title based on route
-  const getPageTitle = () => {
+ const getPageTitle = () => {
     const route = menuItems.find(item => isActive(item.path));
+    if (isActive('/dashboard')) return 'Dashboard Overview';
     if (route) return route.text;
-    if (location.pathname.includes('/leave')) return 'Leave Module';
-    if (location.pathname.includes('/employees')) return 'Employees';
-    return 'Dashboard';
+    return 'Dashboard Overview';
   };
 
-  const drawerWidth = sidebarOpen ? 240 : 60;
+  const drawerWidth = sidebarOpen ? 220 : 60;
 
-  return (
+   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
       <CssBaseline />
 
+      {/* AppBar - same as before */}
       <AppBar
         position="fixed"
         sx={{
@@ -581,13 +490,21 @@ function Layout() {
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Notifications">
+              <IconButton color="inherit">
+                <Badge badgeContent={4} color="error">
+                  <Notifications />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+
             <Tooltip title="Toggle theme">
               <IconButton onClick={toggleTheme} color="inherit">
                 {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
               </IconButton>
             </Tooltip>
 
-            <Tooltip title={user?.Name || 'User'}>
+            <Tooltip title={user?.name || user?.email || 'User'}>
               <Avatar
                 sx={{
                   width: 40,
@@ -596,13 +513,14 @@ function Layout() {
                   cursor: 'pointer'
                 }}
               >
-                {user?.Name?.charAt(0)?.toUpperCase() || 'U'}
+                {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
               </Avatar>
             </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
 
+      {/* Sidebar/Drawer - same as before */}
       <Box
         component="nav"
         sx={{
@@ -618,6 +536,7 @@ function Layout() {
           zIndex: theme.zIndex.drawer,
         }}
       >
+        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -637,6 +556,7 @@ function Layout() {
           {drawer}
         </Drawer>
 
+        {/* Desktop Drawer */}
         <StyledDrawer
           variant="permanent"
           open={sidebarOpen}
@@ -648,6 +568,7 @@ function Layout() {
         </StyledDrawer>
       </Box>
 
+      {/* Main Content - Use Outlet instead of children */}
       <Box
         component="main"
         sx={{
@@ -671,13 +592,13 @@ function Layout() {
         <Toolbar />
         <Box
           sx={{
-            p: { xs: 1.5, sm: 2, md: 3 },
+            p: { xs: 1.5, sm: 2, md: 2 },
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
           }}
         >
-          <Outlet />
+          <Outlet /> {/* ✅ Use Outlet instead of {children} */}
         </Box>
       </Box>
     </Box>
