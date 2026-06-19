@@ -16,9 +16,9 @@ import { useNavigate } from "react-router-dom";
 import { loginWithEmployeeCode } from "../services/authService";
 
 const Login = () => {
-    const [loginMethod, setLoginMethod] = useState(1); // Default to Employee Code
+    const [loginMethod, setLoginMethod] = useState(1);
     const [email, setEmail] = useState("");
-    const [employeeCode, setEmployeeCode] = useState("EMP0088");
+    const [employeeCode, setEmployeeCode] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -31,8 +31,6 @@ const Login = () => {
         setLoading(true);
 
         try {
-            let result;
-            
             if (loginMethod === 0) {
                 // Email login
                 if (!email || !password) {
@@ -40,37 +38,39 @@ const Login = () => {
                     setLoading(false);
                     return;
                 }
-                result = await login(email, password);
-            } else {
-                // Employee code login
-                if (!employeeCode || !password) {
-                    setError("Please fill in all fields");
-                    setLoading(false);
-                    return;
-                }
-                // Use the employee code login function
-                const response = await loginWithEmployeeCode(employeeCode, password);
-                if (response.status === "success") {
-                    // Update auth context with user data
-                    const userData = response.data.user;
-                    // The auth context will pick up the user from localStorage
-                    // Force a refresh of the auth state
-                    window.location.reload();
+                const result = await login(email, password);
+                setLoading(false);
+                if (result.success) {
                     navigate("/dashboard");
-                    setLoading(false);
-                    return;
                 } else {
-                    setError(response.message || "Login failed");
-                    setLoading(false);
-                    return;
+                    setError(result.message || "Login failed");
                 }
+                return;
             }
 
-            setLoading(false);
-            if (result?.success) {
+            // Employee code login
+            if (!employeeCode || !password) {
+                setError("Please fill in all fields");
+                setLoading(false);
+                return;
+            }
+
+            const response = await loginWithEmployeeCode(employeeCode, password);
+            console.log("Login response:", response);
+
+            if (response.status === "success") {
+                // User data is already stored in localStorage by authService
+                // Force auth context to reload
+                const userData = response.data.user;
+                console.log("✅ Login successful! User:", userData);
+                
+                // The AuthContext will pick up the user from localStorage
+                // Just navigate to dashboard
+                setLoading(false);
                 navigate("/dashboard");
             } else {
-                setError(result?.message || "Login failed. Please try again.");
+                setError(response.message || "Login failed");
+                setLoading(false);
             }
         } catch (err) {
             console.error("Login error:", err);
@@ -159,7 +159,7 @@ const Login = () => {
                                 value={employeeCode}
                                 onChange={(e) => setEmployeeCode(e.target.value.toUpperCase())}
                                 disabled={loading}
-                                placeholder="e.g., EMP0001"
+                                placeholder="e.g., EMP0088"
                             />
                         )}
                         
