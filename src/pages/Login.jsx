@@ -7,18 +7,18 @@ import {
     Typography,
     Box,
     Alert,
-    Link,
-    CircularProgress,
     Tab,
-    Tabs
+    Tabs,
+    CircularProgress
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { loginWithEmployeeCode } from "../services/authService";
 
 const Login = () => {
-    const [loginMethod, setLoginMethod] = useState(0);
+    const [loginMethod, setLoginMethod] = useState(1); // Default to Employee Code
     const [email, setEmail] = useState("");
-    const [employeeCode, setEmployeeCode] = useState("");
+    const [employeeCode, setEmployeeCode] = useState("EMP0088");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -30,23 +30,52 @@ const Login = () => {
         setError("");
         setLoading(true);
 
-        // Use email or employee code based on tab
-        const identifier = loginMethod === 0 ? email : employeeCode;
-        
-        if (!identifier || !password) {
-            setError("Please fill in all fields");
+        try {
+            let result;
+            
+            if (loginMethod === 0) {
+                // Email login
+                if (!email || !password) {
+                    setError("Please fill in all fields");
+                    setLoading(false);
+                    return;
+                }
+                result = await login(email, password);
+            } else {
+                // Employee code login
+                if (!employeeCode || !password) {
+                    setError("Please fill in all fields");
+                    setLoading(false);
+                    return;
+                }
+                // Use the employee code login function
+                const response = await loginWithEmployeeCode(employeeCode, password);
+                if (response.status === "success") {
+                    // Update auth context with user data
+                    const userData = response.data.user;
+                    // The auth context will pick up the user from localStorage
+                    // Force a refresh of the auth state
+                    window.location.reload();
+                    navigate("/dashboard");
+                    setLoading(false);
+                    return;
+                } else {
+                    setError(response.message || "Login failed");
+                    setLoading(false);
+                    return;
+                }
+            }
+
             setLoading(false);
-            return;
-        }
-
-        // For now, use email login (backend will handle both)
-        const result = await login(identifier, password);
-        setLoading(false);
-
-        if (result.success) {
-            navigate("/dashboard");
-        } else {
-            setError(result.message || "Login failed. Please try again.");
+            if (result?.success) {
+                navigate("/dashboard");
+            } else {
+                setError(result?.message || "Login failed. Please try again.");
+            }
+        } catch (err) {
+            console.error("Login error:", err);
+            setError(err.response?.data?.message || "Login failed. Please try again.");
+            setLoading(false);
         }
     };
 

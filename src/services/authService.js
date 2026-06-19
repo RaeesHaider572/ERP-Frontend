@@ -57,10 +57,37 @@ api.interceptors.response.use(
 // AUTH FUNCTIONS
 // ============================================
 
+// Login with email
 export const login = async (email, password) => {
     try {
         console.log("🔐 Attempting login to:", API_URL);
         const response = await api.post("/auth/login", { email, password });
+        if (response.data.status === "success") {
+            localStorage.setItem("token", response.data.data.token);
+            localStorage.setItem("user", JSON.stringify(response.data.data.user));
+        }
+        return response.data;
+    } catch (error) {
+        console.error("Login error:", error);
+        if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+            const err = new Error(`Cannot connect to server. Please check that the backend is running at ${API_URL}`);
+            err.response = {
+                data: {
+                    status: "error",
+                    message: `Cannot connect to server. Please check that the backend is running at ${API_URL}`
+                }
+            };
+            throw err;
+        }
+        throw error;
+    }
+};
+
+// ✅ NEW: Login with employee code
+export const loginWithEmployeeCode = async (employeeCode, password) => {
+    try {
+        console.log("🔐 Attempting login with employee code:", employeeCode);
+        const response = await api.post("/auth/login/employee-code", { employeeCode, password });
         if (response.data.status === "success") {
             localStorage.setItem("token", response.data.data.token);
             localStorage.setItem("user", JSON.stringify(response.data.data.user));
@@ -130,6 +157,7 @@ export default api;
 
 export const authService = {
     login,
+    loginWithEmployeeCode, // ✅ Added
     register,
     getProfile,
     logout,
