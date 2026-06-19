@@ -2,30 +2,21 @@ import axios from "axios";
 
 // Get API URL from environment or detect from current host
 const getApiUrl = () => {
-    // If environment variable is set, use it
     if (process.env.REACT_APP_API_URL) {
         return process.env.REACT_APP_API_URL;
     }
     
-    // Otherwise, detect from current hostname
     const hostname = window.location.hostname;
-    // FIX 1: Removed unused 'port' variable (was: const port = window.location.port || "3000")
-    
-    // If accessing via IP address (not localhost), use same IP for API
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
         return `http://${hostname}:5000/api`;
     }
     
-    // Default to localhost
     return "http://localhost:5000/api";
 };
 
 const API_URL = getApiUrl();
+console.log("🔗 API URL configured:", API_URL);
 
-// Log the API URL being used (helpful for debugging)
-console.log("API URL configured:", API_URL);
-
-// Create axios instance with default config
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -33,7 +24,7 @@ const api = axios.create({
     }
 });
 
-// Add token to requests if available
+// Request interceptor
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("token");
@@ -47,22 +38,28 @@ api.interceptors.request.use(
     }
 );
 
-// Handle token expiration
+// Response interceptor
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
-            window.location.href = "/login";
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = "/login";
+            }
         }
         return Promise.reject(error);
     }
 );
 
+// ============================================
+// AUTH FUNCTIONS
+// ============================================
+
 export const login = async (email, password) => {
     try {
-        console.log("Attempting login to:", API_URL);
+        console.log("🔐 Attempting login to:", API_URL);
         const response = await api.post("/auth/login", { email, password });
         if (response.data.status === "success") {
             localStorage.setItem("token", response.data.data.token);
@@ -71,9 +68,7 @@ export const login = async (email, password) => {
         return response.data;
     } catch (error) {
         console.error("Login error:", error);
-        // Handle network errors
         if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-            // FIX 2: Throw a proper Error object instead of a plain object
             const err = new Error(`Cannot connect to server. Please check that the backend is running at ${API_URL}`);
             err.response = {
                 data: {
@@ -83,21 +78,18 @@ export const login = async (email, password) => {
             };
             throw err;
         }
-        // Handle other errors
         throw error;
     }
 };
 
 export const register = async (name, email, password) => {
     try {
-        console.log("Attempting registration to:", API_URL);
+        console.log("📝 Attempting registration to:", API_URL);
         const response = await api.post("/auth/register", { name, email, password });
         return response.data;
     } catch (error) {
         console.error("Registration error:", error);
-        // Handle network errors
         if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-            // FIX 3: Throw a proper Error object instead of a plain object
             const err = new Error(`Cannot connect to server. Please check that the backend is running at ${API_URL}`);
             err.response = {
                 data: {
@@ -107,7 +99,6 @@ export const register = async (name, email, password) => {
             };
             throw err;
         }
-        // Handle other errors
         throw error;
     }
 };
@@ -135,10 +126,8 @@ export const isAuthenticated = () => {
     return !!localStorage.getItem("token");
 };
 
-// Export the configured axios instance for use in other services
 export default api;
 
-// Export as object for easier imports
 export const authService = {
     login,
     register,

@@ -17,20 +17,42 @@ import {
   People,
   AttachMoney,
   BarChart,
+  EventNote,
+  CalendarToday,
 } from '@mui/icons-material';
-import { useThemeContext } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Rest of the DashboardContent component remains the same, but update the container Box:
 const DashboardContent = () => {
   const theme = useTheme();
-  // const { sidebarOpen } = useThemeContext();
-  
-  const stats = [
-    { title: 'Total Revenue', value: '$54,239', change: '+12.5%', icon: <AttachMoney />, color: '#10b981' },
-    { title: 'New Orders', value: '1,245', change: '+8.2%', icon: <ShoppingCart />, color: '#6366f1' },
-    { title: 'Active Users', value: '3,452', change: '+23.1%', icon: <People />, color: '#ec4899' },
-    { title: 'Conversion Rate', value: '4.8%', change: '-2.4%', icon: <BarChart />, color: '#f59e0b' },
-  ];
+  const { user, getRoleDisplay, isEmployee, isCustodian, isHR } = useAuth();
+
+  // Role-based stats
+  const getStats = () => {
+    const baseStats = [
+      { title: 'Total Revenue', value: '$54,239', change: '+12.5%', icon: <AttachMoney />, color: '#10b981' },
+      { title: 'New Orders', value: '1,245', change: '+8.2%', icon: <ShoppingCart />, color: '#6366f1' },
+    ];
+
+    if (isEmployee()) {
+      return [
+        { title: 'My Leave Balance', value: '15 days', change: 'Annual', icon: <EventNote />, color: '#10b981' },
+        { title: 'Pending Requests', value: '2', change: 'Awaiting approval', icon: <CalendarToday />, color: '#f59e0b' },
+        ...baseStats.slice(1),
+      ];
+    }
+
+    if (isCustodian() || isHR()) {
+      return [
+        { title: 'Team Members', value: user?.teamMembers?.length || 0, change: 'Active', icon: <People />, color: '#6366f1' },
+        { title: 'Pending Requests', value: '8', change: 'Team pending', icon: <CalendarToday />, color: '#f59e0b' },
+        ...baseStats,
+      ];
+    }
+
+    return baseStats;
+  };
+
+  const stats = getStats();
 
   return (
     <Box>
@@ -46,10 +68,15 @@ const DashboardContent = () => {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          Welcome back, Admin! 👋
+          Welcome back, {user?.Name || 'User'}! 👋
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Here's what's happening with your store today.
+          Role: <Chip label={getRoleDisplay()} size="small" color="primary" sx={{ ml: 1 }} />
+          {user?.Department && (
+            <span style={{ marginLeft: '16px' }}>
+              Department: {user.Department}
+            </span>
+          )}
         </Typography>
       </Box>
       
@@ -61,16 +88,12 @@ const DashboardContent = () => {
           </Grid>
         ))}
       </Grid>
-      
-      {/* Rest of the content... */}
     </Box>
   );
 };
 
-// Update the StatCard component to use theme properly
 const StatCard = ({ title, value, change, icon, color }) => {
   const theme = useTheme();
-  // const { sidebarOpen } = useThemeContext();
   
   return (
     <Card sx={{ 
@@ -114,8 +137,8 @@ const StatCard = ({ title, value, change, icon, color }) => {
             <Chip
               label={change}
               size="small"
-              icon={change.includes('+') ? <TrendingUp /> : <TrendingDown />}
-              color={change.includes('+') ? 'success' : 'error'}
+              icon={change.includes('+') || change.includes('Approved') ? <TrendingUp /> : <TrendingDown />}
+              color={change.includes('+') || change.includes('Approved') ? 'success' : 'error'}
               variant="outlined"
               sx={{ fontWeight: 600, fontSize: '0.75rem' }}
             />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { applyLeave } from "../../services/leaveService";
 import api from "../../services/authService";
+import { useAuth } from '../../contexts/AuthContext';
 import {
     Container,
     Typography,
@@ -36,10 +37,13 @@ import logo from "../../assets/BodlaGroupLogo.svg";
 
 const LeaveApplicationForm = () => {
     const theme = useTheme();
+    const { user, isEmployee, isCustodian, isHR, canApplyForOthers } = useAuth();
+    
+    
     const printRef = useRef();
 
     const getTodayDate = () => new Date().toISOString().split('T')[0];
-    
+
     const initialState = {
         employeeCode: "",
         employeeName: "",
@@ -85,20 +89,20 @@ const LeaveApplicationForm = () => {
         setGeneratingId(true);
         try {
             console.log("🆔 Fetching next RequestCode from database...");
-            
+
             // ✅ Get all leave requests to find max RequestCode
             const res = await api.get('/leave/requests');
             console.log("📊 Response:", res.data);
-            
+
             let requests = [];
             if (res.data?.data) {
                 requests = res.data.data;
             } else if (Array.isArray(res.data)) {
                 requests = res.data;
             }
-            
+
             let nextId = 1;
-            
+
             if (requests && requests.length > 0) {
                 // ✅ Extract numbers from RequestCode (BGLA-XXXXXX)
                 const codes = requests
@@ -108,9 +112,9 @@ const LeaveApplicationForm = () => {
                         return parseInt(num, 10);
                     })
                     .filter(num => !isNaN(num));
-                
+
                 console.log("📊 Existing RequestCodes:", codes);
-                
+
                 if (codes.length > 0) {
                     const maxId = Math.max(...codes);
                     nextId = maxId + 1;
@@ -125,17 +129,17 @@ const LeaveApplicationForm = () => {
             } else {
                 console.log("📊 No existing requests, starting from 1");
             }
-            
+
             // ✅ Format as BGLA-XXXXXX (6 digits)
             const formattedId = `BGLA-${String(nextId).padStart(6, '0')}`;
             console.log(`✅ Generated Application ID: ${formattedId}`);
-            
+
             setFormData((prev) => ({
                 ...prev,
                 applicationId: formattedId,
                 requestId: nextId,
             }));
-            
+
         } catch (error) {
             console.error("❌ Error generating application ID:", error);
             // ✅ Fallback
@@ -159,7 +163,7 @@ const LeaveApplicationForm = () => {
     // ============================================
     const fetchEmployeeByCode = async (code) => {
         console.log("🔍 Fetching employee with code:", code);
-        
+
         if (!code || code.trim() === "") {
             setFormData((prev) => ({
                 ...prev,
@@ -179,13 +183,13 @@ const LeaveApplicationForm = () => {
         try {
             const res = await api.get(`/employees/code/${code}`);
             console.log("✅ API Response:", res.data);
-            
+
             const emp = res.data?.data;
             console.log("✅ Employee data:", emp);
 
             if (emp) {
                 console.log("✅ Employee found:", emp.Name);
-                
+
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
@@ -198,7 +202,7 @@ const LeaveApplicationForm = () => {
                     console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
                 }
-                
+
                 setSnackbar({
                     open: true,
                     message: `Employee ${emp.Name} loaded successfully`,
@@ -275,9 +279,9 @@ const LeaveApplicationForm = () => {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
                     const totalAllowed = bal.TotalAllowed || bal.totalAllowed || 0;
-                    
+
                     console.log(`📊 Processing ${name}: Total=${totalAllowed}`);
-                    
+
                     if (name.toLowerCase().includes("sick")) {
                         balanceMap.sickLeaves = totalAllowed;
                     } else if (name.toLowerCase().includes("casual")) {
@@ -406,12 +410,12 @@ const LeaveApplicationForm = () => {
     const handleSubmit = async () => {
         console.log("📝 Submitting form...");
         console.log("📝 Form data:", formData);
-        
+
         if (!validateForm()) {
-            setSnackbar({ 
-                open: true, 
-                message: "Please fill in all required fields", 
-                severity: "error" 
+            setSnackbar({
+                open: true,
+                message: "Please fill in all required fields",
+                severity: "error"
             });
             return;
         }
@@ -443,14 +447,14 @@ const LeaveApplicationForm = () => {
             // ✅ Extract RequestCode from response
             const requestId = response.data?.data?.RequestID || response.data?.RequestID;
             const requestCode = response.data?.data?.RequestCode || response.data?.RequestCode;
-            
+
             if (requestId) {
                 console.log("✅ RequestID from database:", requestId);
                 console.log("✅ RequestCode from database:", requestCode);
-                
+
                 // ✅ Use the RequestCode from the database
                 const formattedCode = requestCode || `BGLA-${String(requestId).padStart(6, '0')}`;
-                
+
                 setFormData((prev) => ({
                     ...prev,
                     requestId: requestId,
@@ -474,7 +478,7 @@ const LeaveApplicationForm = () => {
         } catch (error) {
             console.error("❌ Submit error:", error);
             console.error("❌ Error details:", error.response);
-            
+
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || "Failed to submit leave application",
@@ -532,11 +536,156 @@ const LeaveApplicationForm = () => {
             <Table size="small">
                 <TableHead>
                     <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                        <TableCell><strong>Leave Type</strong></TableCell>
-                        <TableCell align="right"><strong>Opening Balance</strong></TableCell>
-                        <TableCell align="right"><strong>Applied Days</strong></TableCell>
-                        <TableCell align="right"><strong>Closing Balance</strong></TableCell>
+                        <TableCell
+                            rowSpan={2}
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Particulars
+                        </TableCell>
+                        {/* Opening Balance */}
+                        <TableCell
+                            colSpan={2}
+                            align="center"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Opening
+                        </TableCell>
+                        {/* Additions */}
+                        <TableCell
+                            colSpan={2}
+                            align="center"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Additions
+                        </TableCell>
+                        {/* Leaves Applied - spans 1 column */}
+                        <TableCell
+                            align="center"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Leaves
+                        </TableCell>
+
+                        {/* Closing Balance - spans 3 columns */}
+                        <TableCell
+                            colSpan={2}
+                            align="center"
+                            sx={{
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Closing
+                        </TableCell>
                     </TableRow>
+
+                    {/* Sub-header Row */}
+                    <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                        {/* Opening sub-headers */}
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Total
+                        </TableCell>
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Earned
+                        </TableCell>
+
+                        {/* Additions sub-headers */}
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Total
+                        </TableCell>
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Earned
+                        </TableCell>
+
+                        {/* Leaves Applied sub-header */}
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Actual
+                        </TableCell>
+                        
+                        <TableCell
+                            align="right"
+                            sx={{
+                                borderRight: '1px solid #e0e0e0',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Total
+                        </TableCell>
+                        <TableCell
+                            align="right"
+                            sx={{
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                padding: '4px 5px',
+                            }}
+                        >
+                            Earned
+                        </TableCell>
+                    </TableRow>
+
                 </TableHead>
                 <TableBody>
                     {leaveTypes.map((lt, i) => {
@@ -573,11 +722,48 @@ const LeaveApplicationForm = () => {
                                         opening
                                     )}
                                 </TableCell>
+                                <TableCell align="right">
+                                    {editable ? (
+                                        <TextField
+                                            type="number"
+                                            value={formData[lt.balanceKey]}
+                                            onChange={handleBalanceChange(lt.balanceKey)}
+                                            size="small"
+                                            placeholder="0"
+                                            inputProps={{ min: 0, style: { textAlign: "right", width: 70 } }}
+                                            variant="standard"
+                                            sx={{ width: 80 }}
+                                        />
+                                    ) : (
+                                        opening
+                                    )}
+                                </TableCell>
+                                <TableCell
+                                    align="right"
+                                    sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
+                                >
+                                    0
+                                </TableCell>
+                                <TableCell
+                                    align="right"
+                                    sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
+                                >
+                                    0
+                                </TableCell>
                                 <TableCell
                                     align="right"
                                     sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}
                                 >
                                     {applied || 0}
+                                </TableCell>
+                                <TableCell
+                                    align="right"
+                                    sx={{
+                                        fontWeight: "bold",
+                                        color: closing < 0 ? "error.main" : "inherit",
+                                    }}
+                                >
+                                    {closing}
                                 </TableCell>
                                 <TableCell
                                     align="right"
@@ -890,7 +1076,7 @@ const LeaveApplicationForm = () => {
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="body2">
-                                    <strong>Application ID:</strong> 
+                                    <strong>Application ID:</strong>
                                     {generatingId ? (
                                         <CircularProgress size={16} sx={{ ml: 1 }} />
                                     ) : formData.applicationId ? (
@@ -1012,35 +1198,35 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth 
-                                    label="Start Date *" 
+                                    fullWidth
+                                    label="Start Date *"
                                     type="date"
                                     value={formData.startDate}
                                     onChange={handleChange("startDate")}
-                                    required 
-                                    error={!!errors.startDate} 
+                                    required
+                                    error={!!errors.startDate}
                                     helperText={errors.startDate}
-                                    size="small" 
+                                    size="small"
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
-                                    fullWidth 
-                                    label="End Date *" 
+                                    fullWidth
+                                    label="End Date *"
                                     type="date"
                                     value={formData.endDate}
                                     onChange={handleChange("endDate")}
-                                    required 
-                                    error={!!errors.endDate} 
+                                    required
+                                    error={!!errors.endDate}
                                     helperText={errors.endDate}
-                                    size="small" 
+                                    size="small"
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
                             <Grid item size={{ xs: 12, sm: 6, md: 1 }}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Total Days"
                                     value={formData.weight}
                                     InputProps={{ readOnly: true }}
@@ -1050,14 +1236,14 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid item size={12}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Reason for Leave *"
                                     value={formData.reason}
                                     onChange={handleChange("reason")}
-                                    required 
-                                    error={!!errors.reason} 
+                                    required
+                                    error={!!errors.reason}
                                     helperText={errors.reason}
-                                    multiline 
+                                    multiline
                                     rows={3}
                                     placeholder="Please provide a detailed reason for leave..."
                                 />
@@ -1081,11 +1267,11 @@ const LeaveApplicationForm = () => {
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Prepared By *"
                                     value={formData.preparedBy}
                                     onChange={handleChange("preparedBy")}
-                                    error={!!errors.preparedBy} 
+                                    error={!!errors.preparedBy}
                                     helperText={errors.preparedBy}
                                     size="small"
                                 />
@@ -1101,9 +1287,9 @@ const LeaveApplicationForm = () => {
                             Reset
                         </Button>
                         <Button
-                            variant="contained" 
-                            onClick={handleSubmit} 
-                            startIcon={<SendIcon />} 
+                            variant="contained"
+                            onClick={handleSubmit}
+                            startIcon={<SendIcon />}
                             size="large"
                             sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` }}
                             disabled={loading}

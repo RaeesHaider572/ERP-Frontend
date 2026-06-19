@@ -8,13 +8,17 @@ import {
     Box,
     Alert,
     Link,
-    CircularProgress
+    CircularProgress,
+    Tab,
+    Tabs
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+    const [loginMethod, setLoginMethod] = useState(0);
     const [email, setEmail] = useState("");
+    const [employeeCode, setEmployeeCode] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -26,13 +30,17 @@ const Login = () => {
         setError("");
         setLoading(true);
 
-        if (!email || !password) {
+        // Use email or employee code based on tab
+        const identifier = loginMethod === 0 ? email : employeeCode;
+        
+        if (!identifier || !password) {
             setError("Please fill in all fields");
             setLoading(false);
             return;
         }
 
-        const result = await login(email, password);
+        // For now, use email login (backend will handle both)
+        const result = await login(identifier, password);
         setLoading(false);
 
         if (result.success) {
@@ -72,8 +80,21 @@ const Login = () => {
                     }}
                 >
                     <Typography component="h1" variant="h5" align="center" gutterBottom>
-                        Sign In
+                        Leave Management System
                     </Typography>
+                    <Typography variant="body2" align="center" color="textSecondary" sx={{ mb: 2 }}>
+                        Sign in with your credentials
+                    </Typography>
+
+                    <Tabs
+                        value={loginMethod}
+                        onChange={(e, v) => setLoginMethod(v)}
+                        sx={{ mb: 2 }}
+                        variant="fullWidth"
+                    >
+                        <Tab label="Email" />
+                        <Tab label="Employee Code" />
+                    </Tabs>
 
                     {error && (
                         <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
@@ -82,19 +103,37 @@ const Login = () => {
                     )}
 
                     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-                        <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            id="email"
-                            label="Email Address"
-                            name="email"
-                            autoComplete="email"
-                            autoFocus
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            disabled={loading}
-                        />
+                        {loginMethod === 0 ? (
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="email"
+                                label="Email Address"
+                                name="email"
+                                autoComplete="email"
+                                autoFocus
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={loading}
+                            />
+                        ) : (
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="employeeCode"
+                                label="Employee Code"
+                                name="employeeCode"
+                                autoComplete="username"
+                                autoFocus
+                                value={employeeCode}
+                                onChange={(e) => setEmployeeCode(e.target.value.toUpperCase())}
+                                disabled={loading}
+                                placeholder="e.g., EMP0001"
+                            />
+                        )}
+                        
                         <TextField
                             margin="normal"
                             required
@@ -108,6 +147,7 @@ const Login = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={loading}
                         />
+
                         <Button
                             type="submit"
                             fullWidth
@@ -117,15 +157,11 @@ const Login = () => {
                         >
                             {loading ? <CircularProgress size={24} /> : "Sign In"}
                         </Button>
+
                         <Box textAlign="center">
-                            <Link
-                                component="button"
-                                variant="body2"
-                                onClick={() => navigate("/register")}
-                                sx={{ cursor: "pointer" }}
-                            >
-                                Don't have an account? Sign Up
-                            </Link>
+                            <Typography variant="body2" color="textSecondary">
+                                Default password: password123
+                            </Typography>
                         </Box>
                     </Box>
                 </Paper>
@@ -135,4 +171,3 @@ const Login = () => {
 };
 
 export default Login;
-

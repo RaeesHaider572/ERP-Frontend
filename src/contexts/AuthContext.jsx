@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        // Check if user is logged in on mount
         const token = authService.getToken();
         const userData = authService.getUser();
         
@@ -66,13 +65,77 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
     };
 
+    // ============================================
+    // ROLE-BASED ACCESS FUNCTIONS
+    // ============================================
+
+    const getRoleDisplay = () => {
+        const roleMap = {
+            'employee': 'Employee',
+            'custodian': 'Custodian',
+            'HR': 'HR'
+        };
+        return roleMap[user?.Role] || user?.Role || 'Unknown';
+    };
+
+    const isEmployee = () => user?.Role === 'employee';
+    const isCustodian = () => user?.Role === 'custodian';
+    const isHR = () => user?.Role === 'HR';
+    
+    const canApplyForOthers = () => {
+        return user?.Role === 'custodian' || user?.Role === 'HR';
+    };
+
+    const getTeamMembers = () => {
+        return user?.teamMembers || [];
+    };
+
+    const canAccessModule = (module) => {
+        if (!user) return false;
+        
+        // All roles can access dashboard and leave
+        if (module === 'dashboard' || module === 'leave') {
+            return true;
+        }
+        
+        // Employees can only access leave
+        if (user.Role === 'employee') {
+            return false;
+        }
+        
+        // Custodians can access employees
+        if (user.Role === 'custodian') {
+            return module === 'employees';
+        }
+        
+        // HR can access employees only
+        if (user.Role === 'HR') {
+            return module === 'employees';
+        }
+        
+        return false;
+    };
+
     const value = {
         user,
         loading,
         isAuthenticated,
         login,
         register,
-        logout
+        logout,
+        // Role functions
+        getRoleDisplay,
+        isEmployee,
+        isCustodian,
+        isHR,
+        canApplyForOthers,
+        getTeamMembers,
+        canAccessModule,
+        // Convenience
+        role: user?.Role,
+        isEmployeeRole: user?.Role === 'employee',
+        isCustodianRole: user?.Role === 'custodian',
+        isHRRole: user?.Role === 'HR'
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -85,5 +148,3 @@ export const useAuth = () => {
     }
     return context;
 };
-
-
