@@ -1,19 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { 
+import {
   Table, Button, Modal, Form, Container, Row, Col,
   FormControl, InputGroup, Badge, Spinner
 } from "react-bootstrap";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { 
-  getEmployees, 
-  createEmployee, 
-  updateEmployee, 
+import {
+  getEmployees,
+  createEmployee,
+  updateEmployee,
   deleteEmployee,
   getEmployeeStats
 } from "../../services/employeeService";
+import { useNavigate } from 'react-router-dom';
+// ✅ ADD THIS IMPORT
+import { useAuth } from "../../contexts/AuthContext";
 
 function Employees() {
+  // ✅ ADD THIS: Get user and role info
+  const { user, isCustodian, isHR } = useAuth();
+  const navigate = useNavigate();
+  
   const [employees, setEmployees] = useState([]);
   const [stats, setStats] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -30,21 +37,24 @@ function Employees() {
     EmployeeCode: ""
   });
 
+  const handleApplyForTeamMember = (employeeCode) => {
+    navigate(`/LeaveApply?employeeCode=${employeeCode}`);
+  };
+
   // Fetch employees
   const fetchEmployees = async () => {
     setLoading(true);
     try {
       const res = await getEmployees();
       console.log("Employees response:", res.data);
-      
-      // Handle different response structures
+
       let employeesData = [];
       if (res.data && res.data.data) {
         employeesData = Array.isArray(res.data.data) ? res.data.data : [];
       } else if (res.data && Array.isArray(res.data)) {
         employeesData = res.data;
       }
-      
+
       setEmployees(employeesData);
     } catch (err) {
       console.error("Error fetching employees:", err);
@@ -76,7 +86,6 @@ function Employees() {
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!form.Name.trim()) {
       toast.error("Employee name is required");
       return;
@@ -101,7 +110,7 @@ function Employees() {
         await createEmployee(submitData);
         toast.success("Employee created successfully");
       }
-      
+
       setShowModal(false);
       resetForm();
       fetchEmployees();
@@ -182,16 +191,15 @@ function Employees() {
   return (
     <Container fluid className="py-3">
       <ToastContainer position="top-right" autoClose={3000} />
-      
-      {/* Header with Stats */}
+
       <Row className="mb-4">
         <Col md={8}>
           <h2 className="mb-1">Employee Management</h2>
           <p className="text-muted">Manage your workforce and device integration</p>
         </Col>
         <Col md={4} className="text-end">
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               resetForm();
               setShowModal(true);
@@ -203,7 +211,6 @@ function Employees() {
         </Col>
       </Row>
 
-      {/* Statistics Cards */}
       {stats && (
         <Row className="mb-4">
           <Col md={3}>
@@ -233,7 +240,6 @@ function Employees() {
         </Row>
       )}
 
-      {/* Search Bar */}
       <Row className="mb-3">
         <Col md={6}>
           <InputGroup>
@@ -257,7 +263,6 @@ function Employees() {
         </Col>
       </Row>
 
-      {/* Employees Table */}
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" variant="primary" />
@@ -311,21 +316,33 @@ function Employees() {
                     <td>{emp.Email || "-"}</td>
                     <td>{formatDate(emp.JoinDate)}</td>
                     <td>
-                      <Button 
-                        size="sm" 
-                        variant="warning" 
+                      <Button
+                        size="sm"
+                        variant="warning"
                         onClick={() => handleEdit(emp)}
                         className="me-1"
                       >
                         <i className="bi bi-pencil"></i> Edit
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="danger" 
+                      <Button
+                        size="sm"
+                        variant="danger"
                         onClick={() => handleDelete(emp.EmployeeID, emp.Name)}
                       >
                         <i className="bi bi-trash"></i> Delete
                       </Button>
+                      {/* ✅ This will now work because isCustodian and user are defined */}
+                      {isCustodian && emp.EmployeeID !== user?.EmployeeID && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => handleApplyForTeamMember(emp.EmployeeCode)}
+                          title="Apply for Leave for this team member"
+                          className="ms-1"
+                        >
+                          <i className="bi bi-calendar-plus"></i> Apply Leave
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -335,7 +352,6 @@ function Employees() {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>

@@ -33,14 +33,12 @@ import {
     Send as SendIcon,
     RestartAlt as RestartAltIcon,
     Print as PrintIcon,
-    Info as InfoIcon,
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
 
 const LeaveApplicationForm = () => {
     const theme = useTheme();
-    const { user, isEmployee, isCustodian, isHR, canApplyForOthers } = useAuth();
-    
+    const { user, isEmployee, isCustodian, isHR } = useAuth();
 
     const printRef = useRef();
 
@@ -77,9 +75,20 @@ const LeaveApplicationForm = () => {
     const [loading, setLoading] = useState(false);
     const [fetchingEmployee, setFetchingEmployee] = useState(false);
     const [isFetchingBalance, setIsFetchingBalance] = useState(false);
-
     const [teamMembers, setTeamMembers] = useState([]);
-    const [showTeamList, setShowTeamList] = useState(false);
+
+    // ============================================
+    // ✅ HANDLE URL PARAMETER FOR TEAM MEMBER
+    // ============================================
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const employeeCode = params.get('employeeCode');
+
+        if (employeeCode) {
+            console.log(`📋 Applying for employee from URL: ${employeeCode}`);
+            fetchEmployeeByCode(employeeCode);
+        }
+    }, []);
 
     // ============================================
     // ✅ AUTO-FILL LOGGED-IN EMPLOYEE INFORMATION
@@ -88,11 +97,9 @@ const LeaveApplicationForm = () => {
         if (user) {
             console.log("👤 Auto-filling logged-in employee:", user);
 
-            // ✅ Format employee code with hyphen
             const employeeCode = user.EmployeeCode || user.employeeCode || "";
             const preparedByName = user.Name || user.name || "";
 
-            // Ensure the employee code has the correct format with hyphen
             let formattedCode = employeeCode;
             if (formattedCode && !formattedCode.includes('-')) {
                 if (formattedCode.startsWith('EMP')) {
@@ -102,16 +109,15 @@ const LeaveApplicationForm = () => {
             }
 
             if (formattedCode) {
+                // ✅ Auto-fill ALL user info (Employee, Custodian, HR)
                 setFormData((prev) => ({
                     ...prev,
                     employeeCode: formattedCode,
+                    employeeName: user.Name || "",
+                    designation: user.Designation || "",
+                    department: user.Department || "",
+                    employeeId: user.EmployeeID || null,
                     preparedBy: preparedByName,
-                    ...(isEmployee() && {
-                        employeeName: user.Name || "",
-                        designation: user.Designation || "",
-                        department: user.Department || "",
-                        employeeId: user.EmployeeID || null,
-                    })
                 }));
 
                 if (user.EmployeeID) {
@@ -119,11 +125,14 @@ const LeaveApplicationForm = () => {
                     fetchLeaveBalances(user.EmployeeID);
                 }
             }
+
+            // ✅ Fetch team members for custodian
             if (isCustodian()) {
                 fetchTeamMembers();
             }
         }
     }, [user]);
+
     // ============================================
     // FETCH TEAM MEMBERS FOR CUSTODIAN
     // ============================================
@@ -143,13 +152,11 @@ const LeaveApplicationForm = () => {
             }
 
             setTeamMembers(data);
-            if (data.length > 0) {
-                setShowTeamList(true);
-            }
         } catch (error) {
             console.error("❌ Error fetching team members:", error);
         }
     };
+
     // ============================================
     // FETCH LEAVE BALANCES
     // ============================================
@@ -162,7 +169,6 @@ const LeaveApplicationForm = () => {
         setIsFetchingBalance(true);
         try {
             console.log("📊 Fetching balances for Employee ID:", employeeId);
-            console.log("👤 Current user:", user?.Name, user?.EmployeeCode);
 
             const res = await api.get(`/leave/balances/employee/${employeeId}`);
             console.log("📊 Leave balances response:", res.data);
@@ -174,9 +180,6 @@ const LeaveApplicationForm = () => {
                 balances = res.data;
             }
 
-            console.log("📊 Processed balances:", balances);
-
-            // ✅ Initialize balance map with 0 values
             const balanceMap = {
                 sickLeaves: 0,
                 casualLeaves: 0,
@@ -187,14 +190,8 @@ const LeaveApplicationForm = () => {
             if (balances && balances.length > 0) {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
-                    // ✅ Use RemainingDays (NOT TotalAllowed)
                     const remaining = bal.RemainingDays || bal.remainingDays || 0;
-                    const totalAllowed = bal.TotalAllowed || bal.totalAllowed || 0;
-                    const usedDays = bal.UsedDays || bal.usedDays || 0;
 
-                    console.log(`📊 Processing ${name}: Total=${totalAllowed}, Used=${usedDays}, Remaining=${remaining}`);
-
-                    // ✅ Map based on leave type name
                     const nameLower = name.toLowerCase();
                     if (nameLower.includes("sick")) {
                         balanceMap.sickLeaves = remaining;
@@ -206,11 +203,7 @@ const LeaveApplicationForm = () => {
                         balanceMap.compensatoryLeaves = remaining;
                     }
                 });
-            } else {
-                console.log("⚠️ No balances found for employee:", employeeId);
             }
-
-            console.log("✅ Final balance map:", balanceMap);
 
             setFormData((prev) => ({
                 ...prev,
@@ -222,13 +215,6 @@ const LeaveApplicationForm = () => {
 
         } catch (error) {
             console.error("❌ Error fetching leave balances:", error);
-            setFormData((prev) => ({
-                ...prev,
-                sickLeaves: 0,
-                casualLeaves: 0,
-                annualLeaves: 0,
-                compensatoryLeaves: 0,
-            }));
             setSnackbar({
                 open: true,
                 message: "Failed to fetch leave balances",
@@ -240,7 +226,7 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // FETCH EMPLOYEE DATA BY CODE (for custodian)
+    // ✅ FETCH EMPLOYEE DATA BY CODE
     // ============================================
     const fetchEmployeeByCode = async (code) => {
         console.log("🔍 Fetching employee with code:", code);
@@ -272,29 +258,31 @@ const LeaveApplicationForm = () => {
                 console.log("✅ Employee found:", emp.Name);
 
                 // ✅ Check if employee is in custodian's team
-                if (isCustodian() && emp.EmployeeID !== user?.EmployeeID) {
-                    const isSupervised = user?.teamMembers?.some(
-                        member => member.EmployeeID === emp.EmployeeID
-                    );
+                // if (isCustodian() && emp.EmployeeID !== user?.EmployeeID) {
+                //     const isSupervised = teamMembers.some(
+                //         member => member.EmployeeID === emp.EmployeeID
+                //     );
 
-                    if (!isSupervised) {
-                        setSnackbar({
-                            open: true,
-                            message: `⚠️ ${emp.Name} is not in your team. You can only apply for team members.`,
-                            severity: "warning",
-                        });
-                    }
-                }
+                //     if (!isSupervised) {
+                //         setSnackbar({
+                //             open: true,
+                //             message: `⚠️ ${emp.Name} is not in your team. You can only apply for team members.`,
+                //             severity: "warning",
+                //         });
+                //     }
+                // }
 
+                // ✅ Auto-fill all employee data
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
                     designation: emp.Designation || "",
                     department: emp.Department || "",
                     employeeId: emp.EmployeeID || null,
+                    // ✅ Keep the employee code that was passed
+                    employeeCode: code,
                 }));
 
-                // ✅ Fetch leave balances for the selected employee
                 if (emp.EmployeeID) {
                     console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
@@ -348,7 +336,18 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // CALCULATE DAYS - WITH DURATION SUPPORT
+    // ✅ HANDLE TEAM MEMBER SELECT
+    // ============================================
+    // const handleTeamMemberSelect = (member) => {
+    //     const code = member.EmployeeCode || member.employeeCode || "";
+    //     console.log(`👤 Selected team member: ${member.Name} (${code})`);
+    //     // Update URL and fetch employee data
+    //     window.history.pushState({}, '', `?employeeCode=${code}`);
+    //     fetchEmployeeByCode(code);
+    // };
+
+    // ============================================
+    // CALCULATE DAYS
     // ============================================
     useEffect(() => {
         if (formData.startDate && formData.endDate) {
@@ -375,27 +374,21 @@ const LeaveApplicationForm = () => {
     }, [formData.startDate, formData.endDate, formData.duration]);
 
     // ============================================
-// HANDLE CHANGE
-// ============================================
-const handleChange = (field) => (event) => {
-    const value = event.target.value;
+    // ✅ HANDLE CHANGE - Only for non-employeeCode fields
+    // ============================================
+    const handleChange = (field) => (event) => {
+        const value = event.target.value;
 
-    console.log(`📝 Field changed: ${field} = ${value}`);
+        setFormData((prev) => ({ ...prev, [field]: value }));
 
-    setFormData((prev) => ({ ...prev, [field]: value }));
-
-    if (errors[field]) {
-        setErrors((prev) => {
-            const e = { ...prev };
-            delete e[field];
-            return e;
-        });
-    }
-
-    if (field === "employeeCode") {
-        fetchEmployeeByCode(value);
-    }
-};
+        if (errors[field]) {
+            setErrors((prev) => {
+                const e = { ...prev };
+                delete e[field];
+                return e;
+            });
+        }
+    };
 
     // ============================================
     // VALIDATE FORM
@@ -445,7 +438,7 @@ const handleChange = (field) => (event) => {
     };
 
     // ============================================
-    // HANDLE SUBMIT - FIXED
+    // HANDLE SUBMIT
     // ============================================
     const handleSubmit = async () => {
         console.log("📝 Submitting form...");
@@ -495,7 +488,6 @@ const handleChange = (field) => (event) => {
 
                 const fullApplicationId = requestCode || `BGLA-${String(requestId).padStart(6, '0')}`;
 
-                // ✅ Fetch the complete request data for printing
                 try {
                     const printDataResponse = await api.get(`/leave/requests/${requestId}`);
                     console.log("📋 Print data:", printDataResponse.data);
@@ -564,7 +556,7 @@ const handleChange = (field) => (event) => {
             ...initialState,
             applicationDate: getTodayDate(),
             applicationId: "BGLA-",
-            ...(isEmployee() && user && {
+            ...(user && {
                 employeeCode: user.EmployeeCode || "",
                 employeeName: user.Name || "",
                 designation: user.Designation || "",
@@ -576,8 +568,7 @@ const handleChange = (field) => (event) => {
         setErrors({});
         setShowPrintPreview(false);
 
-        // ✅ Refetch balances for the employee
-        if (isEmployee() && user?.EmployeeID) {
+        if (user?.EmployeeID) {
             fetchLeaveBalances(user.EmployeeID);
         }
     };
@@ -609,10 +600,9 @@ const handleChange = (field) => (event) => {
     ];
 
     // ============================================
-    // LEAVE BALANCE TABLE - FIXED
+    // LEAVE BALANCE TABLE
     // ============================================
     const LeaveBalanceTable = () => {
-        // Calculate applied days for each leave type
         const getAppliedDays = (balanceKey, leaveTypeValue) => {
             const isActive = formData.leaveType === leaveTypeValue;
             return isActive ? parseFloat(formData.weight) || 0 : 0;
@@ -641,7 +631,6 @@ const handleChange = (field) => (event) => {
                     </TableHead>
                     <TableBody>
                         {leaveTypes.map((lt, i) => {
-                            // ✅ Opening balance is the remaining days
                             const opening = parseFloat(formData[lt.balanceKey]) || 0;
                             const isActive = formData.leaveType === lt.value;
                             const applied = getAppliedDays(lt.balanceKey, lt.value);
@@ -944,78 +933,36 @@ const handleChange = (field) => (event) => {
                         </Grid>
                     </Box>
 
+                    {/* ✅ Employee Information - READ ONLY */}
                     {/* Employee Information */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
-
-                        {isCustodian() && (
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                <Typography variant="body2">
-                                    <strong>💡 Custodian Mode:</strong> You can apply for yourself (auto-filled) or
-                                    select a team member from the list below to apply on their behalf.
-                                </Typography>
-                            </Alert>
-                        )}
-
                         <Grid container spacing={1}>
+                            {/* Employee Code - READ ONLY */}
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     label="Employee Code *"
                                     name="employeeCode"
                                     value={formData.employeeCode}
-                                    onChange={handleChange("employeeCode")}
                                     required
                                     error={!!errors.employeeCode}
-                                    helperText={errors.employeeCode || (isCustodian() ? "Enter employee code or select from team list" : "Enter employee code")}
+                                    helperText={errors.employeeCode}
                                     size="small"
-                                    placeholder={isCustodian() ? "Enter code or select from team" : "Enter code"}
                                     InputProps={{
+                                        readOnly: true,
                                         endAdornment: fetchingEmployee && <CircularProgress size={20} />,
-                                        readOnly: isEmployee()
                                     }}
-                                    sx={{ "& input": { bgcolor: isEmployee() ? "#e3f2fd" : "transparent" } }}
+                                    sx={{ "& input": { bgcolor: "#e3f2fd", fontWeight: "bold" } }}
                                 />
                             </Grid>
 
-                            {/* ✅ Team Members Quick Select - For Custodian Only */}
-                            {isCustodian() && showTeamList && teamMembers.length > 0 && (
-                                <Grid item size={{ xs: 12, sm: 6, md: 9 }}>
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 1 }}>
-                                        <Typography variant="caption" color="textSecondary" sx={{ mr: 1 }}>
-                                            Quick Select Team Member:
-                                        </Typography>
-                                        {teamMembers.map((member) => (
-                                            <Chip
-                                                key={member.EmployeeID}
-                                                label={`${member.Name} (${member.EmployeeCode})`}
-                                                onClick={() => {
-                                                    // ✅ Auto-fill employee code and fetch data
-                                                    const code = member.EmployeeCode || member.employeeCode || "";
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        employeeCode: code,
-                                                    }));
-                                                    fetchEmployeeByCode(code);
-                                                }}
-                                                size="small"
-                                                color={formData.employeeCode === member.EmployeeCode ? "primary" : "default"}
-                                                variant={formData.employeeCode === member.EmployeeCode ? "filled" : "outlined"}
-                                                sx={{ cursor: 'pointer' }}
-                                            />
-                                        ))}
-                                    </Box>
-                                </Grid>
-                            )}
-
-                            {/* Rest of the employee fields... */}
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     label="Employee Name *"
                                     name="employeeName"
                                     value={formData.employeeName}
-                                    onChange={handleChange("employeeName")}
                                     required
                                     error={!!errors.employeeName}
                                     helperText={errors.employeeName}
@@ -1030,7 +977,6 @@ const handleChange = (field) => (event) => {
                                     label="Designation *"
                                     name="designation"
                                     value={formData.designation}
-                                    onChange={handleChange("designation")}
                                     required
                                     error={!!errors.designation}
                                     helperText={errors.designation}
@@ -1045,7 +991,6 @@ const handleChange = (field) => (event) => {
                                     label="Department *"
                                     name="department"
                                     value={formData.department}
-                                    onChange={handleChange("department")}
                                     required
                                     error={!!errors.department}
                                     helperText={errors.department}
@@ -1056,6 +1001,7 @@ const handleChange = (field) => (event) => {
                             </Grid>
                         </Grid>
                     </Box>
+
                     {/* Leave Details */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Details" />
@@ -1157,7 +1103,16 @@ const handleChange = (field) => (event) => {
                     {/* Leave Balance Summary */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Leave Balance Summary" />
-                        <LeaveBalanceTable />
+                        {isFetchingBalance ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                <CircularProgress size={30} />
+                                <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+                                    Loading leave balances...
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <LeaveBalanceTable />
+                        )}
                     </Box>
 
                     {/* Approval Information */}
@@ -1193,7 +1148,7 @@ const handleChange = (field) => (event) => {
                     </Stack>
                 </Box>
             ) : (
-                // Print Preview
+                // Print Preview - Keep as before
                 <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
                     <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>

@@ -147,38 +147,71 @@ function LeaveDashboard() {
         fetchDashboardData();
     }, [user]);
 
-    const fetchDashboardData = async () => {
-        setLoading(true);
-        setError(null);
+    // ============================================
+// FETCH DASHBOARD DATA - FIXED
+// ============================================
+const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+        console.log("📡 Fetching dashboard data...");
+        console.log("🔐 Current user:", user);
+        
+        // ✅ Fetch stats with safe error handling
+        let statsData = {
+            totalRequests: 0,
+            pendingRequests: 0,
+            approvedRequests: 0,
+            rejectedRequests: 0,
+            cancelledRequests: 0,
+            totalEmployees: 0,
+            totalLeaveDays: 0
+        };
         
         try {
-            console.log("📡 Fetching dashboard data...");
-            
-            // Fetch stats
             const statsResponse = await getLeaveStats();
-            console.log("📊 Stats response:", statsResponse.data);
+            console.log("📊 Stats response:", statsResponse);
             
-            // Fetch recent pending requests (only for HR and Custodian)
-            let requestsResponse = { data: { data: [] } };
-            if (isHR() || isCustodian()) {
-                requestsResponse = await getLeaveRequests({ status: 'Pending', limit: 5 });
-                console.log("📋 Recent requests:", requestsResponse.data);
+            if (statsResponse.data?.data) {
+                statsData = statsResponse.data.data;
+            } else if (statsResponse.data) {
+                statsData = statsResponse.data;
             }
-            
-            // Handle different response structures
-            const statsData = statsResponse.data?.data || statsResponse.data || {};
-            const requestsData = requestsResponse.data?.data || requestsResponse.data || [];
-            
-            setStats(statsData);
-            setRecentRequests(requestsData.slice(0, 5));
-            
-        } catch (error) {
-            console.error("❌ Error fetching dashboard data:", error);
-            setError(error.response?.data?.message || "Failed to load dashboard data");
-        } finally {
-            setLoading(false);
+        } catch (statsErr) {
+            console.warn("⚠️ Stats fetch failed, using defaults:", statsErr);
+            // Keep default values
         }
-    };
+        
+        // ✅ Fetch recent requests with safe error handling
+        let requestsData = [];
+        if (isHR() || isCustodian()) {
+            try {
+                const requestsResponse = await getLeaveRequests({ status: 'Pending', limit: 5 });
+                console.log("📋 Recent requests:", requestsResponse);
+                requestsData = requestsResponse.data?.data || requestsResponse.data || [];
+            } catch (reqErr) {
+                console.warn("⚠️ Requests fetch failed:", reqErr);
+                // Keep empty array
+            }
+        }
+        
+        setStats(statsData);
+        setRecentRequests(requestsData.slice(0, 5));
+        
+    } catch (error) {
+        console.error("❌ Error fetching dashboard data:", error);
+        // ✅ Show user-friendly error message
+        if (error.response?.status === 401) {
+            setError("Your session has expired. Please login again.");
+            setTimeout(() => navigate('/login'), 2000);
+        } else {
+            setError("Unable to load dashboard. Please try again later.");
+        }
+    } finally {
+        setLoading(false);
+    }
+};
 
     // Handle navigation
     const handleApplyLeave = () => navigate('/LeaveApply');

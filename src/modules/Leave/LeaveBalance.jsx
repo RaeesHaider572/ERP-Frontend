@@ -23,16 +23,19 @@ import { getLeaveBalances } from '../../services/leaveService';
 
 const LeaveBalance = () => {
     const { user } = useAuth();
+    
+    // ✅ ALL useState hooks must be at the TOP
     const [balances, setBalances] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState(null); // ✅ Moved to top
 
+    // ✅ ALL useEffect hooks must be at the TOP
     useEffect(() => {
-        if (user) {
+        if (user && user.EmployeeID) {
             fetchBalances();
         }
     }, [user]);
-
 
     const fetchBalances = async () => {
         setLoading(true);
@@ -73,6 +76,34 @@ const LeaveBalance = () => {
         }
     };
 
+    // ✅ Fetch balance for selected employee (team member)
+    const fetchTeamMemberBalance = async (employeeId) => {
+        setSelectedEmployeeId(employeeId);
+        // ✅ Use the employeeId passed in, not user's ID
+        setLoading(true);
+        setError(null);
+        try {
+            console.log("📊 Fetching balances for team member:", employeeId);
+            const response = await getLeaveBalances(employeeId);
+            
+            let data = [];
+            if (response.data?.data) {
+                data = response.data.data;
+            } else if (Array.isArray(response.data)) {
+                data = response.data;
+            } else if (response.data) {
+                data = [response.data];
+            }
+
+            setBalances(data);
+        } catch (err) {
+            console.error("❌ Error fetching team member balances:", err);
+            setError(err.response?.data?.message || "Failed to load team member balances");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const getLeaveIcon = (name) => {
         const lower = name?.toLowerCase() || '';
         if (lower.includes('sick')) return <MedicalServices />;
@@ -90,12 +121,14 @@ const LeaveBalance = () => {
     };
 
     const getStatusColor = (remaining, total) => {
+        if (total === 0) return 'default';
         const percentage = (remaining / total) * 100;
         if (percentage <= 20) return 'error';
         if (percentage <= 50) return 'warning';
         return 'success';
     };
 
+    // ✅ Conditional returns AFTER all hooks
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -130,9 +163,16 @@ const LeaveBalance = () => {
         <Box sx={{ p: 3 }}>
             {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    My Leave Balance
-                </Typography>
+                <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                        My Leave Balance
+                    </Typography>
+                    {selectedEmployeeId && (
+                        <Typography variant="body2" color="textSecondary">
+                            Viewing balance for team member
+                        </Typography>
+                    )}
+                </Box>
                 <Button
                     variant="outlined"
                     startIcon={<RefreshIcon />}
@@ -228,7 +268,7 @@ const LeaveBalance = () => {
                                             {remaining}
                                         </Typography>
 
-                                        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                                        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                                             <Chip
                                                 label={`Total: ${total}`}
                                                 size="small"
@@ -256,7 +296,7 @@ const LeaveBalance = () => {
                                             overflow: 'hidden'
                                         }}>
                                             <Box sx={{
-                                                width: `${percentage}%`,
+                                                width: `${Math.min(percentage, 100)}%`,
                                                 height: '100%',
                                                 bgcolor: color,
                                                 borderRadius: 4,
