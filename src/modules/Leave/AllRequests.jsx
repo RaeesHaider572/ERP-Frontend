@@ -17,6 +17,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    TextField,
     FormControl,
     InputLabel,
     Select,
@@ -27,85 +28,68 @@ import {
 } from '@mui/material';
 import {
     Refresh as RefreshIcon,
-    Cancel as CancelIcon,
-    Visibility as ViewIcon
+    CheckCircle as ApproveIcon,
+    Cancel as RejectIcon,
+    FilterList as FilterIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import { getEmployeeLeaveRequests, cancelLeaveRequest } from '../../services/leaveService';
+import { getAllLeaveRequests, updateLeaveStatus } from '../../services/leaveService';
 
-const LeaveRequests = () => {
-    const { user, isAuthenticated, loading: authLoading } = useAuth();
+const AllRequests = () => {
+    const { user, isHR } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filter, setFilter] = useState({ status: '' });
-    const [cancelDialog, setCancelDialog] = useState({ 
-        open: false, 
-        requestId: null, 
-        requestCode: '' 
+    const [filter, setFilter] = useState({ status: 'Pending' });
+    const [approveDialog, setApproveDialog] = useState({
+        open: false,
+        requestId: null,
+        requestCode: '',
+        comments: '',
+        action: ''
     });
 
-    // ✅ Wait for auth to load before fetching
     useEffect(() => {
-        if (!authLoading) {
-            if (isAuthenticated && user && user.EmployeeID) {
-                fetchRequests();
-            } else if (!isAuthenticated) {
-                setLoading(false);
-                setError("Please login to view your leave requests");
-            }
+        if (user && isHR()) {
+            fetchRequests();
         }
-    }, [user, isAuthenticated, authLoading]);
+    }, [user, filter]);
 
     const fetchRequests = async () => {
         setLoading(true);
         setError(null);
         try {
-            // ✅ Safe check for user
-            if (!user || !user.EmployeeID) {
-                setError("User not authenticated");
-                setLoading(false);
-                return;
-            }
-
-            console.log("📋 Fetching leave requests for employee:", user.EmployeeID);
-            
-            const response = await getEmployeeLeaveRequests(user.EmployeeID);
-            console.log("📋 Leave requests response:", response);
+            console.log("📋 Fetching all leave requests for HR...");
+            const response = await getAllLeaveRequests(filter);
+            console.log("📋 All requests response:", response);
             
             let data = [];
             if (response.data?.data) {
                 data = response.data.data;
             } else if (Array.isArray(response.data)) {
                 data = response.data;
-            } else if (response.data) {
-                data = [response.data];
             }
             
             setRequests(data);
         } catch (err) {
             console.error("❌ Error fetching requests:", err);
-            
-            if (err.response?.status === 403) {
-                setError("You don't have permission to view these leave records");
-            } else if (err.response?.status === 401) {
-                setError("Session expired. Please login again.");
-            } else {
-                setError(err.response?.data?.message || "Failed to load leave requests");
-            }
+            setError(err.response?.data?.message || "Failed to load leave requests");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCancel = async () => {
+    const handleApprove = async () => {
         try {
-            await cancelLeaveRequest(cancelDialog.requestId);
-            setCancelDialog({ open: false, requestId: null, requestCode: '' });
+            await updateLeaveStatus(approveDialog.requestId, {
+                status: approveDialog.action,
+                comments: approveDialog.comments
+            });
+            setApproveDialog({ open: false, requestId: null, requestCode: '', comments: '', action: '' });
             await fetchRequests();
         } catch (err) {
-            console.error("❌ Error cancelling request:", err);
-            alert(err.response?.data?.message || "Failed to cancel leave request");
+            console.error("❌ Error updating request:", err);
+            alert(err.response?.data?.message || "Failed to update leave request");
         }
     };
 
@@ -119,12 +103,6 @@ const LeaveRequests = () => {
         return <Chip label={status} color={colors[status] || 'default'} size="small" />;
     };
 
-    // Filter requests
-    const filteredRequests = requests.filter(req => {
-        if (!filter.status) return true;
-        return req.Status === filter.status;
-    });
-
     // Calculate statistics
     const stats = {
         total: requests.length,
@@ -134,8 +112,7 @@ const LeaveRequests = () => {
         cancelled: requests.filter(r => r.Status === 'Cancelled').length
     };
 
-    // ✅ Show loading while auth is loading
-    if (authLoading || loading) {
+    if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
                 <CircularProgress />
@@ -160,26 +137,12 @@ const LeaveRequests = () => {
         );
     }
 
-    // ✅ If no user, show login message
-    if (!user || !isAuthenticated) {
-        return (
-            <Box sx={{ m: 3 }}>
-                <Alert severity="warning">
-                    Please login to view your leave requests
-                </Alert>
-            </Box>
-        );
-    }
-
     return (
         <Box sx={{ p: 3 }}>
             {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    My Leave Requests
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                    {user?.Name || 'Employee'}
+                    All Leave Requests
                 </Typography>
                 <Button 
                     variant="outlined" 
@@ -231,7 +194,7 @@ const LeaveRequests = () => {
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Filter by Status</InputLabel>
                         <Select
-                            value={filter.status}
+                            value={filter.status || ''}
                             onChange={(e) => setFilter({ ...filter, status: e.target.value })}
                             label="Filter by Status"
                         >
@@ -242,23 +205,37 @@ const LeaveRequests = () => {
                             <MenuItem value="Cancelled">Cancelled</MenuItem>
                         </Select>
                     </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Department</InputLabel>
+                        <Select
+                            value={filter.department || ''}
+                            onChange={(e) => setFilter({ ...filter, department: e.target.value })}
+                            label="Department"
+                        >
+                            <MenuItem value="">All Departments</MenuItem>
+                            <MenuItem value="IT">IT</MenuItem>
+                            <MenuItem value="HR">HR</MenuItem>
+                            <MenuItem value="Finance">Finance</MenuItem>
+                            <MenuItem value="Marketing">Marketing</MenuItem>
+                        </Select>
+                    </FormControl>
                     {filter.status && (
                         <Button size="small" onClick={() => setFilter({ status: '' })}>
                             Clear Filter
                         </Button>
                     )}
                     <Typography variant="caption" color="textSecondary" sx={{ ml: 'auto' }}>
-                        Showing {filteredRequests.length} of {requests.length} requests
+                        Showing {requests.length} requests
                     </Typography>
                 </Box>
             </Paper>
 
             {/* Requests Table */}
             <Paper sx={{ p: 3, borderRadius: 3 }}>
-                {filteredRequests.length === 0 ? (
+                {requests.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <Typography variant="body1" color="textSecondary">
-                            {requests.length === 0 ? 'No leave requests found' : 'No requests match the filter'}
+                            No leave requests found
                         </Typography>
                     </Box>
                 ) : (
@@ -267,6 +244,8 @@ const LeaveRequests = () => {
                             <TableHead>
                                 <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                                     <TableCell sx={{ fontWeight: 600 }}>Request ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Employee</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Department</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Leave Type</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Start Date</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>End Date</TableCell>
@@ -276,7 +255,7 @@ const LeaveRequests = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {filteredRequests.map((req) => (
+                                {requests.map((req) => (
                                     <TableRow key={req.RequestID} hover>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -286,7 +265,16 @@ const LeaveRequests = () => {
                                                 {req.AppliedDate ? new Date(req.AppliedDate).toLocaleDateString() : 'N/A'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell>{req.LeaveName || req.LeaveType || 'N/A'}</TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                {req.EmployeeName || req.Name}
+                                            </Typography>
+                                            <Typography variant="caption" color="textSecondary">
+                                                {req.EmployeeCode || req.Code}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>{req.Department || 'N/A'}</TableCell>
+                                        <TableCell>{req.LeaveName || req.LeaveType}</TableCell>
                                         <TableCell>{req.StartDate ? new Date(req.StartDate).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell>{req.EndDate ? new Date(req.EndDate).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell align="center">
@@ -302,34 +290,40 @@ const LeaveRequests = () => {
                                             {getStatusChip(req.Status)}
                                         </TableCell>
                                         <TableCell align="center">
-                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                                <Tooltip title="View Details">
-                                                    <IconButton 
-                                                        size="small" 
-                                                        color="info"
-                                                        onClick={() => {
-                                                            alert(`Request ID: ${req.RequestCode || req.RequestID}\nLeave Type: ${req.LeaveName}\nFrom: ${req.StartDate ? new Date(req.StartDate).toLocaleDateString() : 'N/A'}\nTo: ${req.EndDate ? new Date(req.EndDate).toLocaleDateString() : 'N/A'}\nDays: ${req.TotalDays || 0}\nReason: ${req.Reason || 'N/A'}\nStatus: ${req.Status}`);
-                                                        }}
-                                                    >
-                                                        <ViewIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                                {req.Status === 'Pending' && (
-                                                    <Tooltip title="Cancel Request">
+                                            {req.Status === 'Pending' && (
+                                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                                    <Tooltip title="Approve">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            color="success"
+                                                            onClick={() => setApproveDialog({
+                                                                open: true,
+                                                                requestId: req.RequestID,
+                                                                requestCode: req.RequestCode || `BGLA-${String(req.RequestID).padStart(6, '0')}`,
+                                                                comments: '',
+                                                                action: 'Approved'
+                                                            })}
+                                                        >
+                                                            <ApproveIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Reject">
                                                         <IconButton 
                                                             size="small" 
                                                             color="error"
-                                                            onClick={() => setCancelDialog({
+                                                            onClick={() => setApproveDialog({
                                                                 open: true,
                                                                 requestId: req.RequestID,
-                                                                requestCode: req.RequestCode || `BGLA-${String(req.RequestID).padStart(6, '0')}`
+                                                                requestCode: req.RequestCode || `BGLA-${String(req.RequestID).padStart(6, '0')}`,
+                                                                comments: '',
+                                                                action: 'Rejected'
                                                             })}
                                                         >
-                                                            <CancelIcon fontSize="small" />
+                                                            <RejectIcon />
                                                         </IconButton>
                                                     </Tooltip>
-                                                )}
-                                            </Box>
+                                                </Box>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -339,31 +333,40 @@ const LeaveRequests = () => {
                 )}
             </Paper>
 
-            {/* Cancel Confirmation Dialog */}
-            <Dialog 
-                open={cancelDialog.open} 
-                onClose={() => setCancelDialog({ open: false, requestId: null, requestCode: '' })}
+            {/* Approve/Reject Dialog */}
+            <Dialog
+                open={approveDialog.open}
+                onClose={() => setApproveDialog({ open: false, requestId: null, requestCode: '', comments: '', action: '' })}
+                maxWidth="sm"
+                fullWidth
             >
-                <DialogTitle sx={{ bgcolor: '#ffebee', color: '#d32f2f' }}>
-                    Cancel Leave Request
+                <DialogTitle>
+                    {approveDialog.action === 'Approved' ? 'Approve' : 'Reject'} Leave Request
                 </DialogTitle>
-                <DialogContent sx={{ mt: 2 }}>
-                    <Typography>
-                        Are you sure you want to cancel this leave request?
+                <DialogContent>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        Request ID: {approveDialog.requestCode}
                     </Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        <strong>Request ID:</strong> {cancelDialog.requestCode}
-                    </Typography>
-                    <Typography variant="body2" color="error" sx={{ mt: 2, fontStyle: 'italic' }}>
-                        This action cannot be undone.
-                    </Typography>
+                    <TextField
+                        fullWidth
+                        label="Comments (Optional)"
+                        multiline
+                        rows={3}
+                        value={approveDialog.comments}
+                        onChange={(e) => setApproveDialog({ ...approveDialog, comments: e.target.value })}
+                        placeholder="Add any comments..."
+                    />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setCancelDialog({ open: false, requestId: null, requestCode: '' })}>
-                        No, Keep
+                    <Button onClick={() => setApproveDialog({ open: false, requestId: null, requestCode: '', comments: '', action: '' })}>
+                        Cancel
                     </Button>
-                    <Button onClick={handleCancel} color="error" variant="contained">
-                        Yes, Cancel Request
+                    <Button
+                        onClick={handleApprove}
+                        color={approveDialog.action === 'Approved' ? 'success' : 'error'}
+                        variant="contained"
+                    >
+                        {approveDialog.action === 'Approved' ? 'Approve' : 'Reject'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -371,4 +374,4 @@ const LeaveRequests = () => {
     );
 };
 
-export default LeaveRequests;
+export default AllRequests;

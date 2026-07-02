@@ -23,10 +23,11 @@ export const getAllLeaveBalances = (year) => {
 export const resetLeaveBalances = (year) => api.post(`${API_URL}/balances/reset`, { year });
 
 // ==================== LEAVE REQUESTS ====================
-export const getEmployeeLeaveRequests = (employeeId) => 
-    api.get(`${API_URL}/employee/${employeeId}`);
+export const getEmployeeLeaveRequests = (employeeId) => {
+    console.log(`📡 Fetching leave requests for employee ${employeeId}`);
+    return api.get(`${API_URL}/employee/${employeeId}`);
+};
 
-// ✅ EXPORT getLeaveRequests
 export const getLeaveRequests = (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.status) params.append('status', filters.status);
@@ -34,21 +35,34 @@ export const getLeaveRequests = (filters = {}) => {
     if (filters.leaveTypeId) params.append('leaveTypeId', filters.leaveTypeId);
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.department) params.append('department', filters.department);
+    if (filters.limit) params.append('limit', filters.limit);
     const queryString = params.toString();
     return api.get(`${API_URL}/requests${queryString ? `?${queryString}` : ''}`);
 };
 
-// Alias for compatibility
 export const getAllLeaveRequests = getLeaveRequests;
 
 export const getLeaveRequestById = (id) => api.get(`${API_URL}/requests/${id}`);
-export const applyLeave = (data) => api.post(`${API_URL}/apply`, data);
-export const updateLeaveStatus = (id, data) => api.put(`${API_URL}/requests/${id}/status`, data);
+
+export const applyLeave = (data) => {
+    console.log("📡 Applying for leave:", data);
+    return api.post(`${API_URL}/apply`, data);
+};
+
+export const updateLeaveStatus = (id, data) => {
+    console.log(`📡 Updating leave status for ${id}:`, data);
+    return api.put(`${API_URL}/requests/${id}/status`, data);
+};
+
+export const cancelLeaveRequest = (id) => {
+    console.log(`📡 Cancelling leave request ${id}`);
+    return api.put(`${API_URL}/requests/${id}/cancel`);
+};
 
 // ==================== STATISTICS & CALENDAR ====================
 export const getLeaveStats = () => api.get(`${API_URL}/stats`);
-export const getLeaveCalendar = (month, year) => 
-    api.get(`${API_URL}/calendar?month=${month}&year=${year}`);
+export const getLeaveCalendar = (month, year) => api.get(`${API_URL}/calendar?month=${month}&year=${year}`);
 
 // ==================== DEFAULT EXPORT ====================
 export default {
@@ -66,6 +80,7 @@ export default {
     getLeaveRequestById,
     applyLeave,
     updateLeaveStatus,
+    cancelLeaveRequest,
     getLeaveStats,
     getLeaveCalendar
 };

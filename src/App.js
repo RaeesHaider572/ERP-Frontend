@@ -24,23 +24,29 @@ import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
 import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
 import Employees from './modules/Employees/Employees';
 import MobileCheckIn from '../src/modules/Mobilecheckin';
-import ApplyLeave from './modules/Leave/ApplyLeave';
 
+// Leave Module 
 import LeaveDashboard from '../src/modules/Leave/LeaveDashboard';
 import LeaveTypes from '../src/modules/Leave/LeaveTypes';
 import LeaveRequests from '../src/modules/Leave/LeaveRequests';
 import LeaveApply from '../src/modules/Leave/LeaveApply';
+import TeamRequests from './modules/Leave/TeamRequests';
+import LeaveBalance from './modules/Leave/LeaveBalance';
+
+
+import AllRequests from './modules/Leave/AllRequests';
+// import MyRequests from './modules/Leave/MyRequests';
 
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
 // ============================================
 const ModuleGuard = ({ children, module, fallbackPath = '/dashboard' }) => {
     const { canAccessModule } = useAuth();
-    
+
     if (!canAccessModule(module)) {
         return <Navigate to={fallbackPath} replace />;
     }
-    
+
     return children;
 };
 
@@ -49,11 +55,11 @@ const ModuleGuard = ({ children, module, fallbackPath = '/dashboard' }) => {
 // ============================================
 const RoleGuard = ({ children, roles, fallbackPath = '/dashboard' }) => {
     const { user } = useAuth();
-    
+
     if (!user || !roles.includes(user.Role)) {
         return <Navigate to={fallbackPath} replace />;
     }
-    
+
     return children;
 };
 
@@ -73,10 +79,10 @@ function App() {
                         </ProtectedRoute>
                     }>
                         <Route index element={<Navigate to="/dashboard" replace />} />
-                        
+
                         {/* DASHBOARD - All roles */}
                         <Route path="dashboard" element={<DashboardContent />} />
-                        
+
                         {/* ======================================== */}
                         {/* LEAVE MODULE - All roles can access */}
                         {/* ======================================== */}
@@ -100,12 +106,26 @@ function App() {
                                 <LeaveApply />
                             </ModuleGuard>
                         } />
-                        <Route path="ApplyLeave" element={
+                        <Route path="LeaveBalance" element={
                             <ModuleGuard module={MODULES.LEAVE}>
-                                <ApplyLeave />
+                                <LeaveBalance />
                             </ModuleGuard>
                         } />
-                        
+                        <Route path="team-requests" element={
+                            <ModuleGuard module={MODULES.LEAVE}>
+                                <RoleGuard roles={['custodian', 'HR']}>
+                                    <TeamRequests />
+                                </RoleGuard>
+                            </ModuleGuard>
+                        } />
+                        <Route path="leave/all-requests" element={
+                            <ModuleGuard module={MODULES.LEAVE}>
+                                <RoleGuard roles={['HR']}>
+                                    <AllRequests />
+                                </RoleGuard>
+                            </ModuleGuard>
+                        } />
+
                         {/* ======================================== */}
                         {/* EMPLOYEES - Custodian & HR only */}
                         {/* ======================================== */}
@@ -114,26 +134,26 @@ function App() {
                                 <Employees />
                             </RoleGuard>
                         } />
-                        
+
                         {/* ======================================== */}
                         {/* OTHER MODULES - Currently restricted */}
                         {/* Only accessible by specific roles when granted */}
                         {/* ======================================== */}
-                        
+
                         {/* Customers - Only specific employees with granted access */}
                         <Route path="customers" element={
                             <ModuleGuard module={MODULES.CUSTOMERS}>
                                 <Customers />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Projects - Only specific employees with granted access */}
                         <Route path="projects" element={
                             <ModuleGuard module={MODULES.PROJECTS}>
                                 <Projects />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Receipts - Only specific employees with granted access */}
                         <Route path="receipts" element={
                             <ModuleGuard module={MODULES.RECEIPTS}>
@@ -151,35 +171,35 @@ function App() {
                             </ModuleGuard>
                         } />
                         <Route path="receipts-form" element={<Navigate to="/receipts/create" replace />} />
-                        
+
                         {/* Payment Types - Only specific employees with granted access */}
                         <Route path="payment-types" element={
                             <ModuleGuard module={MODULES.PAYMENT_TYPES}>
                                 <PaymentTypes />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Installment Plans - Only specific employees with granted access */}
                         <Route path="installment-plans" element={
                             <ModuleGuard module={MODULES.INSTALLMENT}>
                                 <InstallmentPlans />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Inventory - Only specific employees with granted access */}
                         <Route path="inventory" element={
                             <ModuleGuard module={MODULES.INVENTORY}>
                                 <Inventory />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Tax Rates - Only specific employees with granted access */}
                         <Route path="tax-rates" element={
                             <ModuleGuard module={MODULES.TAX_RATES}>
                                 <TaxRates />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Cash and Bank - Only specific employees with granted access */}
                         <Route path="cash-and-bank" element={
                             <ModuleGuard module={MODULES.CASH_BANK}>
@@ -191,14 +211,14 @@ function App() {
                                 <CashAndBankForm />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Attendance - Only specific employees with granted access */}
                         <Route path="AttendanceLiveFeed" element={
                             <ModuleGuard module={MODULES.ATTENDANCE}>
                                 <AttendanceLiveFeed />
                             </ModuleGuard>
                         } />
-                        
+
                         {/* Mobile Checkin - Only specific employees with granted access */}
                         <Route path="mobile-checkin" element={
                             <ModuleGuard module={MODULES.MOBILE_CHECKIN}>

@@ -20,67 +20,86 @@ export const MODULES = {
     MOBILE_CHECKIN: 'mobile_checkin',
 };
 
-// ✅ Define which roles can access which modules
+// ✅ Role-based module access
 export const ROLE_MODULE_ACCESS = {
-    // Employee: Only Leave module
     employee: {
         modules: [MODULES.DASHBOARD, MODULES.LEAVE],
         routes: [
             '/dashboard',
-            '/leave/*',
-            '/leave/apply',
-            '/leave/requests',
-            '/leave/balance',
             '/leave-dashboard',
+            '/leave/*',
             '/LeaveTypes',
             '/LeaveRequests',
             '/LeaveApply',
             '/ApplyLeave',
-        ]
+            '/leave/balance',
+        ],
+        permissions: {
+            canApplyForSelf: true,
+            canApplyForOthers: false,
+            canViewAllRequests: false,
+            canApproveRequests: false,
+            canViewTeamMembers: false,
+        }
     },
-    // Custodian: Leave + Employees (Team Management)
     custodian: {
         modules: [MODULES.DASHBOARD, MODULES.LEAVE, MODULES.EMPLOYEES],
         routes: [
             '/dashboard',
-            '/leave/*',
-            '/leave/apply',
-            '/leave/requests',
-            '/leave/balance',
             '/leave-dashboard',
+            '/leave/*',
             '/LeaveTypes',
             '/LeaveRequests',
             '/LeaveApply',
             '/ApplyLeave',
-            '/employees'
-        ]
+            '/leave/balance',
+            '/employees',
+            '/team/*',
+        ],
+        permissions: {
+            canApplyForSelf: true,
+            canApplyForOthers: true,
+            canViewAllRequests: false,
+            canApproveRequests: false,
+            canViewTeamMembers: true,
+            canManageTeam: true,
+        }
     },
-    // HR: Leave + Employees Only (No other modules)
     HR: {
         modules: [MODULES.DASHBOARD, MODULES.LEAVE, MODULES.EMPLOYEES],
         routes: [
             '/dashboard',
-            '/leave/*',
-            '/leave/apply',
-            '/leave/requests',
-            '/leave/balance',
             '/leave-dashboard',
+            '/leave/*',
             '/LeaveTypes',
             '/LeaveRequests',
             '/LeaveApply',
             '/ApplyLeave',
-            '/employees'
-        ]
+            '/leave/balance',
+            '/employees',
+            '/leave/approval/*',
+            '/leave/reports/*',
+        ],
+        permissions: {
+            canApplyForSelf: true,
+            canApplyForOthers: false,
+            canViewAllRequests: true,
+            canApproveRequests: true,
+            canViewTeamMembers: true,
+            canManageTeam: true,
+            canViewReports: true,
+        }
     }
 };
 
-// ✅ Check if a route is allowed for a user
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
 export const isRouteAllowed = (user, path) => {
     if (!user) return false;
-    
     const access = ROLE_MODULE_ACCESS[user.Role];
     if (!access) return false;
-    
     return access.routes.some(route => {
         if (route === '/*') return true;
         if (route.endsWith('/*')) {
@@ -91,21 +110,28 @@ export const isRouteAllowed = (user, path) => {
     });
 };
 
-// ✅ Check if a module is accessible
 export const isModuleAccessible = (user, moduleName) => {
     if (!user) return false;
-    
     const access = ROLE_MODULE_ACCESS[user.Role];
     if (!access) return false;
-    
     return access.modules.includes(moduleName);
 };
 
-// ✅ Check if user has specific role
 export const hasRole = (user, role) => {
     if (!user) return false;
     return user.Role === role;
 };
+
+export const hasPermission = (user, permission) => {
+    if (!user) return false;
+    const access = ROLE_MODULE_ACCESS[user.Role];
+    if (!access) return false;
+    return access.permissions[permission] || false;
+};
+
+// ============================================
+// AUTH CONTEXT
+// ============================================
 
 const AuthContext = createContext(null);
 
@@ -114,10 +140,14 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+    // ✅ Load user from localStorage on mount
     useEffect(() => {
         const token = authService.getToken();
         const userData = authService.getUser();
-        
+
+        console.log("🔐 AuthProvider - Token:", token ? "✅ Present" : "❌ Missing");
+        console.log("🔐 AuthProvider - User:", userData ? userData.Name : "❌ Missing");
+
         if (token && userData) {
             setUser(userData);
             setIsAuthenticated(true);
@@ -125,6 +155,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
+    // ✅ Login with Email
     const login = async (email, password) => {
         try {
             const response = await authService.login(email, password);
@@ -136,7 +167,7 @@ export const AuthProvider = ({ children }) => {
             }
             return { success: false, message: response.message || "Login failed" };
         } catch (error) {
-            console.error("Login error in AuthContext:", error);
+            console.error("Login error:", error);
             return {
                 success: false,
                 message: error.response?.data?.message || "Login failed"
@@ -144,18 +175,57 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const register = async (name, email, password) => {
+    // ✅ Login with Employee Code - FIXED
+    const loginWithEmployeeCode = async (employeeCode, password) => {
         try {
-            const response = await authService.register(name, email, password);
-            if (response.status === "success") {
-                return { success: true, message: response.message };
+            // ✅ Format employee code with hyphen
+            let formattedCode = employeeCode.toUpperCase().trim();
+
+            // If code doesn't start with "EMP-", add it
+            if (formattedCode && !formattedCode.includes('-')) {
+                if (formattedCode.startsWith('EMP')) {
+                    const numPart = formattedCode.replace('EMP', '');
+                    formattedCode = `EMP-${numPart}`;
+                } else {
+                    formattedCode = `EMP-${formattedCode}`;
+                }
             }
-            return { success: false, message: response.message || "Registration failed" };
+
+            console.log("🔐 AuthContext - Login with formatted code:", formattedCode);
+
+            const response = await authService.loginWithEmployeeCode(formattedCode, password);
+            console.log("AuthContext - Login response:", response);
+
+            if (response.status === "success") {
+                // ✅ Get user data from response
+                const userData = response.data.user;
+                const token = response.data.token || response.data.data?.token;
+
+                console.log("AuthContext - Setting user:", userData);
+                console.log("AuthContext - Token:", token ? "✅ Present" : "❌ Missing");
+
+                // ✅ Set user in state
+                setUser(userData);
+                setIsAuthenticated(true);
+
+                // ✅ Store token if not already stored by authService
+                if (token) {
+                    localStorage.setItem("token", token);
+                }
+
+                // ✅ Store user data if not already stored
+                if (userData) {
+                    localStorage.setItem("user", JSON.stringify(userData));
+                }
+
+                return { success: true };
+            }
+            return { success: false, message: response.message || "Login failed" };
         } catch (error) {
-            console.error("Registration error in AuthContext:", error);
+            console.error("Login error in AuthContext:", error);
             return {
                 success: false,
-                message: error.response?.data?.message || "Registration failed"
+                message: error.response?.data?.message || "Login failed"
             };
         }
     };
@@ -182,30 +252,35 @@ export const AuthProvider = ({ children }) => {
     const isEmployee = () => user?.Role === 'employee';
     const isCustodian = () => user?.Role === 'custodian';
     const isHR = () => user?.Role === 'HR';
-    
+
     const canApplyForOthers = () => {
-        return user?.Role === 'custodian' || user?.Role === 'HR';
+        return hasPermission(user, 'canApplyForOthers');
     };
 
     const getTeamMembers = () => {
         return user?.teamMembers || [];
     };
 
-    // ✅ Check if user can access a specific module
     const canAccessModule = (moduleName) => {
         return isModuleAccessible(user, moduleName);
     };
 
-    // ✅ Check if user can access a specific route
     const canAccessRoute = (path) => {
         return isRouteAllowed(user, path);
     };
 
-    // ✅ Get all modules user can access
     const getAccessibleModules = () => {
         if (!user) return [];
         const access = ROLE_MODULE_ACCESS[user.Role];
         return access?.modules || [];
+    };
+
+    const canApproveLeave = () => {
+        return hasPermission(user, 'canApproveRequests');
+    };
+
+    const canViewAllRequests = () => {
+        return hasPermission(user, 'canViewAllRequests');
     };
 
     const value = {
@@ -213,9 +288,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAuthenticated,
         login,
-        register,
+        loginWithEmployeeCode,
         logout,
-        // Role functions
         getRoleDisplay,
         isEmployee,
         isCustodian,
@@ -225,7 +299,9 @@ export const AuthProvider = ({ children }) => {
         canAccessModule,
         canAccessRoute,
         getAccessibleModules,
-        // Convenience
+        canApproveLeave,
+        canViewAllRequests,
+        hasPermission,
         role: user?.Role,
         isEmployeeRole: user?.Role === 'employee',
         isCustodianRole: user?.Role === 'custodian',

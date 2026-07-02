@@ -13,17 +13,38 @@ import {
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { loginWithEmployeeCode } from "../services/authService";
 
 const Login = () => {
-    const [loginMethod, setLoginMethod] = useState(1);
+    const [loginMethod, setLoginMethod] = useState(1); // 1 = Employee Code (default)
     const [email, setEmail] = useState("");
-    const [employeeCode, setEmployeeCode] = useState("");
+    const [employeeCode, setEmployeeCode] = useState("EMP-");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, loginWithEmployeeCode } = useAuth();
     const navigate = useNavigate();
+
+    const handleEmployeeCodeChange = (e) => {
+    let value = e.target.value.toUpperCase();
+    
+    // If user types "EMP" it should auto-complete to "EMP-"
+    if (value.startsWith('EMP') && !value.includes('-')) {
+        // Extract the number part
+        const numPart = value.replace('EMP', '');
+        if (numPart) {
+            value = `EMP-${numPart}`;
+        } else {
+            value = 'EMP-';
+        }
+    }
+    
+    // If user types just a number, format it
+    if (/^\d+$/.test(value) && !value.startsWith('EMP')) {
+        value = `EMP-${value}`;
+    }
+    
+    setEmployeeCode(value);
+};
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,6 +52,8 @@ const Login = () => {
         setLoading(true);
 
         try {
+            let result;
+
             if (loginMethod === 0) {
                 // Email login
                 if (!email || !password) {
@@ -38,38 +61,25 @@ const Login = () => {
                     setLoading(false);
                     return;
                 }
-                const result = await login(email, password);
-                setLoading(false);
-                if (result.success) {
-                    navigate("/dashboard");
-                } else {
-                    setError(result.message || "Login failed");
-                }
-                return;
-            }
-
-            // Employee code login
-            if (!employeeCode || !password) {
-                setError("Please fill in all fields");
-                setLoading(false);
-                return;
-            }
-
-            const response = await loginWithEmployeeCode(employeeCode, password);
-            console.log("Login response:", response);
-
-            if (response.status === "success") {
-                // User data is already stored in localStorage by authService
-                // Force auth context to reload
-                const userData = response.data.user;
-                console.log("✅ Login successful! User:", userData);
-                
-                // The AuthContext will pick up the user from localStorage
-                // Just navigate to dashboard
-                setLoading(false);
-                navigate("/dashboard");
+                result = await login(email, password);
             } else {
-                setError(response.message || "Login failed");
+                // Employee code login
+                if (!employeeCode || !password) {
+                    setError("Please fill in all fields");
+                    setLoading(false);
+                    return;
+                }
+                result = await loginWithEmployeeCode(employeeCode, password);
+            }
+
+            console.log("Login result:", result);
+
+            if (result.success) {
+                console.log("✅ Login successful! Redirecting to dashboard...");
+                // ✅ Force navigation to dashboard
+                navigate("/dashboard", { replace: true });
+            } else {
+                setError(result.message || "Login failed");
                 setLoading(false);
             }
         } catch (err) {
@@ -80,8 +90,8 @@ const Login = () => {
     };
 
     return (
-        <Container 
-            component="main" 
+        <Container
+            component="main"
             maxWidth="xs"
             sx={{
                 minHeight: '100vh',
@@ -157,12 +167,13 @@ const Login = () => {
                                 autoComplete="username"
                                 autoFocus
                                 value={employeeCode}
-                                onChange={(e) => setEmployeeCode(e.target.value.toUpperCase())}
+                                onChange={handleEmployeeCodeChange}
                                 disabled={loading}
-                                placeholder="e.g., EMP0088"
+                                placeholder="e.g., EMP-0088"
+                                helperText="Format: EMP-XXXX (e.g., EMP-0088)"
                             />
                         )}
-                        
+
                         <TextField
                             margin="normal"
                             required

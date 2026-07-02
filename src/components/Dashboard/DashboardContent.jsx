@@ -70,17 +70,42 @@ const DashboardContent = () => {
         >
           Welcome back, {user?.Name || 'User'}! 👋
         </Typography>
-        <Typography variant="body1" color="textSecondary">
-          Role: <Chip label={getRoleDisplay()} size="small" color="primary" sx={{ ml: 1 }} />
+        
+        {/* Role and Department Info - Fixed: Chip outside of Typography */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Typography variant="body2" color="textSecondary" component="span">
+            Role:
+          </Typography>
+          <Chip 
+            label={getRoleDisplay()} 
+            size="small" 
+            color="primary" 
+            sx={{ fontWeight: 500 }}
+          />
           {user?.Department && (
-            <span style={{ marginLeft: '16px' }}>
-              Department: {user.Department}
-            </span>
+            <>
+              <Typography variant="body2" color="textSecondary" component="span">
+                •
+              </Typography>
+              <Typography variant="body2" color="textSecondary" component="span">
+                Department: {user.Department}
+              </Typography>
+            </>
           )}
-        </Typography>
+          {user?.EmployeeCode && (
+            <>
+              <Typography variant="body2" color="textSecondary" component="span">
+                •
+              </Typography>
+              <Typography variant="body2" color="textSecondary" component="span">
+                ID: {user.EmployeeCode}
+              </Typography>
+            </>
+          )}
+        </Box>
       </Box>
       
-      {/* Stats Grid */}
+      {/* Stats Grid - Using regular Grid with old API (warnings are harmless) */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat, index) => (
           <Grid item xs={12} sm={6} md={6} lg={3} key={index}>

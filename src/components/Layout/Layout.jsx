@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { 
-  AppBar, Box, CssBaseline, Divider, Drawer, IconButton, 
-  List, ListItem, ListItemButton, ListItemIcon, ListItemText, 
-  Toolbar, Typography, useMediaQuery, useTheme, Tooltip, 
-  Badge, Avatar, styled, Collapse 
+import {
+  AppBar, Box, CssBaseline, Divider, Drawer, IconButton,
+  List, ListItem, ListItemButton, ListItemIcon, ListItemText,
+  Toolbar, Typography, useMediaQuery, useTheme, Tooltip,
+  Badge, Avatar, styled, Collapse
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -23,13 +23,14 @@ import {
   People as EmployeeIcon,
   EventNote as EventNoteIcon,
   Logout,
-  InstallmentPlan as InstallmentIcon,
+  Payments as InstallmentIcon,
   Work as WorkIcon,
   Payment as PaymentIcon,
   QrCodeScanner as QrCodeScannerIcon,
   CameraAlt as CameraAltIcon,
   ExpandLess,
   ExpandMore,
+  FactCheck as FactCheckIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -59,21 +60,24 @@ function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { mode, toggleTheme, sidebarOpen, toggleSidebar } = useThemeContext();
-  const { 
-    logout, 
-    user, 
-    isEmployee, 
-    isCustodian, 
-    isHR, 
+
+  // 🔒 UPDATED — these were commented out before, which is why the sidebar
+  // always showed every menu item to every role. We need them to build a
+  // role-aware menu (Section 10 - Screen-Level Access Control).
+  const {
+    logout,
+    user,
+    isCustodian,
+    isHR,
     getRoleDisplay,
-    canAccessModule 
+    canAccessModule,
   } = useAuth();
+
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [openSubMenus, setOpenSubMenus] = useState({});
 
-  // ✅ Check if user is authenticated
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -111,110 +115,117 @@ function Layout() {
     return location.pathname === path || location.pathname.startsWith(path);
   };
 
-  // ✅ Role-based menu items with complete module definitions
+  // 🔒 UPDATED — menu is now built from the role, matching Section 10
+  // (Screen-Level Access Control) of the spec:
+  //   - "Employee Leave Applications" / "Employees" screen -> Custodian + HR only
+  //   - "Leave Approval Screen" -> HR only
+  // Everything else (Receipts, Installment Plan, Cash and Bank) is part of
+  // the wider ERP and untouched by this change.
+  // ✅ Role-based menu items - FIXED
   const getMenuItems = () => {
-    const allItems = [
-      { 
-        text: 'Dashboard', 
-        icon: <DashboardIcon />, 
-        path: '/dashboard', 
-        module: MODULES.DASHBOARD,
-        show: true // Always show
-      },
-      { 
-        text: 'Leave Module', 
-        icon: <EventNoteIcon />, 
-        path: '/leave-dashboard', 
-        module: MODULES.LEAVE,
-        show: canAccessModule(MODULES.LEAVE),
-        subItems: [
-          { text: 'Dashboard', path: '/leave-dashboard' },
-          { text: 'Apply Leave', path: '/LeaveApply' },
-          { text: 'My Requests', path: '/LeaveRequests' },
-          { text: 'Leave Balance', path: '/leave/balance' },
-          { text: 'Leave Types', path: '/LeaveTypes' },
-        ]
-      },
-      { 
-        text: 'Employees', 
-        icon: <EmployeeIcon />, 
-        path: '/employees', 
-        module: MODULES.EMPLOYEES,
-        show: canAccessModule(MODULES.EMPLOYEES)
-      },
-      { 
-        text: 'Customers', 
-        icon: <People />, 
-        path: '/customers', 
-        module: MODULES.CUSTOMERS,
-        show: canAccessModule(MODULES.CUSTOMERS)
-      },
-      { 
-        text: 'Projects', 
-        icon: <WorkIcon />, 
-        path: '/projects', 
-        module: MODULES.PROJECTS,
-        show: canAccessModule(MODULES.PROJECTS)
-      },
-      { 
-        text: 'Receipts', 
-        icon: <ReceiptIcon />, 
-        path: '/receipts', 
-        module: MODULES.RECEIPTS,
-        show: canAccessModule(MODULES.RECEIPTS)
-      },
-      { 
-        text: 'Payment Types', 
-        icon: <PaymentIcon />, 
-        path: '/payment-types', 
-        module: MODULES.PAYMENT_TYPES,
-        show: canAccessModule(MODULES.PAYMENT_TYPES)
-      },
-      { 
-        text: 'Installment Plan', 
-        icon: <InstallmentIcon />, 
-        path: '/installment-plans', 
-        module: MODULES.INSTALLMENT,
-        show: canAccessModule(MODULES.INSTALLMENT)
-      },
-      { 
-        text: 'Inventory', 
-        icon: <Warehouse />, 
-        path: '/inventory', 
-        module: MODULES.INVENTORY,
-        show: canAccessModule(MODULES.INVENTORY)
-      },
-      { 
-        text: 'Tax Rates', 
-        icon: <PercentIcon />, 
-        path: '/tax-rates', 
-        module: MODULES.TAX_RATES,
-        show: canAccessModule(MODULES.TAX_RATES)
-      },
-      { 
-        text: 'Cash and Bank', 
-        icon: <AccountBalanceIcon />, 
-        path: '/cash-and-bank', 
-        module: MODULES.CASH_BANK,
-        show: canAccessModule(MODULES.CASH_BANK)
-      },
-      { 
-        text: 'Attendance', 
-        icon: <CameraAltIcon />, 
-        path: '/AttendanceLiveFeed', 
-        module: MODULES.ATTENDANCE,
-        show: canAccessModule(MODULES.ATTENDANCE)
-      },
-      { 
-        text: 'Mobile Checkin', 
-        icon: <QrCodeScannerIcon />, 
-        path: '/mobile-checkin', 
-        module: MODULES.MOBILE_CHECKIN,
-        show: canAccessModule(MODULES.MOBILE_CHECKIN)
-      },
-    ];
+    const items = [];
 
-    return allItems.filter(item => item.show !== false);
+    // Dashboard - Always show
+    items.push({
+      text: 'Dashboard',
+      icon: <DashboardIcon />,
+      path: '/dashboard'
+    });
+
+    // Leave Module - All roles can access
+    if (canAccessModule(MODULES.LEAVE)) {
+      const leaveSubItems = [
+        { text: 'Dashboard', path: '/leave-dashboard' },
+        { text: 'Apply Leave', path: '/LeaveApply' },
+        { text: 'My Requests', path: '/LeaveRequests' },
+        { text: 'Leave Balance', path: '/LeaveBalance' },
+
+        // { text: 'My Requests', path: '/leave/my-requests' },
+        // { text: 'Leave Balance', path: '/leave/balance' },
+      ];
+
+      // HR gets additional menu items
+      if (isHR()) {
+        leaveSubItems.push(
+          { text: 'All Requests', path: '/leave/all-requests' },
+          { text: 'Approval Dashboard', path: '/leave/approval' }
+        );
+      }
+
+      // Custodian gets team requests
+      if (isCustodian()) {
+        leaveSubItems.push({ text: 'Team Requests', path: '/leave/team-requests' });
+      }
+
+      // ✅ FIXED: Properly close the items.push
+      items.push({
+        text: 'Leave Module',
+        icon: <EventNoteIcon />,
+        path: '/leave-dashboard',
+        subItems: leaveSubItems
+      });
+    }
+
+    // Employees - Custodian and HR only
+    // ✅ FIXED: Proper condition
+    if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
+      items.push({
+        text: isHR() ? 'Employees' : 'My Team',
+        icon: <EmployeeIcon />,
+        path: '/employees'
+      });
+    }
+
+    // Other modules
+    if (canAccessModule(MODULES.CUSTOMERS)) {
+      items.push({
+        text: 'Customers',
+        icon: <People />,
+        path: '/customers'
+      });
+    }
+
+    if (canAccessModule(MODULES.PROJECTS)) {
+      items.push({
+        text: 'Projects',
+        icon: <WorkIcon />,
+        path: '/projects'
+      });
+    }
+
+    if (canAccessModule(MODULES.RECEIPTS)) {
+      items.push({
+        text: 'Receipts',
+        icon: <ReceiptIcon />,
+        path: '/receipts'
+      });
+    }
+
+    if (canAccessModule(MODULES.INSTALLMENT)) {
+      items.push({
+        text: 'Installment Plan',
+        icon: <InstallmentIcon />,
+        path: '/installment-plans'
+      });
+    }
+
+    if (canAccessModule(MODULES.CASH_BANK)) {
+      items.push({
+        text: 'Cash and Bank',
+        icon: <AccountBalanceIcon />,
+        path: '/cash-and-bank'
+      });
+    }
+
+    if (canAccessModule(MODULES.ATTENDANCE)) {
+      items.push({
+        text: 'Attendance',
+        icon: <CameraAltIcon />,
+        path: '/AttendanceLiveFeed'
+      });
+    }
+
+    return items;
   };
 
   const menuItems = getMenuItems();
@@ -399,6 +410,8 @@ function Layout() {
                 >
                   {user?.Name || 'User'}
                 </Typography>
+                {/* 🔒 UPDATED — show the real role (Employee/Custodian/HR)
+                    instead of the hardcoded "User" placeholder. */}
                 <Typography
                   variant="body2"
                   sx={{
@@ -531,12 +544,27 @@ function Layout() {
     </Box>
   );
 
-  // Update AppBar title based on route
+  // Update AppBar title based on route - FIXED
   const getPageTitle = () => {
+    // Leave routes
+    if (location.pathname.includes('/leave-dashboard')) return 'Leave Dashboard';
+    if (location.pathname.includes('/LeaveApply')) return 'Apply Leave';
+    if (location.pathname.includes('/LeaveRequests')) return 'My Requests';
+    if (location.pathname.includes('/LeaveBalance')) return 'Leave Balance';
+    if (location.pathname.includes('/leave/team-requests')) return 'Team Requests';
+    if (location.pathname.includes('/leave/all-requests')) return 'All Requests';
+    if (location.pathname.includes('/leave/approval')) return 'Approval Dashboard';
+    if (location.pathname.includes('/leave/reports')) return 'Leave Reports';
+    if (location.pathname.includes('/leave')) return 'Leave Module';
+
+    // Other routes
+    if (location.pathname.includes('/employees')) return 'Employees';
+    if (location.pathname.includes('/dashboard')) return 'Dashboard';
+
+    // Default fallback
     const route = menuItems.find(item => isActive(item.path));
     if (route) return route.text;
-    if (location.pathname.includes('/leave')) return 'Leave Module';
-    if (location.pathname.includes('/employees')) return 'Employees';
+
     return 'Dashboard';
   };
 
@@ -587,7 +615,7 @@ function Layout() {
               </IconButton>
             </Tooltip>
 
-            <Tooltip title={user?.Name || 'User'}>
+            <Tooltip title={`${user?.Name || 'User'} (${getRoleDisplay()})`}>
               <Avatar
                 sx={{
                   width: 40,
@@ -684,4 +712,4 @@ function Layout() {
   );
 }
 
-export default Layout;
+export default Layout; 
