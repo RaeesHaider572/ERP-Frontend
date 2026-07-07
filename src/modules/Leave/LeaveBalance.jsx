@@ -156,8 +156,8 @@ const LeaveBalance = () => {
 
     // Calculate total summary
     const totalAllowed = balances.reduce((sum, b) => sum + (b.TotalAllowed || 0), 0);
-    const totalUsed = balances.reduce((sum, b) => sum + (b.UsedDays || 0), 0);
-    const totalRemaining = balances.reduce((sum, b) => sum + (b.RemainingDays || 0), 0);
+    const leaves = balances.reduce((sum, b) => sum + (b.Leaves || 0), 0);
+    const balance = balances.reduce((sum, b) => sum + (b.Balance || 0), 0);
 
     return (
         <Box sx={{ p: 3 }}>
@@ -201,7 +201,7 @@ const LeaveBalance = () => {
                         <CardContent>
                             <Typography variant="body2" color="textSecondary">Used</Typography>
                             <Typography variant="h4" sx={{ fontWeight: 700, color: '#ed6c02' }}>
-                                {totalUsed}
+                                {leaves}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">Days used</Typography>
                         </CardContent>
@@ -212,7 +212,7 @@ const LeaveBalance = () => {
                         <CardContent>
                             <Typography variant="body2" color="textSecondary">Remaining</Typography>
                             <Typography variant="h4" sx={{ fontWeight: 700, color: '#2e7d32' }}>
-                                {totalRemaining}
+                                {balance}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">Days remaining</Typography>
                         </CardContent>
@@ -230,9 +230,9 @@ const LeaveBalance = () => {
             ) : (
                 <Grid container spacing={3}>
                     {balances.map((balance, index) => {
-                        const remaining = balance.RemainingDays || 0;
+                        const remaining = balance.Balance || 0;
                         const total = balance.TotalAllowed || 0;
-                        const used = balance.UsedDays || 0;
+                        const used = balance.Leaves || 0;
                         const percentage = total > 0 ? (remaining / total) * 100 : 0;
                         const color = getColor(balance.LeaveName);
 

@@ -26,10 +26,8 @@ import {
     TableRow,
     TableHead,
     CircularProgress,
-    Chip,
 } from "@mui/material";
 import {
-    EventNote as EventNoteIcon,
     Send as SendIcon,
     RestartAlt as RestartAltIcon,
     Print as PrintIcon,
@@ -38,7 +36,7 @@ import logo from "../../assets/BodlaGroupLogo.svg";
 
 const LeaveApplicationForm = () => {
     const theme = useTheme();
-    const { user, isEmployee, isCustodian, isHR } = useAuth();
+    const { user, isCustodian } = useAuth();
 
     const printRef = useRef();
 
@@ -60,10 +58,47 @@ const LeaveApplicationForm = () => {
         weight: "",
         reason: "",
         status: "Pending",
+
+        // Sick Leave
+        sickBalance: 0,
+        sickTotalAllowed: 0,
         sickLeaves: 0,
+        sickOpeningTotal: 0,
+        sickOpeningEarned: 0,
+        sickAdditionsEarned: 0,
+        sickClosingTotal: 0,
+        sickClosingEarned: 0,
+
+        // Casual Leave
+        casualBalance: 0,
+        casualTotalAllowed: 0,
         casualLeaves: 0,
+        casualOpeningTotal: 0,
+        casualOpeningEarned: 0,
+        casualAdditionsEarned: 0,
+        casualClosingTotal: 0,
+        casualClosingEarned: 0,
+
+        // Annual Leave
+        annualBalance: 0,
+        annualTotalAllowed: 0,
         annualLeaves: 0,
+        annualOpeningTotal: 0,
+        annualOpeningEarned: 0,
+        annualAdditionsEarned: 0,
+        annualClosingTotal: 0,
+        annualClosingEarned: 0,
+
+        // Compensatory Leave
+        compensatoryBalance: 0,
+        compensatoryTotalAllowed: 0,
         compensatoryLeaves: 0,
+        compensatoryOpeningTotal: 0,
+        compensatoryOpeningEarned: 0,
+        compensatoryAdditionsEarned: 0,
+        compensatoryClosingTotal: 0,
+        compensatoryClosingEarned: 0,
+
         employeeId: null,
         requestId: null,
     };
@@ -78,141 +113,149 @@ const LeaveApplicationForm = () => {
     const [teamMembers, setTeamMembers] = useState([]);
 
     // ============================================
-    // ✅ HANDLE URL PARAMETER FOR TEAM MEMBER
+    // LEAVE TYPES
     // ============================================
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const employeeCode = params.get('employeeCode');
-
-        if (employeeCode) {
-            console.log(`📋 Applying for employee from URL: ${employeeCode}`);
-            fetchEmployeeByCode(employeeCode);
-        }
-    }, []);
-
-    // ============================================
-    // ✅ AUTO-FILL LOGGED-IN EMPLOYEE INFORMATION
-    // ============================================
-    useEffect(() => {
-        if (user) {
-            console.log("👤 Auto-filling logged-in employee:", user);
-
-            const employeeCode = user.EmployeeCode || user.employeeCode || "";
-            const preparedByName = user.Name || user.name || "";
-
-            let formattedCode = employeeCode;
-            if (formattedCode && !formattedCode.includes('-')) {
-                if (formattedCode.startsWith('EMP')) {
-                    const numPart = formattedCode.replace('EMP', '');
-                    formattedCode = `EMP-${numPart}`;
-                }
-            }
-
-            if (formattedCode) {
-                // ✅ Auto-fill ALL user info (Employee, Custodian, HR)
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeCode: formattedCode,
-                    employeeName: user.Name || "",
-                    designation: user.Designation || "",
-                    department: user.Department || "",
-                    employeeId: user.EmployeeID || null,
-                    preparedBy: preparedByName,
-                }));
-
-                if (user.EmployeeID) {
-                    console.log("📊 Auto-fetching balances for logged-in employee:", user.EmployeeID);
-                    fetchLeaveBalances(user.EmployeeID);
-                }
-            }
-
-            // ✅ Fetch team members for custodian
-            if (isCustodian()) {
-                fetchTeamMembers();
-            }
-        }
-    }, [user]);
-
-    // ============================================
-    // FETCH TEAM MEMBERS FOR CUSTODIAN
-    // ============================================
-    const fetchTeamMembers = async () => {
-        if (!isCustodian() || !user?.EmployeeID) return;
-
-        try {
-            console.log("👥 Fetching team members for custodian:", user.EmployeeID);
-            const res = await api.get(`/employees/team/${user.EmployeeID}`);
-            console.log("👥 Team members response:", res.data);
-
-            let data = [];
-            if (res.data?.data) {
-                data = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                data = res.data;
-            }
-
-            setTeamMembers(data);
-        } catch (error) {
-            console.error("❌ Error fetching team members:", error);
-        }
-    };
+    const leaveTypes = [
+        {
+            value: "Sick",
+            label: "Sick Leave",
+            balanceKey: "sickBalance",
+            totalKey: "sickTotalAllowed",
+            usedKey: "sickLeaves",
+            openingTotalKey: "sickOpeningTotal",
+            openingEarnedKey: "sickOpeningEarned",
+            additionsEarnedKey: "sickAdditionsEarned",
+            closingTotalKey: "sickClosingTotal",
+            closingEarnedKey: "sickClosingEarned"
+        },
+        {
+            value: "Casual",
+            label: "Casual Leave",
+            balanceKey: "casualBalance",
+            totalKey: "casualTotalAllowed",
+            usedKey: "casualLeaves",
+            openingTotalKey: "casualOpeningTotal",
+            openingEarnedKey: "casualOpeningEarned",
+            additionsEarnedKey: "casualAdditionsEarned",
+            closingTotalKey: "casualClosingTotal",
+            closingEarnedKey: "casualClosingEarned"
+        },
+        {
+            value: "Annual",
+            label: "Annual Leave",
+            balanceKey: "annualBalance",
+            totalKey: "annualTotalAllowed",
+            usedKey: "annualLeaves",
+            openingTotalKey: "annualOpeningTotal",
+            openingEarnedKey: "annualOpeningEarned",
+            additionsEarnedKey: "annualAdditionsEarned",
+            closingTotalKey: "annualClosingTotal",
+            closingEarnedKey: "annualClosingEarned"
+        },
+        {
+            value: "Compensatory",
+            label: "Compensatory Leave",
+            balanceKey: "compensatoryBalance",
+            totalKey: "compensatoryTotalAllowed",
+            usedKey: "compensatoryLeaves",
+            openingTotalKey: "compensatoryOpeningTotal",
+            openingEarnedKey: "compensatoryOpeningEarned",
+            additionsEarnedKey: "compensatoryAdditionsEarned",
+            closingTotalKey: "compensatoryClosingTotal",
+            closingEarnedKey: "compensatoryClosingEarned"
+        },
+    ];
 
     // ============================================
     // FETCH LEAVE BALANCES
     // ============================================
     const fetchLeaveBalances = async (employeeId) => {
-        if (!employeeId) {
-            console.log("⚠️ No employee ID provided for balance fetch");
-            return;
-        }
+        if (!employeeId) return;
 
         setIsFetchingBalance(true);
         try {
-            console.log("📊 Fetching balances for Employee ID:", employeeId);
-
             const res = await api.get(`/leave/balances/employee/${employeeId}`);
-            console.log("📊 Leave balances response:", res.data);
-
             let balances = [];
-            if (res.data?.data) {
-                balances = res.data.data;
-            } else if (Array.isArray(res.data)) {
-                balances = res.data;
-            }
+            if (res.data?.data) balances = res.data.data;
+            else if (Array.isArray(res.data)) balances = res.data;
 
             const balanceMap = {
-                sickLeaves: 0,
-                casualLeaves: 0,
-                annualLeaves: 0,
-                compensatoryLeaves: 0
+                sickBalance: 0, sickTotalAllowed: 0, sickLeaves: 0,
+                sickOpeningTotal: 0, sickOpeningEarned: 0, sickAdditionsEarned: 0,
+                sickClosingTotal: 0, sickClosingEarned: 0,
+                casualBalance: 0, casualTotalAllowed: 0, casualLeaves: 0,
+                casualOpeningTotal: 0, casualOpeningEarned: 0, casualAdditionsEarned: 0,
+                casualClosingTotal: 0, casualClosingEarned: 0,
+                annualBalance: 0, annualTotalAllowed: 0, annualLeaves: 0,
+                annualOpeningTotal: 0, annualOpeningEarned: 0, annualAdditionsEarned: 0,
+                annualClosingTotal: 0, annualClosingEarned: 0,
+                compensatoryBalance: 0, compensatoryTotalAllowed: 0, compensatoryLeaves: 0,
+                compensatoryOpeningTotal: 0, compensatoryOpeningEarned: 0, compensatoryAdditionsEarned: 0,
+                compensatoryClosingTotal: 0, compensatoryClosingEarned: 0,
             };
 
-            if (balances && balances.length > 0) {
+            if (balances.length > 0) {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
-                    const remaining = bal.RemainingDays || bal.remainingDays || 0;
+                    const totalAllowed = parseFloat(bal.TotalAllowed || bal.totalAllowed || 0);
+                    const leaves = parseFloat(bal.Leaves || bal.leaves || 0);
+                    const balance = parseFloat(bal.Balance || bal.balance || 0);
+                    const openingTotal = parseFloat(bal.OpeningBalance || bal.openingBalance || bal.OpeningTotal || bal.openingTotal || 0);
+                    const openingEarned = parseFloat(bal.OpeningEarned || bal.openingEarned || 0);
+                    const additionsEarned = parseFloat(bal.AdditionsEarned || bal.additionsEarned || 0);
+                    const closingTotal = parseFloat(bal.ClosingTotal || bal.closingTotal || 0);
+                    const closingEarned = parseFloat(bal.ClosingEarned || bal.closingEarned || 0);
 
                     const nameLower = name.toLowerCase();
                     if (nameLower.includes("sick")) {
-                        balanceMap.sickLeaves = remaining;
+                        Object.assign(balanceMap, {
+                            sickBalance: balance,
+                            sickTotalAllowed: totalAllowed,
+                            sickLeaves: leaves,
+                            sickOpeningTotal: openingTotal,
+                            sickOpeningEarned: openingEarned,
+                            sickAdditionsEarned: additionsEarned,
+                            sickClosingTotal: closingTotal,
+                            sickClosingEarned: closingEarned
+                        });
                     } else if (nameLower.includes("casual")) {
-                        balanceMap.casualLeaves = remaining;
+                        Object.assign(balanceMap, {
+                            casualBalance: balance,
+                            casualTotalAllowed: totalAllowed,
+                            casualLeaves: leaves,
+                            casualOpeningTotal: openingTotal,
+                            casualOpeningEarned: openingEarned,
+                            casualAdditionsEarned: additionsEarned,
+                            casualClosingTotal: closingTotal,
+                            casualClosingEarned: closingEarned
+                        });
                     } else if (nameLower.includes("annual")) {
-                        balanceMap.annualLeaves = remaining;
+                        Object.assign(balanceMap, {
+                            annualBalance: balance,
+                            annualTotalAllowed: totalAllowed,
+                            annualLeaves: leaves,
+                            annualOpeningTotal: openingTotal,
+                            annualOpeningEarned: openingEarned,
+                            annualAdditionsEarned: additionsEarned,
+                            annualClosingTotal: closingTotal,
+                            annualClosingEarned: closingEarned
+                        });
                     } else if (nameLower.includes("compensatory")) {
-                        balanceMap.compensatoryLeaves = remaining;
+                        Object.assign(balanceMap, {
+                            compensatoryBalance: balance,
+                            compensatoryTotalAllowed: totalAllowed,
+                            compensatoryLeaves: leaves,
+                            compensatoryOpeningTotal: openingTotal,
+                            compensatoryOpeningEarned: openingEarned,
+                            compensatoryAdditionsEarned: additionsEarned,
+                            compensatoryClosingTotal: closingTotal,
+                            compensatoryClosingEarned: closingEarned
+                        });
                     }
                 });
             }
 
-            setFormData((prev) => ({
-                ...prev,
-                sickLeaves: balanceMap.sickLeaves,
-                casualLeaves: balanceMap.casualLeaves,
-                annualLeaves: balanceMap.annualLeaves,
-                compensatoryLeaves: balanceMap.compensatoryLeaves,
-            }));
-
+            setFormData((prev) => ({ ...prev, ...balanceMap }));
         } catch (error) {
             console.error("❌ Error fetching leave balances:", error);
             setSnackbar({
@@ -226,21 +269,15 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // ✅ FETCH EMPLOYEE DATA BY CODE
+    // FETCH EMPLOYEE DATA BY CODE
     // ============================================
     const fetchEmployeeByCode = async (code) => {
-        console.log("🔍 Fetching employee with code:", code);
-
         if (!code || code.trim() === "") {
             setFormData((prev) => ({
                 ...prev,
                 employeeName: "",
                 designation: "",
                 department: "",
-                sickLeaves: 0,
-                casualLeaves: 0,
-                annualLeaves: 0,
-                compensatoryLeaves: 0,
                 employeeId: null,
             }));
             return;
@@ -249,42 +286,19 @@ const LeaveApplicationForm = () => {
         setFetchingEmployee(true);
         try {
             const res = await api.get(`/employees/code/${code}`);
-            console.log("✅ API Response:", res.data);
-
             const emp = res.data?.data;
-            console.log("✅ Employee data:", emp);
 
             if (emp) {
-                console.log("✅ Employee found:", emp.Name);
-
-                // ✅ Check if employee is in custodian's team
-                // if (isCustodian() && emp.EmployeeID !== user?.EmployeeID) {
-                //     const isSupervised = teamMembers.some(
-                //         member => member.EmployeeID === emp.EmployeeID
-                //     );
-
-                //     if (!isSupervised) {
-                //         setSnackbar({
-                //             open: true,
-                //             message: `⚠️ ${emp.Name} is not in your team. You can only apply for team members.`,
-                //             severity: "warning",
-                //         });
-                //     }
-                // }
-
-                // ✅ Auto-fill all employee data
                 setFormData((prev) => ({
                     ...prev,
                     employeeName: emp.Name || "",
                     designation: emp.Designation || "",
                     department: emp.Department || "",
                     employeeId: emp.EmployeeID || null,
-                    // ✅ Keep the employee code that was passed
                     employeeCode: code,
                 }));
 
                 if (emp.EmployeeID) {
-                    console.log("📊 Fetching leave balances for employee:", emp.EmployeeID);
                     await fetchLeaveBalances(emp.EmployeeID);
                 }
 
@@ -294,18 +308,6 @@ const LeaveApplicationForm = () => {
                     severity: "success",
                 });
             } else {
-                console.log("❌ No employee found");
-                setFormData((prev) => ({
-                    ...prev,
-                    employeeName: "",
-                    designation: "",
-                    department: "",
-                    sickLeaves: 0,
-                    casualLeaves: 0,
-                    annualLeaves: 0,
-                    compensatoryLeaves: 0,
-                    employeeId: null,
-                }));
                 setSnackbar({
                     open: true,
                     message: `Employee with code "${code}" not found`,
@@ -314,17 +316,6 @@ const LeaveApplicationForm = () => {
             }
         } catch (error) {
             console.error("❌ Employee fetch error:", error);
-            setFormData((prev) => ({
-                ...prev,
-                employeeName: "",
-                designation: "",
-                department: "",
-                sickLeaves: 0,
-                casualLeaves: 0,
-                annualLeaves: 0,
-                compensatoryLeaves: 0,
-                employeeId: null,
-            }));
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || "Failed to fetch employee data",
@@ -336,15 +327,69 @@ const LeaveApplicationForm = () => {
     };
 
     // ============================================
-    // ✅ HANDLE TEAM MEMBER SELECT
+    // AUTO-FILL LOGGED-IN EMPLOYEE
     // ============================================
-    // const handleTeamMemberSelect = (member) => {
-    //     const code = member.EmployeeCode || member.employeeCode || "";
-    //     console.log(`👤 Selected team member: ${member.Name} (${code})`);
-    //     // Update URL and fetch employee data
-    //     window.history.pushState({}, '', `?employeeCode=${code}`);
-    //     fetchEmployeeByCode(code);
-    // };
+    useEffect(() => {
+        if (user) {
+            const employeeCode = user.EmployeeCode || user.employeeCode || "";
+            const preparedByName = user.Name || user.name || "";
+
+            let formattedCode = employeeCode;
+            if (formattedCode && !formattedCode.includes('-')) {
+                if (formattedCode.startsWith('EMP')) {
+                    const numPart = formattedCode.replace('EMP', '');
+                    formattedCode = `EMP-${numPart}`;
+                }
+            }
+
+            if (formattedCode) {
+                setFormData((prev) => ({
+                    ...prev,
+                    employeeCode: formattedCode,
+                    employeeName: user.Name || "",
+                    designation: user.Designation || "",
+                    department: user.Department || "",
+                    employeeId: user.EmployeeID || null,
+                    preparedBy: preparedByName,
+                }));
+
+                if (user.EmployeeID) {
+                    fetchLeaveBalances(user.EmployeeID);
+                }
+            }
+
+            if (isCustodian()) {
+                fetchTeamMembers();
+            }
+        }
+    }, [user]);
+
+    // ============================================
+    // FETCH TEAM MEMBERS
+    // ============================================
+    const fetchTeamMembers = async () => {
+        if (!isCustodian() || !user?.EmployeeID) return;
+        try {
+            const res = await api.get(`/employees/team/${user.EmployeeID}`);
+            let data = [];
+            if (res.data?.data) data = res.data.data;
+            else if (Array.isArray(res.data)) data = res.data;
+            setTeamMembers(data);
+        } catch (error) {
+            console.error("❌ Error fetching team members:", error);
+        }
+    };
+
+    // ============================================
+    // URL PARAMETER HANDLER
+    // ============================================
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const employeeCode = params.get('employeeCode');
+        if (employeeCode) {
+            fetchEmployeeByCode(employeeCode);
+        }
+    }, []);
 
     // ============================================
     // CALCULATE DAYS
@@ -355,7 +400,6 @@ const LeaveApplicationForm = () => {
             const end = new Date(formData.endDate);
             if (end >= start) {
                 let diff = 0;
-
                 if (formData.duration === 'half-day') {
                     diff = 0.5;
                 } else if (formData.duration === 'short-day') {
@@ -363,7 +407,6 @@ const LeaveApplicationForm = () => {
                 } else {
                     diff = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
                 }
-
                 setFormData(prev => ({ ...prev, weight: diff.toString() }));
             } else {
                 setFormData(prev => ({ ...prev, weight: "" }));
@@ -374,13 +417,11 @@ const LeaveApplicationForm = () => {
     }, [formData.startDate, formData.endDate, formData.duration]);
 
     // ============================================
-    // ✅ HANDLE CHANGE - Only for non-employeeCode fields
+    // HANDLE CHANGE
     // ============================================
     const handleChange = (field) => (event) => {
         const value = event.target.value;
-
         setFormData((prev) => ({ ...prev, [field]: value }));
-
         if (errors[field]) {
             setErrors((prev) => {
                 const e = { ...prev };
@@ -415,25 +456,12 @@ const LeaveApplicationForm = () => {
     // GET LEAVE TYPE ID
     // ============================================
     const getLeaveTypeId = (leaveTypeName) => {
-        const mapping = {
-            "Sick": 1,
-            "Casual": 2,
-            "Annual": 3,
-            "Compensatory": 4
-        };
+        const mapping = { "Sick": 1, "Casual": 2, "Annual": 3, "Compensatory": 4 };
         return mapping[leaveTypeName] || 1;
     };
 
-    // ============================================
-    // GET LEAVE TYPE NAME FROM ID
-    // ============================================
     const getLeaveTypeName = (leaveTypeId) => {
-        const mapping = {
-            1: 'Sick',
-            2: 'Casual',
-            3: 'Annual',
-            4: 'Compensatory'
-        };
+        const mapping = { 1: 'Sick', 2: 'Casual', 3: 'Annual', 4: 'Compensatory' };
         return mapping[leaveTypeId] || 'Sick';
     };
 
@@ -441,9 +469,6 @@ const LeaveApplicationForm = () => {
     // HANDLE SUBMIT
     // ============================================
     const handleSubmit = async () => {
-        console.log("📝 Submitting form...");
-        console.log("📝 Form data:", formData);
-
         if (!validateForm()) {
             setSnackbar({
                 open: true,
@@ -472,26 +497,18 @@ const LeaveApplicationForm = () => {
                 Reason: formData.reason || "",
                 Duration: formData.duration || "full-day",
             };
-            console.log("📤 Submitting payload:", payload);
 
             const response = await applyLeave(payload);
-            console.log("✅ Submit response:", response);
-
             const responseData = response.data?.data || response.data;
             const requestId = responseData?.RequestID;
             const requestCode = responseData?.RequestCode;
             const totalDays = responseData?.TotalDays;
 
             if (requestId) {
-                console.log("✅ RequestID from database:", requestId);
-                console.log("✅ RequestCode from database:", requestCode);
-
                 const fullApplicationId = requestCode || `BGLA-${String(requestId).padStart(6, '0')}`;
 
                 try {
                     const printDataResponse = await api.get(`/leave/requests/${requestId}`);
-                    console.log("📋 Print data:", printDataResponse.data);
-
                     const printData = printDataResponse.data?.data || printDataResponse.data;
 
                     setFormData((prev) => ({
@@ -511,7 +528,6 @@ const LeaveApplicationForm = () => {
                         duration: printData.Duration || prev.duration,
                     }));
                 } catch (fetchError) {
-                    console.warn("Could not fetch print data, using submitted data:", fetchError);
                     setFormData((prev) => ({
                         ...prev,
                         requestId: requestId,
@@ -529,15 +545,10 @@ const LeaveApplicationForm = () => {
                 setTimeout(() => {
                     setShowPrintPreview(true);
                 }, 1500);
-
             } else {
                 throw new Error("No RequestID returned from server");
             }
-
         } catch (error) {
-            console.error("❌ Submit error:", error);
-            console.error("❌ Error details:", error.response?.data);
-
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || "Failed to submit leave application",
@@ -567,7 +578,6 @@ const LeaveApplicationForm = () => {
         });
         setErrors({});
         setShowPrintPreview(false);
-
         if (user?.EmployeeID) {
             fetchLeaveBalances(user.EmployeeID);
         }
@@ -581,82 +591,173 @@ const LeaveApplicationForm = () => {
         return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
-    // ============================================
-    // GET LEAVE TYPE LABEL
-    // ============================================
     const getLeaveTypeLabel = () => {
         const leaveType = leaveTypes.find(lt => lt.value === formData.leaveType);
         return leaveType ? leaveType.label : formData.leaveType;
     };
 
     // ============================================
-    // LEAVE TYPES
+    // LEAVE BALANCE TABLE COMPONENT (Reusable)
     // ============================================
-    const leaveTypes = [
-        { value: "Sick", label: "Sick Leave", balanceKey: "sickLeaves" },
-        { value: "Casual", label: "Casual Leave", balanceKey: "casualLeaves" },
-        { value: "Annual", label: "Annual Leave", balanceKey: "annualLeaves" },
-        { value: "Compensatory", label: "Compensatory Leave", balanceKey: "compensatoryLeaves" },
-    ];
+    const LeaveBalanceTable = ({ isPrint = false }) => {
+        const currentMonth = new Date().getMonth() + 1;
+        const isFirstMonth = currentMonth === 1;
 
-    // ============================================
-    // LEAVE BALANCE TABLE
-    // ============================================
-    const LeaveBalanceTable = () => {
-        const getAppliedDays = (balanceKey, leaveTypeValue) => {
-            const isActive = formData.leaveType === leaveTypeValue;
-            return isActive ? parseFloat(formData.weight) || 0 : 0;
+        const tableStyles = isPrint ? {
+            table: { minWidth: 650, border: '1px solid #ddd' },
+            header: { bgcolor: "#f5f5f5", fontSize: '0.7rem', padding: '4px 8px' },
+            cell: { fontSize: '0.7rem', padding: '4px 8px' },
+            border: '1px solid #ddd'
+        } : {
+            table: { minWidth: 600 },
+            header: { bgcolor: "#f5f5f5", fontSize: '0.75rem', padding: '4px 6px' },
+            cell: { fontSize: '0.75rem', padding: '4px 6px' },
+            border: '1px solid #e0e0e0'
         };
 
         return (
-            <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none" }}>
-                <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none", overflowX: 'auto' }}>
+                <Table size="small" sx={tableStyles.table}>
                     <TableHead>
-                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                            <TableCell rowSpan={2} sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.85rem', padding: '4px 5px' }}>Particulars</TableCell>
-                            <TableCell colSpan={2} align="center" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.85rem', padding: '4px 5px' }}>Opening</TableCell>
-                            <TableCell colSpan={2} align="center" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.85rem', padding: '4px 5px' }}>Additions</TableCell>
-                            <TableCell align="center" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.85rem', padding: '4px 5px' }}>Leaves</TableCell>
-                            <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, fontSize: '0.85rem', padding: '4px 5px' }}>Closing</TableCell>
+                        <TableRow sx={{ bgcolor: tableStyles.header.bgcolor }}>
+                            <TableCell
+                                rowSpan={2}
+                                sx={{
+                                    borderRight: tableStyles.border,
+                                    fontWeight: 700,
+                                    fontSize: tableStyles.header.fontSize,
+                                    padding: tableStyles.header.padding,
+                                    minWidth: '80px',
+                                    backgroundColor: tableStyles.header.bgcolor
+                                }}
+                            >
+                                Particulars
+                            </TableCell>
+                            <TableCell
+                                colSpan={2}
+                                align="center"
+                                sx={{
+                                    borderRight: tableStyles.border,
+                                    fontWeight: 700,
+                                    fontSize: tableStyles.header.fontSize,
+                                    padding: tableStyles.header.padding,
+                                    backgroundColor: tableStyles.header.bgcolor
+                                }}
+                            >
+                                Opening
+                            </TableCell>
+                            <TableCell
+                                colSpan={2}
+                                align="center"
+                                sx={{
+                                    borderRight: tableStyles.border,
+                                    fontWeight: 700,
+                                    fontSize: tableStyles.header.fontSize,
+                                    padding: tableStyles.header.padding,
+                                    backgroundColor: tableStyles.header.bgcolor
+                                }}
+                            >
+                                Additions
+                            </TableCell>
+                            <TableCell
+                                align="center"
+                                sx={{
+                                    borderRight: tableStyles.border,
+                                    fontWeight: 700,
+                                    fontSize: tableStyles.header.fontSize,
+                                    padding: tableStyles.header.padding,
+                                    backgroundColor: tableStyles.header.bgcolor
+                                }}
+                            >
+                                Leaves
+                            </TableCell>
+                            <TableCell
+                                colSpan={2}
+                                align="center"
+                                sx={{
+                                    fontWeight: 700,
+                                    fontSize: tableStyles.header.fontSize,
+                                    padding: tableStyles.header.padding,
+                                    backgroundColor: tableStyles.header.bgcolor
+                                }}
+                            >
+                                Closing
+                            </TableCell>
                         </TableRow>
-                        <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Total</TableCell>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Earned</TableCell>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Total</TableCell>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Earned</TableCell>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Actual</TableCell>
-                            <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0', fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Total</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.8rem', padding: '4px 5px' }}>Earned</TableCell>
+                        <TableRow sx={{ bgcolor: tableStyles.header.bgcolor }}>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Actual</TableCell>
+                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {leaveTypes.map((lt, i) => {
-                            const opening = parseFloat(formData[lt.balanceKey]) || 0;
+                            const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
+                            const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
+                            const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+                            const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
                             const isActive = formData.leaveType === lt.value;
-                            const applied = getAppliedDays(lt.balanceKey, lt.value);
-                            const closing = Math.max(0, opening - applied);
+                            const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
+                            const additionsTotal = isFirstMonth ? totalAllowed : 0;
+                            const closingTotal = openingTotal + additionsTotal - leavesActual;
+                            const closingEarned = openingEarned + additionsEarned - leavesActual;
+                            const isHighlighted = isActive && leavesActual > 0;
 
                             return (
-                                <TableRow key={lt.value} sx={{
-                                    bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
-                                    ...(isActive && {
-                                        bgcolor: `${theme.palette.primary.main}10`,
-                                        "& td": { fontWeight: "bold" }
-                                    })
-                                }}>
-                                    <TableCell>{lt.label}</TableCell>
-                                    <TableCell align="right">{opening}</TableCell>
-                                    <TableCell align="right">{opening}</TableCell>
-                                    <TableCell align="right" sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}>0</TableCell>
-                                    <TableCell align="right" sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}>0</TableCell>
-                                    <TableCell align="right" sx={{ color: isActive ? theme.palette.primary.main : "inherit" }}>
-                                        {applied > 0 ? applied : 0}
+                                <TableRow
+                                    key={lt.value}
+                                    sx={{
+                                        bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
+                                        ...(isHighlighted && {
+                                            bgcolor: isPrint ? '#e3f2fd' : `${theme.palette.primary.main}08`,
+                                            "& td": { fontWeight: 700 }
+                                        })
+                                    }}
+                                >
+                                    <TableCell sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
+                                        {lt.label}
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: "bold", color: closing < 0 ? "error.main" : "inherit" }}>
-                                        {closing}
+                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
+                                        {openingTotal.toFixed(2)}
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: "bold", color: closing < 0 ? "error.main" : "inherit" }}>
-                                        {closing}
+                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
+                                        {openingEarned.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize, fontWeight: isFirstMonth ? "bold" : "normal", color: isFirstMonth ? theme.palette.primary.main : "inherit" }}>
+                                        {additionsTotal.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize, fontWeight: "bold" }}>
+                                        {additionsEarned.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{
+                                        borderRight: tableStyles.border,
+                                        padding: tableStyles.cell.padding,
+                                        fontSize: tableStyles.cell.fontSize,
+                                        color: isHighlighted ? theme.palette.primary.main : "inherit",
+                                        fontWeight: isHighlighted ? "bold" : "normal"
+                                    }}>
+                                        {leavesActual.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{
+                                        borderRight: tableStyles.border,
+                                        padding: tableStyles.cell.padding,
+                                        fontSize: tableStyles.cell.fontSize,
+                                        fontWeight: "bold",
+                                        color: closingTotal < 0 ? "error.main" : "inherit"
+                                    }}>
+                                        {closingTotal.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{
+                                        padding: tableStyles.cell.padding,
+                                        fontSize: tableStyles.cell.fontSize,
+                                        fontWeight: "bold",
+                                        color: closingEarned < 0 ? "error.main" : "inherit"
+                                    }}>
+                                        {closingEarned.toFixed(2)}
                                     </TableCell>
                                 </TableRow>
                             );
@@ -695,19 +796,31 @@ const LeaveApplicationForm = () => {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
 
+        // Generate balance rows for print
         const balanceRows = leaveTypes.map((lt) => {
-            const opening = parseFloat(formData[lt.balanceKey]) || 0;
+            const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
+            const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
+            const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+            const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
             const isActive = formData.leaveType === lt.value;
-            const applied = isActive ? parseFloat(formData.weight) || 0 : 0;
-            const closing = Math.max(0, opening - applied);
+            const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
+            const currentMonth = new Date().getMonth() + 1;
+            const isFirstMonth = currentMonth === 1;
+            const additionsTotal = isFirstMonth ? totalAllowed : 0;
+            const closingTotal = openingTotal + additionsTotal - leavesActual;
+            const closingEarned = openingEarned + additionsEarned - leavesActual;
             const isHighlighted = isActive ? 'highlight' : '';
 
             return `
                 <tr class="${isHighlighted}">
                     <td>${lt.label}</td>
-                    <td class="right">${opening}</td>
-                    <td class="right"><strong>${applied}</strong></td>
-                    <td class="right"><strong>${closing}</strong></td>
+                    <td class="right">${openingTotal.toFixed(2)}</td>
+                    <td class="right">${openingEarned.toFixed(2)}</td>
+                    <td class="right">${additionsTotal.toFixed(2)}</td>
+                    <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
+                    <td class="right"><strong>${leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong></td>
+                    <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
+                    <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
                 </tr>
             `;
         }).join('');
@@ -717,166 +830,182 @@ const LeaveApplicationForm = () => {
             : "Pending";
 
         const printHTML = `
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <title>Leave Application - ${applicationIdDisplay}</title>
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
-                        .print-container { max-width: 210mm; margin: 0 auto; background: white; }
-                        .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; flex-direction: row; }
-                        .header .header-logo { width: 100px; height: auto; }
-                        .header .header-logo img { width: 100%; height: auto; border:0; }
-                        .header .header-company { width: auto; height: auto; margin: 0 auto; text-align: center; padding-right: 15%; }
-                        .header .header-company .company-name { font-size: 20px; font-weight: 800; letter-spacing: 2px; }
-                        .form-title { font-size: 24px; font-weight: 600; margin-top: 8px; color: #333; }
-                        .header .app-info { display: flex; flex-wrap: wrap; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 0.5rem; font-size: 0.875rem; gap: 1rem; }
-                        .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
-                        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #ddd; width: 100%; }
-                        .info-grid { display: flex; gap: 16px; margin-bottom: 20px; width: 100%; }
-                        .info-item { margin-bottom: 8px; flex: 1; min-width: 0; }
-                        .info-label { font-size: 11px; color: #777; margin-bottom: 4px; }
-                        .info-value { font-size: 14px; font-weight: 500; padding-bottom: 6px; border-bottom: 1px solid #eee; }
-                        .info-value.highlight { font-weight: 700; }
-                        .details-grid { display: flex; gap: 16px; width: 100%; }
-                        .details-grid .info-item{ flex: 1; min-width: 0; }
-                        .full-width { width: 100%; display: block; margin-bottom: 20px; margin-top: 16px; }
-                        .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #fffff; }
-                        .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
-                        .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
-                        .balance-table th { background: #f5f5f5; font-weight: 700; }
-                        .balance-table td.right, .balance-table th.right { text-align: right; }
-                        .balance-table tr.highlight { background-color: #e3f2fd; }
-                        .balance-table tr.highlight td { font-weight: 700; }
-                        .approval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #ddd; }
-                        .approval-title { font-size: 16px; font-weight: 700; }
-                        .signature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 120px; }
-                        .signature-box { text-align: center; }
-                        .signature-line { border-top: 1px solid #000; padding-top: 8px; margin-top: 4px; font-size: 12px; }
-                        .no-print { display: none; }
-                        @media print { body { padding: 15mm; } @page { size: A4; margin: 0; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="print-container">
-                        <div class="header">
-                            <div class="header-logo">
-                                <img src="${logo}" alt="Bodla Group Logo" />
-                            </div>
-                            <div class="header-company">
-                                <div class="company-name">BODLA GROUP</div>
-                                <div class="form-title">Leave Application Form</div>
-                            </div>
-                            <div class="app-info">
-                                <span><strong>Application ID:</strong> ${applicationIdDisplay}</span>
-                                <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
-                            </div>
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Leave Application - ${applicationIdDisplay}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
+                    .print-container { max-width: 210mm; margin: 0 auto; background: white; }
+                    .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; flex-direction: row; }
+                    .header .header-logo { width: 100px; height: auto; }
+                    .header .header-logo img { width: 100%; height: auto; border:0; }
+                    .header .header-company { width: auto; height: auto; margin: 0 auto; text-align: center; padding-right: 15%; }
+                    .header .header-company .company-name { font-size: 20px; font-weight: 800; letter-spacing: 2px; }
+                    .form-title { font-size: 24px; font-weight: 600; margin-top: 8px; color: #333; }
+                    .header .app-info { display: flex; flex-wrap: wrap; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 0.5rem; font-size: 0.875rem; gap: 1rem; }
+                    .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
+                    .section-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #ddd; width: 100%; }
+                    .info-grid { display: flex; gap: 16px; margin-bottom: 20px; width: 100%; }
+                    .info-item { margin-bottom: 8px; flex: 1; min-width: 0; }
+                    .dates{min-width: 19%!important;}
+                    .info-label { font-size: 11px; color: #777; margin-bottom: 4px; }
+                    .info-value { font-size: 14px; font-weight: 400; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+                    .info-value.highlight { font-weight: 700; }
+                    .details-grid { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; }
+                    .details-grid .info-item{ flex: 1; min-width: 0; }
+                    .full-width { width: 100%; display: block; margin-bottom: 20px; margin-top: 16px; }
+                    .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #f9f9f9; }
+                    
+                    .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+                    .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+                    .balance-table th { background: #f5f5f5; font-weight: 700; font-size: 12px; }
+                    .balance-table th.center { text-align: center; }
+                    .balance-table td.right { text-align: right; }
+                    .balance-table tr.highlight { background-color: #e3f2fd; }
+                    .balance-table tr.highlight td { font-weight: 700; }
+                    .balance-table td strong { font-weight: 700; }
+                    
+                    .approval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #ddd; }
+                    .approval-title { font-size: 16px; font-weight: 700; }
+                    .signature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 130px; }
+                    .signature-box { text-align: center; }
+                    .signature-line { border-top: 1px solid #000; padding-top: 8px; margin-top: 4px; font-size: 12px; }
+                    .no-print { display: none; }
+                    @media print { body { padding: 15mm; } @page { size: A4; margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <div class="header">
+                        <div class="header-logo">
+                            <img src="${logo}" alt="Bodla Group Logo" />
                         </div>
-
-                        <div class="section">
-                            <div class="section-title">Employee Information</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Employee Code</div>
-                                    <div class="info-value">${formData.employeeCode || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Employee Name</div>
-                                    <div class="info-value">${formData.employeeName || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Designation</div>
-                                    <div class="info-value">${formData.designation || "—"}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Department</div>
-                                    <div class="info-value">${formData.department || "—"}</div>
-                                </div>
-                            </div>
+                        <div class="header-company">
+                            <div class="company-name">BODLA GROUP</div>
+                            <div class="form-title">Leave Application Form</div>
                         </div>
-
-                        <div class="section">
-                            <div class="section-title">Leave Details</div>
-                            <div class="details-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Leave Type</div>
-                                    <div class="info-value highlight">${getLeaveTypeLabel()}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Duration</div>
-                                    <div class="info-value">${formData.duration === 'half-day' ? 'Half Day (0.5)' : formData.duration === 'short-day' ? 'Short Day (0.75)' : 'Full Day'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Paid / Unpaid</div>
-                                    <div class="info-value">${formData.paidStatus}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">From</div>
-                                    <div class="info-value highlight">${formatDate(formData.startDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">To</div>
-                                    <div class="info-value highlight">${formatDate(formData.endDate)}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Total Days</div>
-                                    <div class="info-value highlight">${formData.weight || "0"} day${formData.weight !== "1" ? "s" : ""}</div>
-                                </div>
-                            </div>
-                            <div class="full-width">
-                                <div class="info-label">Reason for Leave</div>
-                                <div class="reason-box">${formData.reason || "—"}</div>
-                            </div>
+                        <div class="app-info">
+                            <span><strong>Application ID:</strong> ${applicationIdDisplay}</span>
+                            <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
                         </div>
+                    </div>
 
-                        <div class="section">
-                            <div class="section-title">Leave Balance Summary</div>
-                            <table class="balance-table">
-                                <thead>
-                                    <tr>
-                                        <th>Leave Type</th>
-                                        <th class="right">Opening Balance</th>
-                                        <th class="right">Applied Days</th>
-                                        <th class="right">Closing Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${balanceRows}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="approval-header">
-                            <div class="approval-title">Approval Information</div>
-                            <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
-                        </div>
-
-                        <div class="signature-grid">
-                            <div class="signature-box">
-                                <div class="signature-line">Employee</div>
+                    <div class="section">
+                        <div class="section-title">Employee Information</div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Employee Code</div>
+                                <div class="info-value">${formData.employeeCode || "—"}</div>
                             </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Reporting Manager</div>
+                            <div class="info-item">
+                                <div class="info-label">Employee Name</div>
+                                <div class="info-value">${formData.employeeName || "—"}</div>
                             </div>
-                            <div class="signature-box">
-                                <div class="signature-line">Department Head</div>
+                            <div class="info-item">
+                                <div class="info-label">Designation</div>
+                                <div class="info-value">${formData.designation || "—"}</div>
                             </div>
-                            <div class="signature-box">
-                                <div class="signature-line">HR</div>
+                            <div class="info-item">
+                                <div class="info-label">Department</div>
+                                <div class="info-value">${formData.department || "—"}</div>
                             </div>
                         </div>
                     </div>
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() {
-                                window.close();
-                            }, 500);
-                        };
-                    </script>
-                </body>
-            </html>
+
+                    <div class="section">
+                        <div class="section-title">Leave Details</div>
+                        <div class="details-grid">
+                            <div class="info-item">
+                                <div class="info-label">Leave Type</div>
+                                <div class="info-value highlight">${getLeaveTypeLabel()}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Duration</div>
+                                <div class="info-value">${formData.duration === 'half-day' ? 'Half Day (0.5)' : formData.duration === 'short-day' ? 'Short Day (0.75)' : 'Full Day'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Paid / Unpaid</div>
+                                <div class="info-value">${formData.paidStatus}</div>
+                            </div>
+                            <div class="info-item dates">
+                                <div class="info-label">From</div>
+                                <div class="info-value highlight">${formatDate(formData.startDate)}</div>
+                            </div>
+                            <div class="info-item dates">
+                                <div class="info-label">To</div>
+                                <div class="info-value highlight">${formatDate(formData.endDate)}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Total Days</div>
+                                <div class="info-value highlight">${formData.weight || "0"}</div>
+                            </div>
+                        </div>
+                        <div class="full-width">
+                            <div class="info-label">Reason for Leave</div>
+                            <div class="reason-box">${formData.reason || "—"}</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Leave Balance Summary</div>
+                        <table class="balance-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Particulars</th>
+                                    <th colspan="2" class="center">Opening</th>
+                                    <th colspan="2" class="center">Additions</th>
+                                    <th class="center">Leaves</th>
+                                    <th colspan="2" class="center">Closing</th>
+                                </tr>
+                                <tr>
+                                    <th class="center">Total</th>
+                                    <th class="center">Earned</th>
+                                    <th class="center">Total</th>
+                                    <th class="center">Earned</th>
+                                    <th class="center">Actual</th>
+                                    <th class="center">Total</th>
+                                    <th class="center">Earned</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${balanceRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="approval-header">
+                        <div class="approval-title">Approval Information</div>
+                        <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
+                    </div>
+
+                    <div class="signature-grid">
+                        <div class="signature-box">
+                            <div class="signature-line">Employee</div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-line">Reporting Manager</div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-line">Department Head</div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-line">HR</div>
+                        </div>
+                    </div>
+
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() {
+                            window.close();
+                        }, 500);
+                    };
+                </script>
+            </body>
+        </html>
         `;
 
         printWindow.document.write(printHTML);
@@ -933,12 +1062,10 @@ const LeaveApplicationForm = () => {
                         </Grid>
                     </Box>
 
-                    {/* ✅ Employee Information - READ ONLY */}
                     {/* Employee Information */}
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader title="Employee Information" />
                         <Grid container spacing={1}>
-                            {/* Employee Code - READ ONLY */}
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
@@ -956,7 +1083,6 @@ const LeaveApplicationForm = () => {
                                     sx={{ "& input": { bgcolor: "#e3f2fd", fontWeight: "bold" } }}
                                 />
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
@@ -1016,22 +1142,16 @@ const LeaveApplicationForm = () => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Duration</InputLabel>
-                                    <Select
-                                        value={formData.duration}
-                                        onChange={handleChange("duration")}
-                                        label="Duration"
-                                    >
+                                    <Select value={formData.duration} onChange={handleChange("duration")} label="Duration">
                                         <MenuItem value="full-day">Full Day</MenuItem>
                                         <MenuItem value="half-day">Half Day (0.5)</MenuItem>
                                         <MenuItem value="short-day">Short Day (0.75)</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Paid/Unpaid</InputLabel>
@@ -1041,7 +1161,6 @@ const LeaveApplicationForm = () => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 2.5 }}>
                                 <TextField
                                     fullWidth
@@ -1056,7 +1175,6 @@ const LeaveApplicationForm = () => {
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 2.5 }}>
                                 <TextField
                                     fullWidth
@@ -1071,7 +1189,6 @@ const LeaveApplicationForm = () => {
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
-
                             <Grid item size={{ xs: 12, sm: 6, md: 1 }}>
                                 <TextField
                                     fullWidth
@@ -1082,7 +1199,6 @@ const LeaveApplicationForm = () => {
                                     sx={{ "& input": { bgcolor: "#f9f9f9", fontWeight: "bold" } }}
                                 />
                             </Grid>
-
                             <Grid item size={12}>
                                 <TextField
                                     fullWidth
@@ -1111,7 +1227,7 @@ const LeaveApplicationForm = () => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <LeaveBalanceTable />
+                            <LeaveBalanceTable isPrint={false} />
                         )}
                     </Box>
 
@@ -1148,45 +1264,52 @@ const LeaveApplicationForm = () => {
                     </Stack>
                 </Box>
             ) : (
-                // Print Preview - Keep as before
+                // Print Preview
                 <Box ref={printRef} sx={{ bgcolor: "white", p: 4, minHeight: "297mm", maxWidth: "210mm", mx: "auto", boxShadow: 3 }}>
-                    <Box sx={{ mb: 4, pb: 2, borderBottom: "2px solid #333" }}>
+                    {/* Header */}
+                    <Box sx={{ mb: 3, pb: 2, borderBottom: "2px solid #333" }}>
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
                                 <Box component="img" src={logo} alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
+                                    sx={{ height: 70, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
-                                    <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 800 }}>BODLA GROUP</Typography>
-                                    <Typography variant="h5" sx={{ fontWeight: 600, mt: 0.5 }}>Leave Application Form</Typography>
+                                    <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 800, letterSpacing: 2 }}>
+                                        BODLA GROUP
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: "#555" }}>
+                                        Leave Application Form
+                                    </Typography>
                                 </Box>
                             </Grid>
                         </Grid>
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2">
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                     <strong>Application ID:</strong>
                                     {formData.applicationId && formData.applicationId !== "BGLA-" ? (
-                                        <span style={{ color: theme.palette.primary.main, marginLeft: '8px' }}>
+                                        <span style={{ color: theme.palette.primary.main, marginLeft: '8px', fontWeight: 700 }}>
                                             {formData.applicationId}
                                         </span>
                                     ) : (
-                                        <span style={{ color: '#666', marginLeft: '8px' }}>
-                                            BGLA-
-                                        </span>
+                                        <span style={{ color: '#666', marginLeft: '8px' }}>BGLA-</span>
                                     )}
                                 </Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }} sx={{ textAlign: { xs: "left", md: "right" } }}>
-                                <Typography variant="body2"><strong>Application Date:</strong> {formatDate(formData.applicationDate)}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                    <strong>Application Date:</strong> {formatDate(formData.applicationDate)}
+                                </Typography>
                             </Grid>
                         </Grid>
                     </Box>
 
                     {/* Employee Information - Print */}
                     <Box sx={{ mb: 3 }}>
-                        <SectionHeader title="Employee Information" />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, pb: 1, borderBottom: "2px solid #ddd", color: theme.palette.primary.main }}>
+                            Employee Information
+                        </Typography>
                         <Grid container spacing={2}>
                             {[
                                 { label: "Employee Code", value: formData.employeeCode },
@@ -1195,8 +1318,12 @@ const LeaveApplicationForm = () => {
                                 { label: "Department", value: formData.department },
                             ].map(({ label, value }) => (
                                 <Grid item size={{ xs: 6, md: 3 }} key={label}>
-                                    <Typography variant="caption" color="text.secondary">{label}</Typography>
-                                    <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{value || "—"}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                        {label}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.3, pb: 1, borderBottom: "1px solid #eee" }}>
+                                        {value || "—"}
+                                    </Typography>
                                 </Grid>
                             ))}
                         </Grid>
@@ -1204,65 +1331,135 @@ const LeaveApplicationForm = () => {
 
                     {/* Leave Details - Print */}
                     <Box sx={{ mb: 3 }}>
-                        <SectionHeader title="Leave Details" />
-                        <Grid container spacing={2}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, pb: 1, borderBottom: "2px solid #ddd", color: theme.palette.primary.main }}>
+                            Leave Details
+                        </Typography>
+                        <Grid container spacing={1.5}>
                             <Grid item size={{ xs: 6, md: 2 }}>
-                                <Typography variant="caption" color="text.secondary">Leave Type</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{leaveTypes.find(lt => lt.value === formData.leaveType)?.label || "—"}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    Leave Type
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, pb: 1, borderBottom: "1px solid #eee" }}>
+                                    {leaveTypes.find(lt => lt.value === formData.leaveType)?.label || "—"}
+                                </Typography>
                             </Grid>
-                            <Grid item size={{ xs: 6, md: 2 }}>
-                                <Typography variant="caption" color="text.secondary">Duration</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>
-                                    {formData.duration === 'half-day' ? 'Half Day (0.5)' : formData.duration === 'short-day' ? 'Short Day (0.75)' : 'Full Day'}
+                            <Grid item size={{ xs: 6, md: 1.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    Duration
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.3, pb: 1, borderBottom: "1px solid #eee" }}>
+                                    {formData.duration === 'half-day' ? 'Half Day' : 
+                                     formData.duration === 'short-day' ? 'Short Day' : 'Full Day'}
+                                </Typography>
+                            </Grid>
+                            <Grid item size={{ xs: 6, md: 1.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    Paid / Unpaid
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.3, pb: 1, borderBottom: "1px solid #eee" }}>
+                                    {formData.paidStatus}
+                                </Typography>
+                            </Grid>
+                            <Grid item size={{ xs: 6, md: 2.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    From
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, pb: 1, borderBottom: "1px solid #eee", color: theme.palette.primary.main }}>
+                                    {formatDate(formData.startDate)}
+                                </Typography>
+                            </Grid>
+                            <Grid item size={{ xs: 6, md: 2.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    To
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, pb: 1, borderBottom: "1px solid #eee", color: theme.palette.primary.main }}>
+                                    {formatDate(formData.endDate)}
                                 </Typography>
                             </Grid>
                             <Grid item size={{ xs: 6, md: 2 }}>
-                                <Typography variant="caption" color="text.secondary">Paid / Unpaid</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{formData.paidStatus}</Typography>
-                            </Grid>
-                            <Grid item size={{ xs: 6, md: 2.5 }}>
-                                <Typography variant="caption" color="text.secondary">From</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", color: theme.palette.primary.main, mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{formatDate(formData.startDate)}</Typography>
-                            </Grid>
-                            <Grid item size={{ xs: 6, md: 2.5 }}>
-                                <Typography variant="caption" color="text.secondary">To</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", color: theme.palette.primary.main, mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{formatDate(formData.endDate)}</Typography>
-                            </Grid>
-                            <Grid item size={{ xs: 12, md: 1 }}>
-                                <Typography variant="caption" color="text.secondary">Total Days</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: "bold", color: theme.palette.primary.main, mt: 0.5, pb: 1, borderBottom: "1px solid #eee" }}>{formData.weight || "0"} day{formData.weight !== "1" ? "s" : ""}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    Total Days
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, pb: 0.3, borderBottom: "1px solid #eee", color: theme.palette.primary.main, fontSize: '1.1rem' }}>
+                                    {formData.weight || "0"}
+                                </Typography>
                             </Grid>
                             <Grid item size={12}>
-                                <Typography variant="caption" color="text.secondary">Reason for Leave</Typography>
-                                <Typography variant="body1" sx={{ mt: 1, p: 2, bgcolor: "#f9f9f9", borderRadius: 1, border: "1px solid #eee", minHeight: 80 }}>{formData.reason || "—"}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    Reason for Leave
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 0.3, p: 2, bgcolor: "#f9f9f9", borderRadius: 1, border: "1px solid #eee", minHeight: 70 }}>
+                                    {formData.reason || "—"}
+                                </Typography>
                             </Grid>
                         </Grid>
                     </Box>
 
                     {/* Leave Balance Summary - Print */}
                     <Box sx={{ mb: 3 }}>
-                        <SectionHeader title="Leave Balance Summary" />
-                        <LeaveBalanceTable />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, pb: 1, borderBottom: "2px solid #ddd", color: theme.palette.primary.main }}>
+                            Leave Balance Summary
+                        </Typography>
+                        <LeaveBalanceTable isPrint={true} />
                     </Box>
 
                     {/* Approval Information - Print */}
                     <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #ddd" }}>
                         <Grid container spacing={2} alignItems="center">
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="h6" sx={{ fontWeight: "bold", color: theme.palette.primary.main }}>Approval Information</Typography>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
+                                    Approval Information
+                                </Typography>
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2" sx={{ textAlign: "right" }}><strong>Prepared By:</strong> {formData.preparedBy || "—"}</Typography>
+                                <Typography variant="body2" sx={{ textAlign: "right", fontWeight: 500 }}>
+                                    <strong>Prepared By:</strong> {formData.preparedBy || "—"}
+                                </Typography>
                             </Grid>
                         </Grid>
                     </Box>
 
-                    <SignatureBlock />
+                    {/* Signature Block */}
+                    <Grid container spacing={3} sx={{ mt: 4, mb: 2 }}>
+                        {["Employee", "Reporting Manager", "Department Head", "HR"].map((role) => (
+                            <Grid item size={{ xs: 6, sm: 3 }} key={role}>
+                                <Box sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, pt: 3, borderTop: "2px solid #000", minHeight: 40 }}>
+                                        {role}
+                                    </Typography>
+                                    {/* <Typography variant="caption" color="text.secondary">
+                                        Signature & Date
+                                    </Typography> */}
+                                </Box>
+                            </Grid>
+                        ))}
+                    </Grid>
 
+                    {/* Print Buttons - Hidden when printing */}
                     <Box sx={{ mt: 4, textAlign: "center" }} className="no-print">
-                        <Stack direction="row" spacing={2} justifyContent="center">
-                            <Button variant="outlined" onClick={() => setShowPrintPreview(false)} startIcon={<RestartAltIcon />}>Back to Edit</Button>
-                            <Button variant="contained" onClick={handlePrint} startIcon={<PrintIcon />}>Print / Save as PDF</Button>
+                        <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
+                            <Button 
+                                variant="outlined" 
+                                onClick={() => setShowPrintPreview(false)} 
+                                startIcon={<RestartAltIcon />}
+                                size="large"
+                            >
+                                Back to Edit
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                onClick={handlePrint} 
+                                startIcon={<PrintIcon />}
+                                size="large"
+                                sx={{ 
+                                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                    '&:hover': {
+                                        background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+                                    }
+                                }}
+                            >
+                                Print / Save as PDF
+                            </Button>
                         </Stack>
                     </Box>
                 </Box>
