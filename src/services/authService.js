@@ -8,7 +8,7 @@ const getApiUrl = () => {
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
         return `http://${hostname}:5000/api`;
     }
-    return "https://erp-backend-kpkm.onrender.com/api";
+    return "http://localhost:5000/api";
 };
 
 const API_URL = getApiUrl();
