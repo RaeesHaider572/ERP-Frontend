@@ -175,60 +175,32 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // ✅ Login with Employee Code - FIXED
-    const loginWithEmployeeCode = async (employeeCode, password) => {
-        try {
-            // ✅ Format employee code with hyphen
-            let formattedCode = employeeCode.toUpperCase().trim();
-
-            // If code doesn't start with "EMP-", add it
-            if (formattedCode && !formattedCode.includes('-')) {
-                if (formattedCode.startsWith('EMP')) {
-                    const numPart = formattedCode.replace('EMP', '');
-                    formattedCode = `EMP-${numPart}`;
-                } else {
-                    formattedCode = `EMP-${formattedCode}`;
-                }
-            }
-
-            console.log("🔐 AuthContext - Login with formatted code:", formattedCode);
-
-            const response = await authService.loginWithEmployeeCode(formattedCode, password);
-            console.log("AuthContext - Login response:", response);
-
-            if (response.status === "success") {
-                // ✅ Get user data from response
-                const userData = response.data.user;
-                const token = response.data.token || response.data.data?.token;
-
-                console.log("AuthContext - Setting user:", userData);
-                console.log("AuthContext - Token:", token ? "✅ Present" : "❌ Missing");
-
-                // ✅ Set user in state
-                setUser(userData);
-                setIsAuthenticated(true);
-
-                // ✅ Store token if not already stored by authService
-                if (token) {
-                    localStorage.setItem("token", token);
-                }
-
-                // ✅ Store user data if not already stored
-                if (userData) {
-                    localStorage.setItem("user", JSON.stringify(userData));
-                }
-
-                return { success: true };
-            }
-            return { success: false, message: response.message || "Login failed" };
-        } catch (error) {
-            console.error("Login error in AuthContext:", error);
-            return {
-                success: false,
-                message: error.response?.data?.message || "Login failed"
-            };
+    // ✅ Login with Employee Code
+const loginWithEmployeeCode = async (employeeCode, password) => {
+    try {
+        const response = await authService.loginWithEmployeeCode(employeeCode, password);
+        if (response.status === 'success') {
+            const user = response.data.user;
+            const token = response.data.token;
+            
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            setUser(user);
+            setIsAuthenticated(true);
+            
+            return { success: true, user, token };
+        } else {
+            return { success: false, message: response.message };
         }
-    };
+    } catch (error) {
+        console.error('Login error:', error);
+        return { 
+            success: false, 
+            message: error.response?.data?.message || 'Login failed' 
+        };
+    }
+};
 
     const logout = () => {
         authService.logout();

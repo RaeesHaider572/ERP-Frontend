@@ -599,165 +599,68 @@ const LeaveApplicationForm = () => {
     // ============================================
     // LEAVE BALANCE TABLE COMPONENT (Reusable)
     // ============================================
-    const LeaveBalanceTable = ({ isPrint = false }) => {
+    const LeaveBalanceTable = () => {
         const currentMonth = new Date().getMonth() + 1;
         const isFirstMonth = currentMonth === 1;
 
-        const tableStyles = isPrint ? {
-            table: { minWidth: 650, border: '1px solid #ddd' },
-            header: { bgcolor: "#f5f5f5", fontSize: '0.7rem', padding: '4px 8px' },
-            cell: { fontSize: '0.7rem', padding: '4px 8px' },
-            border: '1px solid #ddd'
-        } : {
-            table: { minWidth: 600 },
-            header: { bgcolor: "#f5f5f5", fontSize: '0.75rem', padding: '4px 6px' },
-            cell: { fontSize: '0.75rem', padding: '4px 6px' },
-            border: '1px solid #e0e0e0'
-        };
-
         return (
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none", overflowX: 'auto' }}>
-                <Table size="small" sx={tableStyles.table}>
+                <Table size="small">
                     <TableHead>
-                        <TableRow sx={{ bgcolor: tableStyles.header.bgcolor }}>
-                            <TableCell
-                                rowSpan={2}
-                                sx={{
-                                    borderRight: tableStyles.border,
-                                    fontWeight: 700,
-                                    fontSize: tableStyles.header.fontSize,
-                                    padding: tableStyles.header.padding,
-                                    minWidth: '80px',
-                                    backgroundColor: tableStyles.header.bgcolor
-                                }}
-                            >
-                                Particulars
-                            </TableCell>
-                            <TableCell
-                                colSpan={2}
-                                align="center"
-                                sx={{
-                                    borderRight: tableStyles.border,
-                                    fontWeight: 700,
-                                    fontSize: tableStyles.header.fontSize,
-                                    padding: tableStyles.header.padding,
-                                    backgroundColor: tableStyles.header.bgcolor
-                                }}
-                            >
-                                Opening
-                            </TableCell>
-                            <TableCell
-                                colSpan={2}
-                                align="center"
-                                sx={{
-                                    borderRight: tableStyles.border,
-                                    fontWeight: 700,
-                                    fontSize: tableStyles.header.fontSize,
-                                    padding: tableStyles.header.padding,
-                                    backgroundColor: tableStyles.header.bgcolor
-                                }}
-                            >
-                                Additions
-                            </TableCell>
-                            <TableCell
-                                align="center"
-                                sx={{
-                                    borderRight: tableStyles.border,
-                                    fontWeight: 700,
-                                    fontSize: tableStyles.header.fontSize,
-                                    padding: tableStyles.header.padding,
-                                    backgroundColor: tableStyles.header.bgcolor
-                                }}
-                            >
-                                Leaves
-                            </TableCell>
-                            <TableCell
-                                colSpan={2}
-                                align="center"
-                                sx={{
-                                    fontWeight: 700,
-                                    fontSize: tableStyles.header.fontSize,
-                                    padding: tableStyles.header.padding,
-                                    backgroundColor: tableStyles.header.bgcolor
-                                }}
-                            >
-                                Closing
-                            </TableCell>
+                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                            <TableCell rowSpan={2}>Particulars</TableCell>
+                            <TableCell colSpan={2} align="center">Opening</TableCell>
+                            <TableCell colSpan={2} align="center">Additions</TableCell>
+                            <TableCell align="center">Leaves</TableCell>
+                            <TableCell colSpan={2} align="center">Closing</TableCell>
                         </TableRow>
-                        <TableRow sx={{ bgcolor: tableStyles.header.bgcolor }}>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Actual</TableCell>
-                            <TableCell align="center" sx={{ borderRight: tableStyles.border, fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Total</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 600, fontSize: isPrint ? '0.65rem' : '0.7rem', padding: '3px 5px', backgroundColor: tableStyles.header.bgcolor }}>Earned</TableCell>
+                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
+                            <TableCell align="center">Actual</TableCell>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {leaveTypes.map((lt, i) => {
-                            const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
+                            // Real DB state (already reflects approved leaves)
                             const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
                             const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+                            const additionsTotal = parseFloat(formData[lt.additionsTotalKey]) || 0; // see note below
                             const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+                            const closingTotal = parseFloat(formData[lt.closingTotalKey]) || 0;
+                            const closingEarned = parseFloat(formData[lt.closingEarnedKey]) || 0;
+
+                            // ✅ THIS row's Actual = the current application's day-weight, ONLY if this is the selected leave type
                             const isActive = formData.leaveType === lt.value;
-                            const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
-                            const additionsTotal = isFirstMonth ? totalAllowed : 0;
-                            const closingTotal = openingTotal + additionsTotal - leavesActual;
-                            const closingEarned = openingEarned + additionsEarned - leavesActual;
-                            const isHighlighted = isActive && leavesActual > 0;
+                            const leavesActual = isActive ? (parseFloat(formData.weight) || 0) : 0;
+
+                            // ✅ Projected closing = DB closing MINUS this pending application (only for the active row)
+                            const projectedTotal = isActive ? closingTotal - leavesActual : closingTotal;
+                            const projectedEarned = isActive ? closingEarned - leavesActual : closingEarned;
 
                             return (
-                                <TableRow
-                                    key={lt.value}
-                                    sx={{
-                                        bgcolor: i % 2 === 0 ? "#fff" : "#fafafa",
-                                        ...(isHighlighted && {
-                                            bgcolor: isPrint ? '#e3f2fd' : `${theme.palette.primary.main}08`,
-                                            "& td": { fontWeight: 700 }
-                                        })
-                                    }}
-                                >
-                                    <TableCell sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
-                                        {lt.label}
+                                <TableRow key={lt.value} sx={{ bgcolor: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                                    <TableCell>{lt.label}</TableCell>
+                                    <TableCell align="right">{openingTotal.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{openingEarned.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{additionsTotal.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{additionsEarned.toFixed(2)}</TableCell>
+                                    <TableCell align="right">
+                                        <strong>{leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong>
                                     </TableCell>
-                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
-                                        {openingTotal.toFixed(2)}
+                                    <TableCell align="right">
+                                        <strong style={{ color: projectedTotal < 0 ? 'red' : 'inherit' }}>
+                                            {projectedTotal.toFixed(2)}
+                                        </strong>
                                     </TableCell>
-                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize }}>
-                                        {openingEarned.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize, fontWeight: isFirstMonth ? "bold" : "normal", color: isFirstMonth ? theme.palette.primary.main : "inherit" }}>
-                                        {additionsTotal.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ borderRight: tableStyles.border, padding: tableStyles.cell.padding, fontSize: tableStyles.cell.fontSize, fontWeight: "bold" }}>
-                                        {additionsEarned.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{
-                                        borderRight: tableStyles.border,
-                                        padding: tableStyles.cell.padding,
-                                        fontSize: tableStyles.cell.fontSize,
-                                        color: isHighlighted ? theme.palette.primary.main : "inherit",
-                                        fontWeight: isHighlighted ? "bold" : "normal"
-                                    }}>
-                                        {leavesActual.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{
-                                        borderRight: tableStyles.border,
-                                        padding: tableStyles.cell.padding,
-                                        fontSize: tableStyles.cell.fontSize,
-                                        fontWeight: "bold",
-                                        color: closingTotal < 0 ? "error.main" : "inherit"
-                                    }}>
-                                        {closingTotal.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{
-                                        padding: tableStyles.cell.padding,
-                                        fontSize: tableStyles.cell.fontSize,
-                                        fontWeight: "bold",
-                                        color: closingEarned < 0 ? "error.main" : "inherit"
-                                    }}>
-                                        {closingEarned.toFixed(2)}
+                                    <TableCell align="right">
+                                        <strong style={{ color: projectedEarned < 0 ? 'red' : 'inherit' }}>
+                                            {projectedEarned.toFixed(2)}
+                                        </strong>
                                     </TableCell>
                                 </TableRow>
                             );
@@ -767,7 +670,6 @@ const LeaveApplicationForm = () => {
             </TableContainer>
         );
     };
-
     // ============================================
     // SIGNATURE BLOCK
     // ============================================
@@ -1348,8 +1250,8 @@ const LeaveApplicationForm = () => {
                                     Duration
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.3, pb: 1, borderBottom: "1px solid #eee" }}>
-                                    {formData.duration === 'half-day' ? 'Half Day' : 
-                                     formData.duration === 'short-day' ? 'Short Day' : 'Full Day'}
+                                    {formData.duration === 'half-day' ? 'Half Day' :
+                                        formData.duration === 'short-day' ? 'Short Day' : 'Full Day'}
                                 </Typography>
                             </Grid>
                             <Grid item size={{ xs: 6, md: 1.5 }}>
@@ -1438,20 +1340,20 @@ const LeaveApplicationForm = () => {
                     {/* Print Buttons - Hidden when printing */}
                     <Box sx={{ mt: 4, textAlign: "center" }} className="no-print">
                         <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
-                            <Button 
-                                variant="outlined" 
-                                onClick={() => setShowPrintPreview(false)} 
+                            <Button
+                                variant="outlined"
+                                onClick={() => setShowPrintPreview(false)}
                                 startIcon={<RestartAltIcon />}
                                 size="large"
                             >
                                 Back to Edit
                             </Button>
-                            <Button 
-                                variant="contained" 
-                                onClick={handlePrint} 
+                            <Button
+                                variant="contained"
+                                onClick={handlePrint}
                                 startIcon={<PrintIcon />}
                                 size="large"
-                                sx={{ 
+                                sx={{
                                     background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                                     '&:hover': {
                                         background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
