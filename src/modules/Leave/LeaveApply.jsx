@@ -599,7 +599,7 @@ const LeaveApplicationForm = () => {
     // ============================================
     // LEAVE BALANCE TABLE COMPONENT (Reusable)
     // ============================================
-    const LeaveBalanceTable = ({isPrint = false}) => {
+    const LeaveBalanceTable = () => {
         const currentMonth = new Date().getMonth() + 1;
         const isFirstMonth = currentMonth === 1;
 
@@ -701,39 +701,32 @@ const LeaveApplicationForm = () => {
         const isFirstMonth = currentMonth === 1;
         // Generate balance rows for print
         const balanceRows = leaveTypes.map((lt) => {
-        // ✅ Get values from formData (Opening values from database)
-        const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
-        const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
-        const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
-        const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+            const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
+            const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
+            const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+            const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+            const isActive = formData.leaveType === lt.value;
+            const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
+            const currentMonth = new Date().getMonth() + 1;
+            const isFirstMonth = currentMonth === 1;
+            const additionsTotal = isFirstMonth ? totalAllowed : 0;
+            const closingTotal = openingTotal + additionsTotal - leavesActual;
+            const closingEarned = openingEarned + additionsEarned - leavesActual;
+            const isHighlighted = isActive ? 'highlight' : '';
 
-        // ✅ Leaves Actual - Only the current application weight
-        const isActive = formData.leaveType === lt.value;
-        const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
-
-        // ✅ Additions Total - Only in January (first month of leave year)
-        const additionsTotal = isFirstMonth ? totalAllowed : 0;
-
-        // ✅ Calculate Closing values (SAME as LeaveBalanceTable)
-        // ⚠️ This is the key: closingTotal = openingTotal + additionsTotal - leavesActual
-        const closingTotal = openingTotal + additionsTotal - leavesActual;
-        const closingEarned = openingEarned + additionsEarned - leavesActual;
-
-        const isHighlighted = isActive && leavesActual > 0;
-
-        return `
-            <tr class="${isHighlighted ? 'highlight' : ''}">
-                <td><strong>${lt.label}</strong></td>
-                <td class="right">${openingTotal.toFixed(2)}</td>
-                <td class="right">${openingEarned.toFixed(2)}</td>
-                <td class="right">${additionsTotal.toFixed(2)}</td>
-                <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
-                <td class="right"><strong>${leavesActual.toFixed(2)}</strong></td>
-                <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
-                <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
-            </tr>
-        `;
-    }).join('');
+            return `
+                <tr class="${isHighlighted}">
+                    <td>${lt.label}</td>
+                    <td class="right">${openingTotal.toFixed(2)}</td>
+                    <td class="right">${openingEarned.toFixed(2)}</td>
+                    <td class="right">${additionsTotal.toFixed(2)}</td>
+                    <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
+                    <td class="right"><strong>${leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong></td>
+                    <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
+                    <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
+                </tr>
+            `;
+        }).join('');
 
         const applicationIdDisplay = formData.applicationId && formData.applicationId !== "BGLA-"
             ? formData.applicationId
@@ -860,29 +853,70 @@ const LeaveApplicationForm = () => {
 
                     <div class="section">
                         <div class="section-title">Leave Balance Summary</div>
-                        <table class="balance-table">
-                            <thead>
-                                <tr>
-                                    <th rowspan="2">Particulars</th>
-                                    <th colspan="2" class="center">Opening</th>
-                                    <th colspan="2" class="center">Additions</th>
-                                    <th class="center">Leaves</th>
-                                    <th colspan="2" class="center">Closing</th>
-                                </tr>
-                                <tr>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                    <th class="center">Actual</th>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${balanceRows}
-                            </tbody>
-                        </table>
+                        <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none", overflowX: 'auto' }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                            <TableCell rowSpan={2}>Particulars</TableCell>
+                            <TableCell colSpan={2} align="center">Opening</TableCell>
+                            <TableCell colSpan={2} align="center">Additions</TableCell>
+                            <TableCell align="center">Leaves</TableCell>
+                            <TableCell colSpan={2} align="center">Closing</TableCell>
+                        </TableRow>
+                        <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
+                            <TableCell align="center">Actual</TableCell>
+                            <TableCell align="center">Total</TableCell>
+                            <TableCell align="center">Earned</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {leaveTypes.map((lt, i) => {
+                            // Real DB state (already reflects approved leaves)
+                            const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
+                            const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+                            const additionsTotal = parseFloat(formData[lt.additionsTotalKey]) || 0; // see note below
+                            const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+                            const closingTotal = parseFloat(formData[lt.closingTotalKey]) || 0;
+                            const closingEarned = parseFloat(formData[lt.closingEarnedKey]) || 0;
+
+                            // ✅ THIS row's Actual = the current application's day-weight, ONLY if this is the selected leave type
+                            const isActive = formData.leaveType === lt.value;
+                            const leavesActual = isActive ? (parseFloat(formData.weight) || 0) : 0;
+
+                            // ✅ Projected closing = DB closing MINUS this pending application (only for the active row)
+                            const projectedTotal = isActive ? closingTotal - leavesActual : closingTotal;
+                            const projectedEarned = isActive ? closingEarned - leavesActual : closingEarned;
+
+                            return (
+                                <TableRow key={lt.value} sx={{ bgcolor: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                                    <TableCell>{lt.label}</TableCell>
+                                    <TableCell align="right">{openingTotal.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{openingEarned.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{additionsTotal.toFixed(2)}</TableCell>
+                                    <TableCell align="right">{additionsEarned.toFixed(2)}</TableCell>
+                                    <TableCell align="right">
+                                        <strong>{leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <strong style={{ color: projectedTotal < 0 ? 'red' : 'inherit' }}>
+                                            {projectedTotal.toFixed(2)}
+                                        </strong>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <strong style={{ color: projectedEarned < 0 ? 'red' : 'inherit' }}>
+                                            {projectedEarned.toFixed(2)}
+                                        </strong>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </TableContainer>
                     </div>
 
                     <div class="approval-header">
