@@ -278,7 +278,7 @@ const Login = () => {
                             </Button>
 
                             {/* ✅ Help Text */}
-                            <Box textAlign="center" sx={{ mt: 1 }}>
+                            {/* <Box textAlign="center" sx={{ mt: 1 }}>
                                 <Typography
                                     variant="body2"
                                     color="textSecondary"
@@ -288,7 +288,7 @@ const Login = () => {
                                 >
                                     Default password: <strong style={{ color: '#1a237e' }}>password123</strong>
                                 </Typography>
-                            </Box>
+                            </Box> */}
                         </Box>
                     </Paper>
                 </Box>
