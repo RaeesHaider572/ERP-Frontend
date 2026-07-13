@@ -4,33 +4,24 @@ import {
   AppBar, Box, CssBaseline, Divider, Drawer, IconButton,
   List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, Typography, useMediaQuery, useTheme, Tooltip,
-  Badge, Avatar, styled, Collapse
+  Avatar, styled
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   People,
   Receipt as ReceiptIcon,
-  Settings,
-  Notifications,
   Brightness4,
   Brightness7,
   ChevronLeft,
   ChevronRight,
-  Warehouse,
-  Percent as PercentIcon,
   AccountBalance as AccountBalanceIcon,
   People as EmployeeIcon,
   EventNote as EventNoteIcon,
   Logout,
   Payments as InstallmentIcon,
   Work as WorkIcon,
-  Payment as PaymentIcon,
-  QrCodeScanner as QrCodeScannerIcon,
   CameraAlt as CameraAltIcon,
-  ExpandLess,
-  ExpandMore,
-  FactCheck as FactCheckIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -61,9 +52,6 @@ function Layout() {
   const location = useLocation();
   const { mode, toggleTheme, sidebarOpen, toggleSidebar } = useThemeContext();
 
-  // 🔒 UPDATED — these were commented out before, which is why the sidebar
-  // always showed every menu item to every role. We need them to build a
-  // role-aware menu (Section 10 - Screen-Level Access Control).
   const {
     logout,
     user,
@@ -76,7 +64,6 @@ function Layout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [openSubMenus, setOpenSubMenus] = useState({});
 
   useEffect(() => {
     if (!user) {
@@ -84,16 +71,19 @@ function Layout() {
     }
   }, [user, navigate]);
 
+  // 🔒 Employees land on Leave Dashboard, not the generic Dashboard.
+  // Custodians and HR are unaffected — they keep the default Dashboard.
+  const isEmployeeOnly = user && !isCustodian() && !isHR();
+
+  useEffect(() => {
+    if (user && (location.pathname === '/dashboard' || location.pathname === '/')) {
+      navigate('/leave-dashboard', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
-
-  const handleSubMenuToggle = (menuText) => {
-    setOpenSubMenus(prev => ({
-      ...prev,
-      [menuText]: !prev[menuText]
-    }));
   };
 
   const handleDrawerClose = () => {
@@ -115,27 +105,24 @@ function Layout() {
     return location.pathname === path || location.pathname.startsWith(path);
   };
 
-  // 🔒 UPDATED — menu is now built from the role, matching Section 10
-  // (Screen-Level Access Control) of the spec:
-  //   - "Employee Leave Applications" / "Employees" screen -> Custodian + HR only
-  //   - "Leave Approval Screen" -> HR only
-  // Everything else (Receipts, Installment Plan, Cash and Bank) is part of
-  // the wider ERP and untouched by this change.
-  // ✅ Role-based menu items - FIXED
+  // 🔒 Role-based menu items (Section 10 - Screen-Level Access Control).
+  // Leave Module is now FLAT for every role — no collapsible dropdown.
   const getMenuItems = () => {
     const items = [];
 
-    // Dashboard - Always show
-    items.push({
-      text: 'Dashboard',
-      icon: <DashboardIcon />,
-      path: '/dashboard'
-    });
+    // Dashboard - hidden for plain employees, shown for custodian/HR
+    // if (!isEmployeeOnly) {
+    //   items.push({
+    //     text: 'Dashboard',
+    //     icon: <DashboardIcon />,
+    //     path: '/dashboard'
+    //   });
+    // }
 
-    // Leave Module - All roles can access
+    // Leave Module - flat top-level links for every role
     if (canAccessModule(MODULES.LEAVE)) {
-      const leaveSubItems = [
-        { text: 'Dashboard', path: '/leave-dashboard' },
+      const leaveItems = [
+        { text: 'Leave Dashboard', path: '/leave-dashboard' },
         { text: 'Apply Leave', path: '/LeaveApply' },
         { text: 'My Requests', path: '/LeaveRequests' },
         { text: 'Leave Balance', path: '/LeaveBalance' },
@@ -143,7 +130,7 @@ function Layout() {
 
       // HR gets additional menu items
       if (isHR()) {
-        leaveSubItems.push(
+        leaveItems.push(
           { text: 'All Requests', path: '/leave/all-requests' },
           { text: 'Approval Dashboard', path: '/leave/approval' }
         );
@@ -151,20 +138,19 @@ function Layout() {
 
       // Custodian gets team requests
       if (isCustodian()) {
-        leaveSubItems.push({ text: 'Team Requests', path: '/leave/team-requests' });
+        leaveItems.push({ text: 'Team Requests', path: '/leave/team-requests' });
       }
 
-      // ✅ FIXED: Properly close the items.push
-      items.push({
-        text: 'Leave Module',
-        icon: <EventNoteIcon />,
-        path: '/leave-dashboard',
-        subItems: leaveSubItems
+      leaveItems.forEach((item) => {
+        items.push({
+          text: item.text,
+          icon: <EventNoteIcon />,
+          path: item.path
+        });
       });
     }
 
     // Employees - Custodian and HR only
-    // ✅ FIXED: Proper condition
     if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
       items.push({
         text: isHR() ? 'Employees' : 'My Team',
@@ -228,130 +214,68 @@ function Layout() {
   const menuItems = getMenuItems();
 
   const renderMenuItem = (item) => {
-    const hasSubItems = item.subItems && item.subItems.length > 0;
-    const isSubMenuOpen = openSubMenus[item.text] || false;
     const isItemActive = isActive(item.path);
 
     return (
-      <React.Fragment key={item.text}>
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <Tooltip title={item.text} placement="right" disableHoverListener={sidebarOpen}>
-            <ListItemButton
-              onClick={() => {
-                if (hasSubItems) {
-                  handleSubMenuToggle(item.text);
-                } else {
-                  navigate(item.path);
-                }
-              }}
+      <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
+        <Tooltip title={item.text} placement="right" disableHoverListener={sidebarOpen}>
+          <ListItemButton
+            onClick={() => navigate(item.path)}
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              justifyContent: sidebarOpen ? 'flex-start' : 'center',
+              px: sidebarOpen ? 1.5 : 1,
+              minHeight: 48,
+              display: 'flex',
+              alignItems: 'center',
+              whiteSpace: 'nowrap',
+              backgroundColor: isItemActive
+                ? (mode === 'light' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)')
+                : 'transparent',
+              '&:hover': {
+                backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
+              }
+            }}
+          >
+            <ListItemIcon
               sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                px: sidebarOpen ? 1.5 : 1,
-                minHeight: 48,
+                minWidth: sidebarOpen ? 32 : 'auto',
+                mr: sidebarOpen ? 1.5 : 0,
+                justifyContent: 'center',
                 display: 'flex',
                 alignItems: 'center',
-                whiteSpace: 'nowrap',
-                backgroundColor: isItemActive
-                  ? (mode === 'light' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)')
-                  : 'transparent',
-                '&:hover': {
-                  backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
-                }
+                color: isItemActive
+                  ? theme.palette.primary.main
+                  : (mode === 'light' ? '#64748b' : '#94a3b8'),
+                position: 'relative',
+                flexShrink: 0,
               }}
             >
-              <ListItemIcon
-                sx={{
-                  minWidth: sidebarOpen ? 32 : 'auto',
-                  mr: sidebarOpen ? 1.5 : 0,
-                  justifyContent: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
+              {item.icon}
+            </ListItemIcon>
+            {sidebarOpen && (
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                  fontWeight: isItemActive ? 600 : 400,
                   color: isItemActive
                     ? theme.palette.primary.main
-                    : (mode === 'light' ? '#64748b' : '#94a3b8'),
-                  position: 'relative',
-                  flexShrink: 0,
+                    : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
+                  noWrap: true,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              {sidebarOpen && (
-                <>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: isItemActive ? 600 : 400,
-                      color: isItemActive
-                        ? theme.palette.primary.main
-                        : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
-                      noWrap: true,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    sx={{
-                      m: 0,
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  />
-                  {hasSubItems && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubMenuToggle(item.text);
-                      }}
-                      sx={{ ml: 1 }}
-                    >
-                      {isSubMenuOpen ? <ExpandLess /> : <ExpandMore />}
-                    </IconButton>
-                  )}
-                </>
-              )}
-            </ListItemButton>
-          </Tooltip>
-        </ListItem>
-        {hasSubItems && sidebarOpen && (
-          <Collapse in={isSubMenuOpen} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding>
-              {item.subItems.map((subItem) => (
-                <ListItem key={subItem.text} disablePadding>
-                  <ListItemButton
-                    onClick={() => navigate(subItem.path)}
-                    sx={{
-                      pl: 4,
-                      py: 0.75,
-                      borderRadius: 2,
-                      mb: 0.25,
-                      mx: 1,
-                      backgroundColor: isActive(subItem.path)
-                        ? (mode === 'light' ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.15)')
-                        : 'transparent',
-                      '&:hover': {
-                        backgroundColor: mode === 'light' ? '#f1f5f9' : '#334155',
-                      }
-                    }}
-                  >
-                    <ListItemText
-                      primary={subItem.text}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: isActive(subItem.path) ? 500 : 400,
-                        color: isActive(subItem.path)
-                          ? theme.palette.primary.main
-                          : (mode === 'light' ? 'text.secondary' : '#94a3b8'),
-                        noWrap: true,
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-        )}
-      </React.Fragment>
+                sx={{
+                  m: 0,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              />
+            )}
+          </ListItemButton>
+        </Tooltip>
+      </ListItem>
     );
   };
 
@@ -407,8 +331,6 @@ function Layout() {
                 >
                   {user?.Name || 'User'}
                 </Typography>
-                {/* 🔒 UPDATED — show the real role (Employee/Custodian/HR)
-                    instead of the hardcoded "User" placeholder. */}
                 <Typography
                   variant="body2"
                   sx={{
@@ -541,7 +463,7 @@ function Layout() {
     </Box>
   );
 
-  // Update AppBar title based on route - FIXED
+  // Update AppBar title based on route
   const getPageTitle = () => {
     // Leave routes
     if (location.pathname.includes('/leave-dashboard')) return 'Leave Dashboard';
@@ -562,7 +484,7 @@ function Layout() {
     const route = menuItems.find(item => isActive(item.path));
     if (route) return route.text;
 
-    return 'Dashboard';
+    return isEmployeeOnly ? 'Leave Dashboard' : 'Dashboard';
   };
 
   const drawerWidth = sidebarOpen ? 240 : 60;
@@ -709,4 +631,4 @@ function Layout() {
   );
 }
 
-export default Layout; 
+export default Layout;
