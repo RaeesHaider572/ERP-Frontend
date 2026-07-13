@@ -700,31 +700,40 @@ const LeaveApplicationForm = () => {
 
         // Generate balance rows for print
         const balanceRows = leaveTypes.map((lt) => {
+            // ✅ Get values from formData (same as LeaveBalanceTable)
             const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
             const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
             const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
             const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+
+            // ✅ Leaves Actual - Only the current application weight
             const isActive = formData.leaveType === lt.value;
             const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
+
+            // ✅ Additions Total - Only in January (first month of leave year)
             const currentMonth = new Date().getMonth() + 1;
             const isFirstMonth = currentMonth === 1;
             const additionsTotal = isFirstMonth ? totalAllowed : 0;
+
+            // ✅ Calculate Closing values
             const closingTotal = openingTotal + additionsTotal - leavesActual;
             const closingEarned = openingEarned + additionsEarned - leavesActual;
-            const isHighlighted = isActive ? 'highlight' : '';
+
+            // ✅ Check if this is the active leave type (for highlighting)
+            const isHighlighted = isActive && leavesActual > 0;
 
             return `
-                <tr class="${isHighlighted}">
-                    <td>${lt.label}</td>
-                    <td class="right">${openingTotal.toFixed(2)}</td>
-                    <td class="right">${openingEarned.toFixed(2)}</td>
-                    <td class="right">${additionsTotal.toFixed(2)}</td>
-                    <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
-                    <td class="right"><strong>${leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong></td>
-                    <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
-                    <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
-                </tr>
-            `;
+        <tr class="${isHighlighted ? 'highlight' : ''}">
+            <td>${lt.label}</td>
+            <td class="right">${openingTotal.toFixed(2)}</td>
+            <td class="right">${openingEarned.toFixed(2)}</td>
+            <td class="right">${additionsTotal.toFixed(2)}</td>
+            <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
+            <td class="right"><strong>${leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong></td>
+            <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
+            <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
+        </tr>
+    `;
         }).join('');
 
         const applicationIdDisplay = formData.applicationId && formData.applicationId !== "BGLA-"

@@ -139,9 +139,6 @@ function Layout() {
         { text: 'Apply Leave', path: '/LeaveApply' },
         { text: 'My Requests', path: '/LeaveRequests' },
         { text: 'Leave Balance', path: '/LeaveBalance' },
-
-        // { text: 'My Requests', path: '/leave/my-requests' },
-        // { text: 'Leave Balance', path: '/leave/balance' },
       ];
 
       // HR gets additional menu items
