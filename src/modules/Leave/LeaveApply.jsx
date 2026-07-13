@@ -695,233 +695,267 @@ const LeaveApplicationForm = () => {
     // ============================================
     // HANDLE PRINT
     // ============================================
-    const handlePrint = () => {
-        const printWindow = window.open('', '_blank');
+    // ============================================
+// HANDLE PRINT - MATCHES LeaveBalanceTable LOGIC
+// ============================================
+const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
 
-        // Generate balance rows for print
-        const balanceRows = leaveTypes.map((lt) => {
-            // ✅ Get values from formData (same as LeaveBalanceTable)
-            const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
-            const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
-            const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
-            const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
+    const currentMonth = new Date().getMonth() + 1;
+    const isFirstMonth = currentMonth === 1;
 
-            // ✅ Leaves Actual - Only the current application weight
-            const isActive = formData.leaveType === lt.value;
-            const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
+    // ✅ Generate balance rows using SAME LOGIC as LeaveBalanceTable
+    const balanceRows = leaveTypes.map((lt) => {
+        // ✅ Get values from formData (same as LeaveBalanceTable)
+        const totalAllowed = parseFloat(formData[lt.totalKey]) || 0;
+        const openingTotal = parseFloat(formData[lt.openingTotalKey]) || 0;
+        const openingEarned = parseFloat(formData[lt.openingEarnedKey]) || 0;
+        const additionsEarned = parseFloat(formData[lt.additionsEarnedKey]) || 0;
 
-            // ✅ Additions Total - Only in January (first month of leave year)
-            const currentMonth = new Date().getMonth() + 1;
-            const isFirstMonth = currentMonth === 1;
-            const additionsTotal = isFirstMonth ? totalAllowed : 0;
+        // ✅ Leaves Actual - Only the current application weight
+        const isActive = formData.leaveType === lt.value;
+        const leavesActual = isActive ? parseFloat(formData.weight) || 0 : 0;
 
-            // ✅ Calculate Closing values
-            const closingTotal = openingTotal + additionsTotal - leavesActual;
-            const closingEarned = openingEarned + additionsEarned - leavesActual;
+        // ✅ Additions Total - Only in January (first month of leave year)
+        const additionsTotal = isFirstMonth ? totalAllowed : 0;
 
-            // ✅ Check if this is the active leave type (for highlighting)
-            const isHighlighted = isActive && leavesActual > 0;
+        // ✅ Calculate Closing values (same as LeaveBalanceTable)
+        const closingTotal = openingTotal + additionsTotal - leavesActual;
+        const closingEarned = openingEarned + additionsEarned - leavesActual;
 
-            return `
-        <tr class="${isHighlighted ? 'highlight' : ''}">
-            <td>${lt.label}</td>
-            <td class="right">${openingTotal.toFixed(2)}</td>
-            <td class="right">${openingEarned.toFixed(2)}</td>
-            <td class="right">${additionsTotal.toFixed(2)}</td>
-            <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
-            <td class="right"><strong>${leavesActual > 0 ? leavesActual.toFixed(2) : '0.00'}</strong></td>
-            <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
-            <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
-        </tr>
-    `;
-        }).join('');
+        const isHighlighted = isActive && leavesActual > 0;
 
-        const applicationIdDisplay = formData.applicationId && formData.applicationId !== "BGLA-"
-            ? formData.applicationId
-            : "Pending";
-
-        const printHTML = `
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title>Leave Application - ${applicationIdDisplay}</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
-                    .print-container { max-width: 210mm; margin: 0 auto; background: white; }
-                    .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; flex-direction: row; }
-                    .header .header-logo { width: 100px; height: auto; }
-                    .header .header-logo img { width: 100%; height: auto; border:0; }
-                    .header .header-company { width: auto; height: auto; margin: 0 auto; text-align: center; padding-right: 15%; }
-                    .header .header-company .company-name { font-size: 20px; font-weight: 800; letter-spacing: 2px; }
-                    .form-title { font-size: 24px; font-weight: 600; margin-top: 8px; color: #333; }
-                    .header .app-info { display: flex; flex-wrap: wrap; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 0.5rem; font-size: 0.875rem; gap: 1rem; }
-                    .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
-                    .section-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #ddd; width: 100%; }
-                    .info-grid { display: flex; gap: 16px; margin-bottom: 20px; width: 100%; }
-                    .info-item { margin-bottom: 8px; flex: 1; min-width: 0; }
-                    .dates{min-width: 19%!important;}
-                    .info-label { font-size: 11px; color: #777; margin-bottom: 4px; }
-                    .info-value { font-size: 14px; font-weight: 400; padding-bottom: 6px; border-bottom: 1px solid #eee; }
-                    .info-value.highlight { font-weight: 700; }
-                    .details-grid { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; }
-                    .details-grid .info-item{ flex: 1; min-width: 0; }
-                    .full-width { width: 100%; display: block; margin-bottom: 20px; margin-top: 16px; }
-                    .reason-box { padding: 12px; border: 1px solid #eee; border-radius: 4px; min-height: 80px; line-height: 1.6; width: 100%; background: #f9f9f9; }
-                    
-                    .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
-                    .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-                    .balance-table th { background: #f5f5f5; font-weight: 700; font-size: 12px; }
-                    .balance-table th.center { text-align: center; }
-                    .balance-table td.right { text-align: right; }
-                    .balance-table tr.highlight { background-color: #e3f2fd; }
-                    .balance-table tr.highlight td { font-weight: 700; }
-                    .balance-table td strong { font-weight: 700; }
-                    
-                    .approval-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #ddd; }
-                    .approval-title { font-size: 16px; font-weight: 700; }
-                    .signature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 130px; }
-                    .signature-box { text-align: center; }
-                    .signature-line { border-top: 1px solid #000; padding-top: 8px; margin-top: 4px; font-size: 12px; }
-                    .no-print { display: none; }
-                    @media print { body { padding: 15mm; } @page { size: A4; margin: 0; } }
-                </style>
-            </head>
-            <body>
-                <div class="print-container">
-                    <div class="header">
-                        <div class="header-logo">
-                            <img src="${logo}" alt="Bodla Group Logo" />
-                        </div>
-                        <div class="header-company">
-                            <div class="company-name">BODLA GROUP</div>
-                            <div class="form-title">Leave Application Form</div>
-                        </div>
-                        <div class="app-info">
-                            <span><strong>Application ID:</strong> ${applicationIdDisplay}</span>
-                            <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <div class="section-title">Employee Information</div>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Employee Code</div>
-                                <div class="info-value">${formData.employeeCode || "—"}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Employee Name</div>
-                                <div class="info-value">${formData.employeeName || "—"}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Designation</div>
-                                <div class="info-value">${formData.designation || "—"}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Department</div>
-                                <div class="info-value">${formData.department || "—"}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <div class="section-title">Leave Details</div>
-                        <div class="details-grid">
-                            <div class="info-item">
-                                <div class="info-label">Leave Type</div>
-                                <div class="info-value highlight">${getLeaveTypeLabel()}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Duration</div>
-                                <div class="info-value">${formData.duration === 'half-day' ? 'Half Day (0.5)' : formData.duration === 'short-day' ? 'Short Day (0.75)' : 'Full Day'}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Paid / Unpaid</div>
-                                <div class="info-value">${formData.paidStatus}</div>
-                            </div>
-                            <div class="info-item dates">
-                                <div class="info-label">From</div>
-                                <div class="info-value highlight">${formatDate(formData.startDate)}</div>
-                            </div>
-                            <div class="info-item dates">
-                                <div class="info-label">To</div>
-                                <div class="info-value highlight">${formatDate(formData.endDate)}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Total Days</div>
-                                <div class="info-value highlight">${formData.weight || "0"}</div>
-                            </div>
-                        </div>
-                        <div class="full-width">
-                            <div class="info-label">Reason for Leave</div>
-                            <div class="reason-box">${formData.reason || "—"}</div>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <div class="section-title">Leave Balance Summary</div>
-                        <table class="balance-table">
-                            <thead>
-                                <tr>
-                                    <th rowspan="2">Particulars</th>
-                                    <th colspan="2" class="center">Opening</th>
-                                    <th colspan="2" class="center">Additions</th>
-                                    <th class="center">Leaves</th>
-                                    <th colspan="2" class="center">Closing</th>
-                                </tr>
-                                <tr>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                    <th class="center">Actual</th>
-                                    <th class="center">Total</th>
-                                    <th class="center">Earned</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${balanceRows}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="approval-header">
-                        <div class="approval-title">Approval Information</div>
-                        <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
-                    </div>
-
-                    <div class="signature-grid">
-                        <div class="signature-box">
-                            <div class="signature-line">Employee</div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">Reporting Manager</div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">Department Head</div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">HR</div>
-                        </div>
-                    </div>
-
-                </div>
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(function() {
-                            window.close();
-                        }, 500);
-                    };
-                </script>
-            </body>
-        </html>
+        return `
+            <tr class="${isHighlighted ? 'highlight' : ''}">
+                <td><strong>${lt.label}</strong></td>
+                <td class="right">${openingTotal.toFixed(2)}</td>
+                <td class="right">${openingEarned.toFixed(2)}</td>
+                <td class="right">${additionsTotal.toFixed(2)}</td>
+                <td class="right"><strong>${additionsEarned.toFixed(2)}</strong></td>
+                <td class="right"><strong>${leavesActual.toFixed(2)}</strong></td>
+                <td class="right"><strong>${closingTotal.toFixed(2)}</strong></td>
+                <td class="right"><strong>${closingEarned.toFixed(2)}</strong></td>
+            </tr>
         `;
+    }).join('');
 
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
-    };
+    const applicationIdDisplay = formData.applicationId && formData.applicationId !== "BGLA-"
+        ? formData.applicationId
+        : "Pending";
+
+    const printHTML = `
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Leave Application - ${applicationIdDisplay}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
+                .print-container { max-width: 210mm; margin: 0 auto; background: white; }
+                .header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #333; display: flex; flex-wrap: wrap; align-items: center; }
+                .header .header-logo { width: 100px; flex-shrink: 0; }
+                .header .header-logo img { width: 100%; height: auto; }
+                .header .header-company { flex: 1; text-align: center; padding: 0 20px; }
+                .header .header-company .company-name { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #1a237e; }
+                .header .header-company .form-title { font-size: 20px; font-weight: 600; margin-top: 4px; color: #333; }
+                .header .app-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; width: 100%; margin-top: 12px; font-size: 14px; }
+                
+                .section { margin-bottom: 20px; }
+                .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #ddd; color: #1a237e; }
+                
+                .info-grid { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 16px; width: 100%; }
+                .info-item { flex: 1 1 180px; min-width: 140px; }
+                .info-item.dates { flex: 2 1 250px; min-width: 200px; }
+                .info-label { font-size: 11px; color: #777; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+                .info-value { font-size: 14px; font-weight: 500; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+                .info-value.highlight { font-weight: 700; color: #1a237e; }
+                
+                .details-grid { display: flex; flex-wrap: wrap; gap: 12px 20px; width: 100%; }
+                .details-grid .info-item { flex: 1 1 140px; min-width: 110px; }
+                .details-grid .info-item.dates { flex: 2 1 220px; min-width: 180px; }
+                .details-grid .info-item.total-days { flex: 0 1 100px; min-width: 80px; }
+                
+                .full-width { width: 100%; display: block; margin-top: 12px; }
+                .reason-box { padding: 12px 16px; border: 1px solid #eee; border-radius: 4px; min-height: 60px; line-height: 1.6; background: #f9f9f9; font-size: 13px; }
+                
+                .balance-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+                .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+                .balance-table th { background: #f5f5f5; font-weight: 700; font-size: 11px; text-align: center; }
+                .balance-table td.right { text-align: right; }
+                .balance-table tr.highlight { background-color: #e3f2fd; }
+                .balance-table tr.highlight td { font-weight: 700; }
+                .balance-table td strong { font-weight: 700; }
+                
+                .approval-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; padding-bottom: 16px; border-bottom: 2px solid #ddd; flex-wrap: wrap; gap: 10px; }
+                .approval-title { font-size: 16px; font-weight: 700; color: #1a237e; }
+                
+                .signature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 60px; }
+                .signature-box { text-align: center; }
+                .signature-line { border-top: 2px solid #000; padding-top: 10px; margin-top: 4px; font-size: 12px; font-weight: 600; }
+                .signature-sub { font-size: 10px; color: #999; margin-top: 4px; }
+                
+                .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 11px; color: #999; flex-wrap: wrap; gap: 8px; }
+                .no-print { display: none; }
+                
+                @media print { 
+                    body { padding: 12mm; } 
+                    @page { size: A4; margin: 8mm; }
+                    .no-print { display: none !important; }
+                    .balance-table tr.highlight { background-color: #e3f2fd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .balance-table th { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-container">
+                <!-- Header -->
+                <div class="header">
+                    <div class="header-logo">
+                        <img src="${logo}" alt="Bodla Group Logo" />
+                    </div>
+                    <div class="header-company">
+                        <div class="company-name">BODLA GROUP</div>
+                        <div class="form-title">Leave Application Form</div>
+                    </div>
+                    <div class="app-info">
+                        <span><strong>Application ID:</strong> ${applicationIdDisplay}</span>
+                        <span><strong>Application Date:</strong> ${formatDate(formData.applicationDate)}</span>
+                    </div>
+                </div>
+
+                <!-- Employee Information -->
+                <div class="section">
+                    <div class="section-title">Employee Information</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Employee Code</div>
+                            <div class="info-value">${formData.employeeCode || "—"}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Employee Name</div>
+                            <div class="info-value">${formData.employeeName || "—"}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Designation</div>
+                            <div class="info-value">${formData.designation || "—"}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Department</div>
+                            <div class="info-value">${formData.department || "—"}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave Details -->
+                <div class="section">
+                    <div class="section-title">Leave Details</div>
+                    <div class="details-grid">
+                        <div class="info-item">
+                            <div class="info-label">Leave Type</div>
+                            <div class="info-value highlight">${getLeaveTypeLabel()}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Duration</div>
+                            <div class="info-value">${formData.duration === 'half-day' ? 'Half Day (0.5)' : formData.duration === 'short-day' ? 'Short Day (0.75)' : 'Full Day'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Paid / Unpaid</div>
+                            <div class="info-value">${formData.paidStatus}</div>
+                        </div>
+                        <div class="info-item dates">
+                            <div class="info-label">From</div>
+                            <div class="info-value highlight">${formatDate(formData.startDate)}</div>
+                        </div>
+                        <div class="info-item dates">
+                            <div class="info-label">To</div>
+                            <div class="info-value highlight">${formatDate(formData.endDate)}</div>
+                        </div>
+                        <div class="info-item total-days">
+                            <div class="info-label">Total Days</div>
+                            <div class="info-value highlight" style="text-align:center; font-size:18px;">${formData.weight || "0"}</div>
+                        </div>
+                    </div>
+                    <div class="full-width">
+                        <div class="info-label">Reason for Leave</div>
+                        <div class="reason-box">${formData.reason || "—"}</div>
+                    </div>
+                </div>
+
+                <!-- Leave Balance Summary -->
+                <div class="section">
+                    <div class="section-title">Leave Balance Summary</div>
+                    <table class="balance-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">Particulars</th>
+                                <th colspan="2" class="center">Opening</th>
+                                <th colspan="2" class="center">Additions</th>
+                                <th class="center">Leaves</th>
+                                <th colspan="2" class="center">Closing</th>
+                            </tr>
+                            <tr>
+                                <th class="center">Total</th>
+                                <th class="center">Earned</th>
+                                <th class="center">Total</th>
+                                <th class="center">Earned</th>
+                                <th class="center">Actual</th>
+                                <th class="center">Total</th>
+                                <th class="center">Earned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${balanceRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Approval Information -->
+                <div class="approval-header">
+                    <div class="approval-title">Approval Information</div>
+                    <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
+                </div>
+
+                <!-- Signatures -->
+                <div class="signature-grid">
+                    <div class="signature-box">
+                        <div class="signature-line">Employee</div>
+                        <div class="signature-sub">Signature & Date</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">Reporting Manager</div>
+                        <div class="signature-sub">Signature & Date</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">Department Head</div>
+                        <div class="signature-sub">Signature & Date</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">HR</div>
+                        <div class="signature-sub">Signature & Date</div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <span>${applicationIdDisplay}</span>
+                    <span>Generated on: ${new Date().toLocaleDateString()}</span>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 500);
+                };
+            </script>
+        </body>
+    </html>
+    `;
+
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
+};
 
     // ============================================
     // RENDER
