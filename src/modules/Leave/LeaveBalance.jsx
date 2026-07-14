@@ -23,7 +23,7 @@ import { getLeaveBalances } from '../../services/leaveService';
 
 const LeaveBalance = () => {
     const { user } = useAuth();
-    
+
     // ✅ ALL useState hooks must be at the TOP
     const [balances, setBalances] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -36,6 +36,23 @@ const LeaveBalance = () => {
             fetchBalances();
         }
     }, [user]);
+
+    // ============================================
+    // 🔒 Normalizes one raw balance row from the API into the shape
+    // this component uses. Backend (leave.service.js -> getLeaveBalances)
+    // returns: TotalAllowed, OpeningTotal, OpeningEarned, AdditionsTotal,
+    // AdditionsEarned, LeavesActual (aliased from Leaves), ClosingTotal,
+    // ClosingEarned. There is NO "Balance" field and NO plain "Leaves"
+    // field — using those (as before) always evaluated to 0.
+    // ============================================
+    const normalizeBalance = (b) => ({
+        LeaveName: b.LeaveName || b.leaveName || 'Unknown',
+        TotalAllowed: parseFloat(b.TotalAllowed ?? b.totalAllowed ?? 0) || 0,
+        Used: parseFloat(b.LeavesActual ?? b.Leaves ?? b.leaves ?? 0) || 0,
+        Remaining: parseFloat(b.ClosingTotal ?? b.closingTotal ?? 0) || 0,
+        OpeningTotal: parseFloat(b.OpeningTotal ?? b.openingTotal ?? 0) || 0,
+        AdditionsTotal: parseFloat(b.AdditionsTotal ?? b.additionsTotal ?? 0) || 0,
+    });
 
     const fetchBalances = async () => {
         setLoading(true);
@@ -62,8 +79,9 @@ const LeaveBalance = () => {
                 data = [response.data];
             }
 
-            console.log("📊 Processed balances:", data);
-            setBalances(data);
+            const normalized = data.map(normalizeBalance);
+            console.log("📊 Processed balances:", normalized);
+            setBalances(normalized);
         } catch (err) {
             console.error("❌ Error fetching balances:", err);
             if (err.response?.status === 403) {
@@ -79,13 +97,12 @@ const LeaveBalance = () => {
     // ✅ Fetch balance for selected employee (team member)
     const fetchTeamMemberBalance = async (employeeId) => {
         setSelectedEmployeeId(employeeId);
-        // ✅ Use the employeeId passed in, not user's ID
         setLoading(true);
         setError(null);
         try {
             console.log("📊 Fetching balances for team member:", employeeId);
             const response = await getLeaveBalances(employeeId);
-            
+
             let data = [];
             if (response.data?.data) {
                 data = response.data.data;
@@ -95,7 +112,7 @@ const LeaveBalance = () => {
                 data = [response.data];
             }
 
-            setBalances(data);
+            setBalances(data.map(normalizeBalance));
         } catch (err) {
             console.error("❌ Error fetching team member balances:", err);
             setError(err.response?.data?.message || "Failed to load team member balances");
@@ -154,10 +171,10 @@ const LeaveBalance = () => {
         );
     }
 
-    // Calculate total summary
-    const totalAllowed = balances.reduce((sum, b) => sum + (b.TotalAllowed || 0), 0);
-    const leaves = balances.reduce((sum, b) => sum + (b.Leaves || 0), 0);
-    const balance = balances.reduce((sum, b) => sum + (b.Balance || 0), 0);
+    // Calculate total summary (values are already normalized/parsed floats)
+    const totalAllowed = balances.reduce((sum, b) => sum + b.TotalAllowed, 0);
+    const used = balances.reduce((sum, b) => sum + b.Used, 0);
+    const remainingTotal = balances.reduce((sum, b) => sum + b.Remaining, 0);
 
     return (
         <Box sx={{ p: 3 }}>
@@ -190,7 +207,7 @@ const LeaveBalance = () => {
                         <CardContent>
                             <Typography variant="body2" color="textSecondary">Total Allowed</Typography>
                             <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2' }}>
-                                {totalAllowed}
+                                {totalAllowed.toFixed(2)}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">Days per year</Typography>
                         </CardContent>
@@ -201,7 +218,7 @@ const LeaveBalance = () => {
                         <CardContent>
                             <Typography variant="body2" color="textSecondary">Used</Typography>
                             <Typography variant="h4" sx={{ fontWeight: 700, color: '#ed6c02' }}>
-                                {leaves}
+                                {used.toFixed(2)}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">Days used</Typography>
                         </CardContent>
@@ -212,7 +229,7 @@ const LeaveBalance = () => {
                         <CardContent>
                             <Typography variant="body2" color="textSecondary">Remaining</Typography>
                             <Typography variant="h4" sx={{ fontWeight: 700, color: '#2e7d32' }}>
-                                {balance}
+                                {remainingTotal.toFixed(2)}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">Days remaining</Typography>
                         </CardContent>
@@ -230,9 +247,9 @@ const LeaveBalance = () => {
             ) : (
                 <Grid container spacing={3}>
                     {balances.map((balance, index) => {
-                        const remaining = balance.Balance || 0;
-                        const total = balance.TotalAllowed || 0;
-                        const used = balance.Leaves || 0;
+                        const remaining = balance.Remaining;
+                        const total = balance.TotalAllowed;
+                        const usedDays = balance.Used;
                         const percentage = total > 0 ? (remaining / total) * 100 : 0;
                         const color = getColor(balance.LeaveName);
 
@@ -265,17 +282,17 @@ const LeaveBalance = () => {
                                         </Box>
 
                                         <Typography variant="h3" sx={{ fontWeight: 700, mb: 1, color: color }}>
-                                            {remaining}
+                                            {remaining.toFixed(2)}
                                         </Typography>
 
                                         <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                                             <Chip
-                                                label={`Total: ${total}`}
+                                                label={`Total: ${total.toFixed(2)}`}
                                                 size="small"
                                                 variant="outlined"
                                             />
                                             <Chip
-                                                label={`Used: ${used}`}
+                                                label={`Used: ${usedDays.toFixed(2)}`}
                                                 size="small"
                                                 color="warning"
                                                 variant="outlined"
@@ -296,7 +313,7 @@ const LeaveBalance = () => {
                                             overflow: 'hidden'
                                         }}>
                                             <Box sx={{
-                                                width: `${Math.min(percentage, 100)}%`,
+                                                width: `${Math.min(Math.max(percentage, 0), 100)}%`,
                                                 height: '100%',
                                                 bgcolor: color,
                                                 borderRadius: 4,
