@@ -60,41 +60,41 @@ const LeaveApplicationForm = () => {
         status: "Pending",
 
         // Sick Leave
-        sickBalance: 0,
         sickTotalAllowed: 0,
         sickLeaves: 0,
         sickOpeningTotal: 0,
         sickOpeningEarned: 0,
+        sickAdditionsTotal: 0,
         sickAdditionsEarned: 0,
         sickClosingTotal: 0,
         sickClosingEarned: 0,
 
         // Casual Leave
-        casualBalance: 0,
         casualTotalAllowed: 0,
         casualLeaves: 0,
         casualOpeningTotal: 0,
         casualOpeningEarned: 0,
+        casualAdditionsTotal: 0,
         casualAdditionsEarned: 0,
         casualClosingTotal: 0,
         casualClosingEarned: 0,
 
         // Annual Leave
-        annualBalance: 0,
         annualTotalAllowed: 0,
         annualLeaves: 0,
         annualOpeningTotal: 0,
         annualOpeningEarned: 0,
+        annualAdditionsTotal: 0,
         annualAdditionsEarned: 0,
         annualClosingTotal: 0,
         annualClosingEarned: 0,
 
         // Compensatory Leave
-        compensatoryBalance: 0,
         compensatoryTotalAllowed: 0,
         compensatoryLeaves: 0,
         compensatoryOpeningTotal: 0,
         compensatoryOpeningEarned: 0,
+        compensatoryAdditionsTotal: 0,
         compensatoryAdditionsEarned: 0,
         compensatoryClosingTotal: 0,
         compensatoryClosingEarned: 0,
@@ -119,11 +119,11 @@ const LeaveApplicationForm = () => {
         {
             value: "Sick",
             label: "Sick Leave",
-            balanceKey: "sickBalance",
             totalKey: "sickTotalAllowed",
             usedKey: "sickLeaves",
             openingTotalKey: "sickOpeningTotal",
             openingEarnedKey: "sickOpeningEarned",
+            additionsTotalKey: "sickAdditionsTotal",
             additionsEarnedKey: "sickAdditionsEarned",
             closingTotalKey: "sickClosingTotal",
             closingEarnedKey: "sickClosingEarned"
@@ -131,11 +131,11 @@ const LeaveApplicationForm = () => {
         {
             value: "Casual",
             label: "Casual Leave",
-            balanceKey: "casualBalance",
             totalKey: "casualTotalAllowed",
             usedKey: "casualLeaves",
             openingTotalKey: "casualOpeningTotal",
             openingEarnedKey: "casualOpeningEarned",
+            additionsTotalKey: "casualAdditionsTotal",
             additionsEarnedKey: "casualAdditionsEarned",
             closingTotalKey: "casualClosingTotal",
             closingEarnedKey: "casualClosingEarned"
@@ -143,11 +143,11 @@ const LeaveApplicationForm = () => {
         {
             value: "Annual",
             label: "Annual Leave",
-            balanceKey: "annualBalance",
             totalKey: "annualTotalAllowed",
             usedKey: "annualLeaves",
             openingTotalKey: "annualOpeningTotal",
             openingEarnedKey: "annualOpeningEarned",
+            additionsTotalKey: "annualAdditionsTotal",
             additionsEarnedKey: "annualAdditionsEarned",
             closingTotalKey: "annualClosingTotal",
             closingEarnedKey: "annualClosingEarned"
@@ -155,11 +155,11 @@ const LeaveApplicationForm = () => {
         {
             value: "Compensatory",
             label: "Compensatory Leave",
-            balanceKey: "compensatoryBalance",
             totalKey: "compensatoryTotalAllowed",
             usedKey: "compensatoryLeaves",
             openingTotalKey: "compensatoryOpeningTotal",
             openingEarnedKey: "compensatoryOpeningEarned",
+            additionsTotalKey: "compensatoryAdditionsTotal",
             additionsEarnedKey: "compensatoryAdditionsEarned",
             closingTotalKey: "compensatoryClosingTotal",
             closingEarnedKey: "compensatoryClosingEarned"
@@ -180,17 +180,17 @@ const LeaveApplicationForm = () => {
             else if (Array.isArray(res.data)) balances = res.data;
 
             const balanceMap = {
-                sickBalance: 0, sickTotalAllowed: 0, sickLeaves: 0,
-                sickOpeningTotal: 0, sickOpeningEarned: 0, sickAdditionsEarned: 0,
+                sickTotalAllowed: 0, sickLeaves: 0,
+                sickOpeningTotal: 0, sickOpeningEarned: 0, sickAdditionsTotal: 0, sickAdditionsEarned: 0,
                 sickClosingTotal: 0, sickClosingEarned: 0,
-                casualBalance: 0, casualTotalAllowed: 0, casualLeaves: 0,
-                casualOpeningTotal: 0, casualOpeningEarned: 0, casualAdditionsEarned: 0,
+                casualTotalAllowed: 0, casualLeaves: 0,
+                casualOpeningTotal: 0, casualOpeningEarned: 0, casualAdditionsTotal: 0, casualAdditionsEarned: 0,
                 casualClosingTotal: 0, casualClosingEarned: 0,
-                annualBalance: 0, annualTotalAllowed: 0, annualLeaves: 0,
-                annualOpeningTotal: 0, annualOpeningEarned: 0, annualAdditionsEarned: 0,
+                annualTotalAllowed: 0, annualLeaves: 0,
+                annualOpeningTotal: 0, annualOpeningEarned: 0, annualAdditionsTotal: 0, annualAdditionsEarned: 0,
                 annualClosingTotal: 0, annualClosingEarned: 0,
-                compensatoryBalance: 0, compensatoryTotalAllowed: 0, compensatoryLeaves: 0,
-                compensatoryOpeningTotal: 0, compensatoryOpeningEarned: 0, compensatoryAdditionsEarned: 0,
+                compensatoryTotalAllowed: 0, compensatoryLeaves: 0,
+                compensatoryOpeningTotal: 0, compensatoryOpeningEarned: 0, compensatoryAdditionsTotal: 0, compensatoryAdditionsEarned: 0,
                 compensatoryClosingTotal: 0, compensatoryClosingEarned: 0,
             };
 
@@ -198,10 +198,13 @@ const LeaveApplicationForm = () => {
                 balances.forEach((bal) => {
                     const name = bal.LeaveName || bal.leaveName || "";
                     const totalAllowed = parseFloat(bal.TotalAllowed || bal.totalAllowed || 0);
-                    const leaves = parseFloat(bal.Leaves || bal.leaves || 0);
-                    const balance = parseFloat(bal.Balance || bal.balance || 0);
-                    const openingTotal = parseFloat(bal.OpeningBalance || bal.openingBalance || bal.OpeningTotal || bal.openingTotal || 0);
+                    // 🔒 Backend now returns "LeavesActual" (aliased from the Leaves column)
+                    const leaves = parseFloat(bal.LeavesActual ?? bal.Leaves ?? bal.leaves ?? 0);
+                    const openingTotal = parseFloat(bal.OpeningTotal ?? bal.openingTotal ?? 0);
                     const openingEarned = parseFloat(bal.OpeningEarned || bal.openingEarned || 0);
+                    // 🔒 NEW — AdditionsTotal wasn't being read at all before; this was
+                    // silently always rendering 0.00 in the "Additions Total" column
+                    const additionsTotal = parseFloat(bal.AdditionsTotal || bal.additionsTotal || 0);
                     const additionsEarned = parseFloat(bal.AdditionsEarned || bal.additionsEarned || 0);
                     const closingTotal = parseFloat(bal.ClosingTotal || bal.closingTotal || 0);
                     const closingEarned = parseFloat(bal.ClosingEarned || bal.closingEarned || 0);
@@ -209,44 +212,44 @@ const LeaveApplicationForm = () => {
                     const nameLower = name.toLowerCase();
                     if (nameLower.includes("sick")) {
                         Object.assign(balanceMap, {
-                            sickBalance: balance,
                             sickTotalAllowed: totalAllowed,
                             sickLeaves: leaves,
                             sickOpeningTotal: openingTotal,
                             sickOpeningEarned: openingEarned,
+                            sickAdditionsTotal: additionsTotal,
                             sickAdditionsEarned: additionsEarned,
                             sickClosingTotal: closingTotal,
                             sickClosingEarned: closingEarned
                         });
                     } else if (nameLower.includes("casual")) {
                         Object.assign(balanceMap, {
-                            casualBalance: balance,
                             casualTotalAllowed: totalAllowed,
                             casualLeaves: leaves,
                             casualOpeningTotal: openingTotal,
                             casualOpeningEarned: openingEarned,
                             casualAdditionsEarned: additionsEarned,
+                            casualAdditionsTotal: additionsTotal,
                             casualClosingTotal: closingTotal,
                             casualClosingEarned: closingEarned
                         });
                     } else if (nameLower.includes("annual")) {
                         Object.assign(balanceMap, {
-                            annualBalance: balance,
                             annualTotalAllowed: totalAllowed,
                             annualLeaves: leaves,
                             annualOpeningTotal: openingTotal,
                             annualOpeningEarned: openingEarned,
                             annualAdditionsEarned: additionsEarned,
+                            annualAdditionsTotal: additionsTotal,
                             annualClosingTotal: closingTotal,
                             annualClosingEarned: closingEarned
                         });
                     } else if (nameLower.includes("compensatory")) {
                         Object.assign(balanceMap, {
-                            compensatoryBalance: balance,
                             compensatoryTotalAllowed: totalAllowed,
                             compensatoryLeaves: leaves,
                             compensatoryOpeningTotal: openingTotal,
                             compensatoryOpeningEarned: openingEarned,
+                            compensatoryAdditionsTotal: additionsTotal,
                             compensatoryAdditionsEarned: additionsEarned,
                             compensatoryClosingTotal: closingTotal,
                             compensatoryClosingEarned: closingEarned
@@ -258,9 +261,10 @@ const LeaveApplicationForm = () => {
             setFormData((prev) => ({ ...prev, ...balanceMap }));
         } catch (error) {
             console.error("❌ Error fetching leave balances:", error);
+            const realMessage = error.response?.data?.message || error.message || "Failed to fetch leave balances";
             setSnackbar({
                 open: true,
-                message: "Failed to fetch leave balances",
+                message: realMessage,
                 severity: "error",
             });
         } finally {
@@ -600,9 +604,6 @@ const LeaveApplicationForm = () => {
     // LEAVE BALANCE TABLE COMPONENT (Reusable)
     // ============================================
     const LeaveBalanceTable = () => {
-        const currentMonth = new Date().getMonth() + 1;
-        const isFirstMonth = currentMonth === 1;
-
         return (
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: "none", overflowX: 'auto' }}>
                 <Table size="small">
@@ -697,8 +698,6 @@ const LeaveApplicationForm = () => {
     // ============================================
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
-        const currentMonth = new Date().getMonth() + 1;
-        const isFirstMonth = currentMonth === 1;
         // Generate balance rows for print
         const balanceRows = leaveTypes.map((lt) => {
             // Real DB state (already reflects approved leaves) — same fields the screen table reads
@@ -1134,7 +1133,7 @@ const LeaveApplicationForm = () => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <LeaveBalanceTable isPrint={false} />
+                            <LeaveBalanceTable/>
                         )}
                     </Box>
 
@@ -1307,7 +1306,7 @@ const LeaveApplicationForm = () => {
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, pb: 1, borderBottom: "2px solid #ddd", color: theme.palette.primary.main }}>
                             Leave Balance Summary
                         </Typography>
-                        <LeaveBalanceTable isPrint={true} />
+                        <LeaveBalanceTable/>
                     </Box>
 
                     {/* Approval Information - Print */}

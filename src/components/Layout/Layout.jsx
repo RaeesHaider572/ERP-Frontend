@@ -110,15 +110,6 @@ function Layout() {
   const getMenuItems = () => {
     const items = [];
 
-    // Dashboard - hidden for plain employees, shown for custodian/HR
-    // if (!isEmployeeOnly) {
-    //   items.push({
-    //     text: 'Dashboard',
-    //     icon: <DashboardIcon />,
-    //     path: '/dashboard'
-    //   });
-    // }
-
     // Leave Module - flat top-level links for every role
     if (canAccessModule(MODULES.LEAVE)) {
       const leaveItems = [
