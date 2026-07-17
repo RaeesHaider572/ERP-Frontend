@@ -234,7 +234,6 @@ function App() {
                             </ModuleGuard>
                         } />
 
-
                         {/* Mobile Checkin - Only specific employees with granted access */}
                         <Route path="mobile-checkin" element={
                             <ModuleGuard module={MODULES.MOBILE_CHECKIN}>
