@@ -35,9 +35,9 @@ import LeaveBalance from './modules/Leave/LeaveBalance';
 
 import AllRequests from './modules/Leave/AllRequests';
 
-import AttendanceCorrectionForm from './modules/Attendance/AttendanceCorrectionForm';
-import MyAttendanceCorrectionRequests from './modules/Attendance/MyAttendanceCorrectionRequests';
-import AttendanceCorrectionManagement from './modules/Attendance/AttendanceCorrectionManagement';
+import AttendanceCorrectionForm from './modules/attendance/AttendanceCorrectionForm';
+import MyAttendanceCorrectionRequests from './modules/attendance/MyAttendanceCorrectionRequests';
+import AttendanceCorrectionManagement from './modules/attendance/AttendanceCorrectionManagement';
 
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
