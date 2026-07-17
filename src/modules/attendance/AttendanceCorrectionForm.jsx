@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from 'react-router-dom';
 import { applyAttendanceCorrection, getCorrectionRequestById } from "../../services/attendanceCorrectionService";
 import api from "../../services/authService";
 import { useAuth } from "../../contexts/AuthContext";
@@ -28,6 +29,7 @@ import {
     Send as SendIcon,
     RestartAlt as RestartAltIcon,
     Print as PrintIcon,
+    Close as CloseIcon,
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
 
@@ -35,7 +37,7 @@ const AttendanceCorrectionForm = () => {
     const theme = useTheme();
     const { user, isCustodian } = useAuth();
     const printRef = useRef();
-
+    const navigate = useNavigate();
     const getTodayDate = () => new Date().toISOString().split('T')[0];
     const getCurrentTime = () => {
         const now = new Date();
@@ -525,24 +527,17 @@ const AttendanceCorrectionForm = () => {
     };
 
     // ============================================
-    // HANDLE BACK TO EDIT
+    // HANDLE CLOSE - Close print preview and go to dashboard
     // ============================================
-    const handleBackToEdit = () => {
+    const handleClose = () => {
         // Close print preview
         setShowPrintPreview(false);
 
-        // ✅ Enable editing - this will enable all fields
+        // Reset submitted state
         setSubmitted(false);
 
-        // ✅ Scroll to top of form
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // ✅ Show a message to the user
-        setSnackbar({
-            open: true,
-            message: "You can now edit the request details",
-            severity: "info",
-        });
+        // Navigate to dashboard
+        navigate('/dashboard');
     };
 
     // ============================================
@@ -630,85 +625,95 @@ const AttendanceCorrectionForm = () => {
         return type === 0 ? "IN" : "OUT";
     };
 
-    // ============================================
-    // HANDLE PRINT
-    // ============================================
-    const handlePrint = () => {
-        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+// ============================================
+// HANDLE PRINT - COMPLETELY SEPARATE TAB
+// ============================================
+const handlePrint = () => {
+    const applicationIdDisplay = formData.requestId ? `${formData.requestId}` : "Pending";
 
-        if (!printWindow) {
-            setSnackbar({
-                open: true,
-                message: "Please allow popups for this site to print",
-                severity: "warning",
-            });
-            return;
-        }
+    let punchDateStr = formData.punchDate;
+    let punchTimeStr = formData.punchTime;
 
-        const applicationIdDisplay = formData.requestId ? `${formData.requestId}` : "Pending";
+    if (formData.rawPunchTime) {
+        const dateMatch = formData.rawPunchTime.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const timeMatch = formData.rawPunchTime.match(/(\d{2}):(\d{2})/);
 
-        let punchDateStr = formData.punchDate;
-        let punchTimeStr = formData.punchTime;
-
-        if (formData.rawPunchTime) {
-            const dateMatch = formData.rawPunchTime.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            const timeMatch = formData.rawPunchTime.match(/(\d{2}):(\d{2})/);
-
-            if (dateMatch) {
-                const year = parseInt(dateMatch[1]);
-                const month = parseInt(dateMatch[2]) - 1;
-                const day = parseInt(dateMatch[3]);
-                const date = new Date(year, month, day);
-                punchDateStr = date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            }
-            if (timeMatch) {
-                let hours = parseInt(timeMatch[1]);
-                const minutes = timeMatch[2];
-                const ampm = hours >= 12 ? 'PM' : 'AM';
-                hours = hours % 12 || 12;
-                punchTimeStr = `${hours}:${minutes} ${ampm}`;
-            }
-        } else {
-            const punchDateObj = new Date(formData.punchDate);
-            punchDateStr = punchDateObj.toLocaleDateString('en-US', {
+        if (dateMatch) {
+            const year = parseInt(dateMatch[1]);
+            const month = parseInt(dateMatch[2]) - 1;
+            const day = parseInt(dateMatch[3]);
+            const date = new Date(year, month, day);
+            punchDateStr = date.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             });
-
-            if (formData.punchTime) {
-                const timeParts = formData.punchTime.split(':');
-                if (timeParts.length === 2) {
-                    let hours = parseInt(timeParts[0]);
-                    const minutes = timeParts[1];
-                    const ampm = hours >= 12 ? 'PM' : 'AM';
-                    hours = hours % 12 || 12;
-                    punchTimeStr = `${hours}:${minutes} ${ampm}`;
-                }
-            }
         }
-
-        const appliedDateObj = new Date(formData.appliedDate || new Date());
-        const appliedDateStr = appliedDateObj.toLocaleDateString('en-US', {
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            const minutes = timeMatch[2];
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            punchTimeStr = `${hours}:${minutes} ${ampm}`;
+        }
+    } else {
+        const punchDateObj = new Date(formData.punchDate);
+        punchDateStr = punchDateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
         });
 
+        if (formData.punchTime) {
+            const timeParts = formData.punchTime.split(':');
+            if (timeParts.length === 2) {
+                let hours = parseInt(timeParts[0]);
+                const minutes = timeParts[1];
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12 || 12;
+                punchTimeStr = `${hours}:${minutes} ${ampm}`;
+            }
+        }
+    }
 
-        const printHTML = `
+    const appliedDateObj = new Date(formData.appliedDate || new Date());
+    const appliedDateStr = appliedDateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    // ✅ Build the complete HTML with a PRINT button that user clicks
+    const printHTML = `
 <!DOCTYPE html>
 <html>
     <head>
         <title>Attendance Correction - ${applicationIdDisplay}</title>
+        <meta charset="utf-8">
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; background: white; padding: 40px; color: #333; }
-            .print-container { max-width: 210mm; margin: 0 auto; background: white; }
+            body { 
+                font-family: 'Segoe UI', Arial, sans-serif; 
+                background: #f0f2f5; 
+                padding: 20px; 
+                color: #333; 
+            }
+            .print-container { 
+                max-width: 210mm; 
+                margin: 0 auto; 
+                background: white; 
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            
+            /* Print styles */
+            @media print {
+                body { background: white; padding: 0; }
+                .print-container { box-shadow: none; border-radius: 0; padding: 40px; }
+                .no-print { display: none !important; }
+                .print-button-container { display: none !important; }
+            }
             
             .header { 
                 margin-bottom: 16px; 
@@ -811,22 +816,13 @@ const AttendanceCorrectionForm = () => {
             .signature-header { 
                 display: flex; 
                 justify-content: space-between; 
-                margin-top: 150px; width: 100%;
-            }
-            .signature-grid { 
-                display: grid; 
-                grid-template-columns: repeat(4, 1fr); 
-                gap: 20px; 
-                margin-top: 130px; 
-                margin-bottom: 0;
-                align-items: end;
+                margin-top: 150px; 
+                width: 100%;
             }
             .signature-box { 
                 text-align: center; 
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-end;
-                height: 100%;
+                flex: 1;
+                margin: 0 10px;
             }
             .signature-line { 
                 border-top: 1px solid #000; 
@@ -835,18 +831,48 @@ const AttendanceCorrectionForm = () => {
                 font-size: 12px; 
             }
             
-            .no-print { display: none; }
+            .print-button-container {
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #ddd;
+            }
             
-            @media print { 
-                body { padding: 15mm; } 
-                @page { size: A4; margin: 0; } 
-                .no-print { display: none !important; }
+            .print-btn {
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                color: white;
+                border: none;
+                padding: 12px 40px;
+                font-size: 16px;
+                font-weight: 600;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 0 10px;
+            }
+            .print-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            }
+            .close-btn {
+                background: #e2e8f0;
+                color: #333;
+                border: none;
+                padding: 12px 40px;
+                font-size: 16px;
+                font-weight: 600;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 0 10px;
+            }
+            .close-btn:hover {
+                background: #cbd5e1;
             }
         </style>
     </head>
     <body>
         <div class="print-container">
-            <!-- Header -->
             <div class="header">
                 <div class="header-logo">
                     <img src="${logo}" alt="Bodla Group Logo" />
@@ -861,7 +887,6 @@ const AttendanceCorrectionForm = () => {
                 </div>
             </div>
 
-            <!-- Employee Information -->
             <div class="section">
                 <div class="section-title">Employee Information</div>
                 <div class="info-grid">
@@ -884,7 +909,6 @@ const AttendanceCorrectionForm = () => {
                 </div>
             </div>
 
-            <!-- Correction Details -->
             <div class="section">
                 <div class="section-title">Correction Details</div>
                 <div class="details-grid">
@@ -911,67 +935,72 @@ const AttendanceCorrectionForm = () => {
                 </div>
             </div>
 
-            <!-- Approval Information -->
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
                 <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
             </div>
 
-            <!-- Signature Block - Bottom Aligned -->
-            <div  class="signature-header">
-                <div style="text-align: center; flex: 1;">
-                    <div style="border-top: 1px solid #000; padding-top: 8px; margin: 0 10px;">
-                        <span style="font-size: 12px;">Employee</span>
-                    </div>
+            <div class="signature-header">
+                <div class="signature-box">
+                    <div class="signature-line">Employee</div>
                 </div>
-                <div style="text-align: center; flex: 1;">
-                    <div style="border-top: 1px solid #000; padding-top: 8px; margin: 0 10px;">
-                        <span style="font-size: 12px;">Reporting Manager</span>
-                    </div>
+                <div class="signature-box">
+                    <div class="signature-line">Reporting Manager</div>
                 </div>
-                <div style="text-align: center; flex: 1;">
-                    <div style="border-top: 1px solid #000; padding-top: 8px; margin: 0 10px;">
-                        <span style="font-size: 12px;">Department Head</span>
-                    </div>
+                <div class="signature-box">
+                    <div class="signature-line">Department Head</div>
                 </div>
-                <div style="text-align: center; flex: 1;">
-                    <div style="border-top: 1px solid #000; padding-top: 8px; margin: 0 10px;">
-                        <span style="font-size: 12px;">HR</span>
-                    </div>
+                <div class="signature-box">
+                    <div class="signature-line">HR</div>
                 </div>
             </div>
+            
+            <!-- ✅ Buttons inside the new tab - NOT blocking the main app -->
+            <div class="print-button-container no-print">
+                
+            <button class="close-btn" onclick="window.close()">✕ Close</button>
+            <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+                
+            </div>
         </div>
+        
         <script>
-            window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                    window.close();
-                }, 500);
-            };
-        </script>
+            // ✅ Auto-print after a delay - but user can also click the button
+            setTimeout(function() {
+                // Optional: auto-print after 1 second
+                // window.print();
+            }, 1000);
+            
+            // ✅ Add keyboard shortcut for Ctrl+P to trigger print
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    window.print();
+                }
+            });
+        <\/script>
     </body>
-</html>
-`;
+</html>`;
 
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
+    // ✅ Open a new tab with the HTML
+    const printWindow = window.open('', '_blank');
+    
+    if (!printWindow) {
+        setSnackbar({
+            open: true,
+            message: "Please allow popups for this site to print",
+            severity: "warning",
+        });
+        return;
+    }
 
-        // ✅ Wait for content to load then print
-        printWindow.onload = function () {
-            setTimeout(function () {
-                printWindow.focus();
-                printWindow.print();
-            }, 300);
-        };
-
-        // ✅ Let the user close the window naturally
-        printWindow.onafterprint = function () {
-            // Don't auto-close - let the user close it
-            // This prevents the main app from being blocked
-            console.log('Print completed or cancelled');
-        };
-    };
-
+    // ✅ Write the content
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
+    
+    // ✅ Focus the new tab
+    printWindow.focus();
+};
     // ============================================
     // RENDER
     // ============================================
@@ -1407,11 +1436,11 @@ const AttendanceCorrectionForm = () => {
                         <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
                             <Button
                                 variant="outlined"
-                                onClick={handleBackToEdit}
-                                startIcon={<RestartAltIcon />}
+                                onClick={handleClose}
+                                startIcon={<CloseIcon />}
                                 size="large"
                             >
-                                Back to Edit
+                                Close
                             </Button>
                             <Button
                                 variant="contained"

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from 'react-router-dom';
 import { getEmployeeCorrectionRequests } from "../../services/attendanceCorrectionService";
 import {
     Container,
@@ -18,14 +19,25 @@ import {
     Card,
     CardContent,
     Grid,
+    Button,
+    Tooltip,
+    IconButton,
+    useTheme,
 } from "@mui/material";
-import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
+import {
+    AccessTime as AccessTimeIcon,
+    Print as PrintIcon,
+} from "@mui/icons-material";
+import logo from "./../../assets/BodlaGroupLogo.svg";
 
 const MyAttendanceCorrectionRequests = () => {
+    const theme = useTheme();
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [printing, setPrinting] = useState(null);
 
     useEffect(() => {
         fetchRequests();
@@ -55,8 +67,8 @@ const MyAttendanceCorrectionRequests = () => {
 
     const getPunchTypeChip = (type) => {
         return (
-            <Chip 
-                label={type === 0 ? "IN" : "OUT"} 
+            <Chip
+                label={type === 0 ? "IN" : "OUT"}
                 size="small"
                 color={type === 0 ? "primary" : "secondary"}
             />
@@ -72,6 +84,357 @@ const MyAttendanceCorrectionRequests = () => {
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    // ============================================
+    // GET PUNCH TYPE LABEL
+    // ============================================
+    const getPunchTypeLabel = (type) => {
+        return type === 0 ? "IN" : "OUT";
+    };
+
+    // ============================================
+    // HANDLE PRINT INDIVIDUAL REQUEST - NON-BLOCKING
+    // ============================================
+    const handlePrintRequest = (request) => {
+        setPrinting(request.RequestID);
+        
+        // ✅ Open in a new tab
+        const printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+            setPrinting(null);
+            alert("Please allow popups for this site to print");
+            return;
+        }
+
+        const applicationIdDisplay = request.RequestID || "Pending";
+
+        // Format dates for print
+        const punchDateObj = new Date(request.PunchTime);
+        const punchDateStr = punchDateObj.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        const punchTimeStr = punchDateObj.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const appliedDateStr = new Date(request.AppliedDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const printHTML = `
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Attendance Correction - ${applicationIdDisplay}</title>
+        <meta charset="utf-8">
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Arial, sans-serif; 
+                background: #f0f2f5; 
+                padding: 20px; 
+                color: #333; 
+            }
+            .print-container { 
+                max-width: 210mm; 
+                margin: 0 auto; 
+                background: white; 
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            
+            @media print {
+                body { background: white; padding: 0; }
+                .print-container { box-shadow: none; border-radius: 0; padding: 40px; }
+                .no-print { display: none !important; }
+                .print-button-container { display: none !important; }
+            }
+            
+            .header { 
+                margin-bottom: 16px; 
+                padding-bottom: 16px; 
+                border-bottom: 1px solid #333; 
+                display: flex; 
+                flex-wrap: wrap; 
+                flex-direction: row; 
+            }
+            .header .header-logo { width: 100px; height: auto; }
+            .header .header-logo img { width: 100%; height: auto; border:0; }
+            .header .header-company { 
+                width: auto; 
+                height: auto; 
+                margin: 0 auto; 
+                text-align: center; 
+                padding-right: 15%; 
+            }
+            .header .header-company .company-name { 
+                font-size: 1rem;
+                line-height: 1.5;
+                font-weight: 800;
+                margin-top: 4px; 
+                letter-spacing: 2px; 
+            }
+            .form-title { 
+                font-size: 1.25rem;
+                line-height: 1.4;
+                color: #1e293b;
+                font-weight: 600;
+                margin-top: 4px;
+            }
+            .header .app-info { 
+                display: flex; 
+                flex-wrap: wrap; 
+                flex-direction: row; 
+                align-items: center; 
+                justify-content: space-between; 
+                width: 100%; 
+                margin-top: 0.5rem; 
+                font-size: 0.875rem; 
+                gap: 1rem; 
+            }
+            
+            .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
+            .section-title { 
+                font-size: 16px; 
+                font-weight: 700; 
+                margin-bottom: 15px; 
+                padding-bottom: 8px; 
+                border-bottom: 1px solid #ddd; 
+                width: 100%; 
+            }
+            
+            .info-grid { 
+                display: flex; 
+                gap: 16px; 
+                margin-bottom: 20px; 
+                width: 100%; 
+            }
+            .info-item { margin-bottom: 8px; flex: 1; min-width: 0; }
+            .info-label { font-size: 11px; color: #777; margin-bottom: 4px; }
+            .info-value { 
+                font-size: 14px; 
+                font-weight: 400; 
+                padding-bottom: 6px; 
+                border-bottom: 1px solid #eee; 
+            }
+            .info-value.highlight { font-weight: 700; }
+            
+            .details-grid { 
+                display: flex; 
+                gap: 16px; 
+                width: 100%; 
+                flex-wrap: wrap; 
+            }
+            .details-grid .info-item{ flex: 1; min-width: 0; }
+            
+            .reason-box { 
+                padding: 12px; 
+                border: 1px solid #eee; 
+                border-radius: 4px; 
+                min-height: 80px; 
+                line-height: 1.6; 
+                width: 100%; 
+                background: #f9f9f9; 
+                margin-top: 4px;
+            }
+            
+            .approval-header { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                margin-bottom: 16px; 
+                margin-top: 200px; 
+                padding-bottom: 16px; 
+                border-bottom: 2px solid #ddd; 
+            }
+            .approval-title { font-size: 16px; font-weight: 700; }
+            .signature-header { 
+                display: flex; 
+                justify-content: space-between; 
+                margin-top: 150px; 
+                width: 100%;
+            }
+            .signature-box { 
+                text-align: center; 
+                flex: 1;
+                margin: 0 10px;
+            }
+            .signature-line { 
+                border-top: 1px solid #000; 
+                padding-top: 8px; 
+                margin-top: 4px; 
+                font-size: 12px; 
+            }
+            
+            .print-button-container {
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #ddd;
+            }
+            
+            .print-btn {
+                background: linear-gradient(135deg, #475569 0%, #475569 100%);
+                color: white;
+                border: none;
+                padding: 12px 40px;
+                font-size: 16px;
+                font-weight: 600;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 0 10px;
+            }
+            .print-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            }
+            .close-btn {
+                background: rgba(71, 85, 105, 0.5);
+                color: #475569;
+                border: 1px solid rgba(71, 85, 105, 0.5);
+                border: none;
+                padding: 12px 40px;
+                font-size: 16px;
+                font-weight: 600;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 0 10px;
+            }
+            .close-btn:hover {
+                background: #cbd5e1;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="print-container">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-logo">
+                    <img src="${logo}" alt="Bodla Group Logo" />
+                </div>
+                <div class="header-company">
+                    <div class="company-name">BODLA GROUP</div>
+                    <div class="form-title">Attendance Correction Request</div>
+                </div>
+                <div class="app-info">
+                    <span><strong>Request ID:</strong>  BGAC-${applicationIdDisplay}</span>
+                    <span><strong>Application Date:</strong> ${appliedDateStr}</span>
+                </div>
+            </div>
+
+            <!-- Employee Information -->
+            <div class="section">
+                <div class="section-title">Employee Information</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Employee Code</div>
+                        <div class="info-value">${request.EmployeeCode || "—"}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Employee Name</div>
+                        <div class="info-value">${request.EmployeeName || "—"}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Designation</div>
+                        <div class="info-value">${request.Designation || "—"}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Department</div>
+                        <div class="info-value">${request.Department || "—"}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Correction Details -->
+            <div class="section">
+                <div class="section-title">Correction Details</div>
+                <div class="details-grid">
+                    <div class="info-item">
+                        <div class="info-label">Punch Date</div>
+                        <div class="info-value highlight">${punchDateStr}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Punch Time</div>
+                        <div class="info-value highlight">${punchTimeStr}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Punch Type</div>
+                        <div class="info-value highlight">${getPunchTypeLabel(request.PunchType)}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Device Name</div>
+                        <div class="info-value">${request.DeviceName || "Web"}</div>
+                    </div>
+                </div>
+                <div style="width: 100%; margin-top: 12px;">
+                    <div class="info-label">Reason for Correction</div>
+                    <div class="reason-box">${request.Reason || "—"}</div>
+                </div>
+            </div>
+
+            <!-- Approval Information -->
+            <div class="approval-header">
+                <div class="approval-title">Approval Information</div>
+                <div><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
+            </div>
+
+            <!-- Signature Block - Bottom Aligned -->
+            <div class="signature-header">
+                <div class="signature-box">
+                    <div class="signature-line">Employee</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line">Reporting Manager</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line">Department Head</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line">HR</div>
+                </div>
+            </div>
+            
+            <!-- ✅ Buttons inside the new tab - NOT blocking the main app -->
+            <div class="print-button-container no-print">
+                
+            <button class="close-btn" onclick="window.close()">✕ Close</button>
+            <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+                
+            </div>
+        </div>
+        
+        <script>    
+            // ✅ Add keyboard shortcut for Ctrl+P to trigger print
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    window.print();
+                }
+            });
+        <\/script>
+    </body>
+</html>`;
+
+        // ✅ Write the HTML content to the new window
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+        
+        // ✅ Focus the new tab
+        printWindow.focus();
+        
+        // ✅ Reset printing state
+        setPrinting(null);
     };
 
     // Stats
@@ -142,7 +505,7 @@ const MyAttendanceCorrectionRequests = () => {
 
             {requests.length === 0 ? (
                 <Alert severity="info">
-                    No attendance correction requests found. 
+                    No attendance correction requests found.
                     <a href="/attendance-correction/apply" style={{ marginLeft: 8 }}>
                         Apply for correction
                     </a>
@@ -158,6 +521,7 @@ const MyAttendanceCorrectionRequests = () => {
                                 <TableCell>Device</TableCell>
                                 <TableCell>Status</TableCell>
                                 <TableCell>Applied Date</TableCell>
+                                <TableCell align="center">Action</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -169,6 +533,27 @@ const MyAttendanceCorrectionRequests = () => {
                                     <TableCell>{req.DeviceName || "Web"}</TableCell>
                                     <TableCell>{getStatusChip(req.Status)}</TableCell>
                                     <TableCell>{formatDateTime(req.AppliedDate)}</TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip title="Print this request">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handlePrintRequest(req)}
+                                                disabled={printing === req.RequestID}
+                                                sx={{
+                                                    color: theme.palette.primary.main,
+                                                    '&:hover': {
+                                                        backgroundColor: theme.palette.primary.light,
+                                                    }
+                                                }}
+                                            >
+                                                {printing === req.RequestID ? (
+                                                    <CircularProgress size={20} />
+                                                ) : (
+                                                    <PrintIcon fontSize="small" />
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
