@@ -10,25 +10,25 @@ import Register from './pages/Register';
 import DashboardContent from './components/Dashboard/DashboardContent';
 
 // Import modules
-import Dashboard from "../src/modules/dashboard/Dashboard";
-import Customers from "../src/modules/customers/Customers";
-import Projects from "../src/modules/projects/Projects";
-import ReceiptsForm from "../src/modules/receipts/ReceiptForm";
-import Receipts from "../src/modules/receipts/ReceiptsList";
-import PaymentTypes from "../src/modules/PaymentTypes/PaymentTypes";
-import InstallmentPlans from "../src/modules/installmentPlans/InstallmentPlans";
-import Inventory from "../src/modules/inventory/Inventory";
-import TaxRates from "../src/modules/taxRates/TaxRates";
-import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
-import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
+import Dashboard from "./modules/dashboard/Dashboard";
+import Customers from "./modules/customers/Customers";
+import Projects from "./modules/projects/Projects";
+import ReceiptsForm from "./modules/receipts/ReceiptForm";
+import Receipts from "./modules/receipts/ReceiptsList";
+import PaymentTypes from "./modules/PaymentTypes/PaymentTypes";
+import InstallmentPlans from "./modules/installmentPlans/InstallmentPlans";
+import Inventory from "./modules/inventory/Inventory";
+import TaxRates from "./modules/taxRates/TaxRates";
+import CashAndBank from "./modules/CashAndBank/CashAndBank";
+import CashAndBankForm from './modules/CashAndBank/CashAndBankForm';
 import Employees from './modules/Employees/Employees';
-import MobileCheckIn from '../src/modules/Mobilecheckin';
+import MobileCheckIn from './modules/Mobilecheckin';
 
 // Leave Module 
-import LeaveDashboard from '../src/modules/Leave/LeaveDashboard';
-import LeaveTypes from '../src/modules/Leave/LeaveTypes';
-import LeaveRequests from '../src/modules/Leave/LeaveRequests';
-import LeaveApply from '../src/modules/Leave/LeaveApply';
+import LeaveDashboard from './modules/Leave/LeaveDashboard';
+import LeaveTypes from './modules/Leave/LeaveTypes';
+import LeaveRequests from './modules/Leave/LeaveRequests';
+import LeaveApply from './modules/Leave/LeaveApply';
 import TeamRequests from './modules/Leave/TeamRequests';
 import LeaveBalance from './modules/Leave/LeaveBalance';
 
@@ -36,8 +36,8 @@ import LeaveBalance from './modules/Leave/LeaveBalance';
 import AllRequests from './modules/Leave/AllRequests';
 
 import AttendanceCorrectionForm from './modules/Attendance/AttendanceCorrectionForm';
-import MyAttendanceCorrectionRequests from '../src/modules/Attendance/MyAttendanceCorrectionRequests';
-import AttendanceCorrectionManagement from '../src/modules/Attendance/AttendanceCorrectionManagement';
+import MyAttendanceCorrectionRequests from './modules/Attendance/MyAttendanceCorrectionRequests';
+import AttendanceCorrectionManagement from './modules/Attendance/AttendanceCorrectionManagement';
 
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
