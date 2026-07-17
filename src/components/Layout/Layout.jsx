@@ -220,14 +220,6 @@ function Layout() {
       });
     }
 
-    if (canAccessModule(MODULES.ATTENDANCE)) {
-      items.push({
-        text: 'Attendance',
-        icon: <CameraAltIcon />,
-        path: '/AttendanceLiveFeed'
-      });
-    }
-
     return items;
   };
 
