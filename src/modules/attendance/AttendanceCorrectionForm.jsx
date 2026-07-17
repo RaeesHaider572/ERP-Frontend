@@ -818,7 +818,7 @@ const AttendanceCorrectionForm = () => {
                 </div>
                 <div class="header-company">
                     <div class="company-name">BODLA GROUP</div>
-                    <div class="form-title">Attendance Correction Form</div>
+                    <div class="form-title">Attendance Correction Request</div>
                 </div>
                 <div class="app-info">
                     <span><strong>Request ID:</strong>  BGAC-${applicationIdDisplay}</span>
@@ -943,18 +943,19 @@ const AttendanceCorrectionForm = () => {
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
                                 <Box component="img" src={logo} alt="Bodla Group"
-                                    sx={{ height: 80, width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
+                                    sx={{width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
                             </Grid>
-                            <Grid item size={{ xs: 12, md: 10 }}>
+                            <Grid item size={{ xs: 12, md: 8 }}>
                                 <Box sx={{ textAlign: "center" }}>
                                     <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 800 }}>
                                         BODLA GROUP
                                     </Typography>
                                     <Typography variant="h5" sx={{ fontWeight: 600, mt: 0.5 }}>
-                                        Attendance Correction Form
+                                        Attendance Correction Request
                                     </Typography>
                                 </Box>
                             </Grid>
+                            <Grid item size={{ xs: 12, md: 2 }}></Grid>
                         </Grid>
                         <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid size={{ xs: 12, md: 6 }}>
@@ -1227,7 +1228,7 @@ const AttendanceCorrectionForm = () => {
                                         BODLA GROUP
                                     </Typography>
                                     <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: "#555" }}>
-                                        Attendance Correction Form
+                                        Attendance Correction Request
                                     </Typography>
                                 </Box>
                             </Grid>
