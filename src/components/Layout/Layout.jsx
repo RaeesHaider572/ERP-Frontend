@@ -22,6 +22,7 @@ import {
   Payments as InstallmentIcon,
   Work as WorkIcon,
   CameraAlt as CameraAltIcon,
+  AccessTime as AccessTimeIcon, // ✅ ADD THIS for Attendance Correction
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -105,12 +106,13 @@ function Layout() {
     return location.pathname === path || location.pathname.startsWith(path);
   };
 
-  // 🔒 Role-based menu items (Section 10 - Screen-Level Access Control).
-  // Leave Module is now FLAT for every role — no collapsible dropdown.
+  // 🔒 Role-based menu items
   const getMenuItems = () => {
     const items = [];
 
-    // Leave Module - flat top-level links for every role
+    // ========================================
+    // LEAVE MODULE - flat top-level links
+    // ========================================
     if (canAccessModule(MODULES.LEAVE)) {
       const leaveItems = [
         { text: 'Leave Dashboard', path: '/leave-dashboard' },
@@ -122,8 +124,7 @@ function Layout() {
       // HR gets additional menu items
       if (isHR()) {
         leaveItems.push(
-          { text: 'All Requests', path: '/leave/all-requests' },
-          { text: 'Approval Dashboard', path: '/leave/approval' }
+          { text: 'All Requests', path: '/leave/all-requests' }
         );
       }
 
@@ -141,7 +142,33 @@ function Layout() {
       });
     }
 
-    // Employees - Custodian and HR only
+    // ========================================
+    // ✅ ATTENDANCE CORRECTION MODULE
+    // ========================================
+    // All employees can see these
+    items.push({
+      text: 'Apply Correction',
+      icon: <AccessTimeIcon />,
+      path: '/attendance-correction/apply'
+    });
+    items.push({
+      text: 'My Corrections',
+      icon: <AccessTimeIcon />,
+      path: '/attendance-correction/my-requests'
+    });
+
+    // HR only - Management
+    if (isHR()) {
+      items.push({
+        text: 'Manage Corrections',
+        icon: <AccessTimeIcon />,
+        path: '/attendance-correction/management'
+      });
+    }
+
+    // ========================================
+    // EMPLOYEES - Custodian & HR only
+    // ========================================
     if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
       items.push({
         text: isHR() ? 'Employees' : 'My Team',
@@ -150,7 +177,9 @@ function Layout() {
       });
     }
 
-    // Other modules
+    // ========================================
+    // OTHER MODULES
+    // ========================================
     if (canAccessModule(MODULES.CUSTOMERS)) {
       items.push({
         text: 'Customers',
@@ -463,9 +492,11 @@ function Layout() {
     if (location.pathname.includes('/LeaveBalance')) return 'Leave Balance';
     if (location.pathname.includes('/leave/team-requests')) return 'Team Requests';
     if (location.pathname.includes('/leave/all-requests')) return 'All Requests';
-    if (location.pathname.includes('/leave/approval')) return 'Approval Dashboard';
-    if (location.pathname.includes('/leave/reports')) return 'Leave Reports';
-    if (location.pathname.includes('/leave')) return 'Leave Module';
+
+    // ✅ Attendance Correction routes
+    if (location.pathname.includes('/attendance-correction/apply')) return 'Apply Attendance Correction';
+    if (location.pathname.includes('/attendance-correction/my-requests')) return 'My Correction Requests';
+    if (location.pathname.includes('/attendance-correction/management')) return 'Manage Corrections';
 
     // Other routes
     if (location.pathname.includes('/employees')) return 'Employees';

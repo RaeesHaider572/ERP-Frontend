@@ -21,7 +21,7 @@ import Inventory from "../src/modules/inventory/Inventory";
 import TaxRates from "../src/modules/taxRates/TaxRates";
 import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
-import AttendanceLiveFeed from '../src/modules/attendance/AttendanceLiveFeed';
+import AttendanceLiveFeed from './modules/Attendance/AttendanceLiveFeed';
 import Employees from './modules/Employees/Employees';
 import MobileCheckIn from '../src/modules/Mobilecheckin';
 
@@ -35,7 +35,10 @@ import LeaveBalance from './modules/Leave/LeaveBalance';
 
 
 import AllRequests from './modules/Leave/AllRequests';
-// import MyRequests from './modules/Leave/MyRequests';
+
+import AttendanceCorrectionForm from './modules/Attendance/AttendanceCorrectionForm';
+import MyAttendanceCorrectionRequests from '../src/modules/Attendance/MyAttendanceCorrectionRequests';
+import AttendanceCorrectionManagement from '../src/modules/Attendance/AttendanceCorrectionManagement';
 
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
@@ -124,6 +127,26 @@ function App() {
                                     <AllRequests />
                                 </RoleGuard>
                             </ModuleGuard>
+                        } />
+
+                        {/* ======================================== */}
+                        {/* ✅ ATTENDANCE CORRECTION MODULE */}
+                        {/* ======================================== */}
+                        {/* All employees can apply for attendance correction */}
+                        <Route path="attendance-correction/apply" element={
+                            <AttendanceCorrectionForm />
+                        } />
+                        
+                        {/* All employees can view their own correction requests */}
+                        <Route path="attendance-correction/my-requests" element={
+                            <MyAttendanceCorrectionRequests />
+                        } />
+
+                        {/* Only HR can manage/approve attendance correction requests */}
+                        <Route path="attendance-correction/management" element={
+                            <RoleGuard roles={['HR']}>
+                                <AttendanceCorrectionManagement />
+                            </RoleGuard>
                         } />
 
                         {/* ======================================== */}

@@ -153,6 +153,10 @@ function Employees() {
         navigate(`/LeaveApply?employeeCode=${employeeCode}`);
     };
 
+    const handleApplyCorrectionForTeamMember = (employeeCode) => {
+        navigate(`/attendance-correction/apply?employeeCode=${employeeCode}`);
+    };
+
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -595,7 +599,7 @@ function Employees() {
                                                     {formatDate(emp.JoinDate)}
                                                 </TableCell>
                                                 <TableCell sx={{ whiteSpace: 'nowrap' }} align="right">
-                                                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                                         {isHR() ? (
                                                             <>
                                                                 <Tooltip title="Edit Employee">
@@ -618,20 +622,47 @@ function Employees() {
                                                                 </Tooltip>
                                                             </>
                                                         ) : isCustodian() && emp.EmployeeID !== user?.EmployeeID ? (
-                                                            <Button
-                                                                size="small"
-                                                                variant="contained"
-                                                                onClick={() => handleApplyForTeamMember(emp.EmployeeCode)}
-                                                                sx={{
-                                                                    fontSize: '0.65rem',
-                                                                    py: 0.5,
-                                                                    px: 1,
-                                                                    minWidth: 'auto',
-                                                                    textTransform: 'none',
-                                                                }}
-                                                            >
-                                                                Apply Leave
-                                                            </Button>
+                                                            <>
+                                                                <Tooltip title="Apply Leave for this employee">
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="contained"
+                                                                        color="primary"
+                                                                        onClick={() => handleApplyForTeamMember(emp.EmployeeCode)}
+                                                                        sx={{
+                                                                            fontSize: '0.6rem',
+                                                                            py: 0.5,
+                                                                            px: 1,
+                                                                            minWidth: 'auto',
+                                                                            textTransform: 'none',
+                                                                            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                                                        }}
+                                                                    >
+                                                                        Apply Leave
+                                                                    </Button>
+                                                                </Tooltip>
+                                                                <Tooltip title="Apply Attendance Correction for this employee">
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="contained"
+                                                                        color="primary"
+                                                                        onClick={() => handleApplyCorrectionForTeamMember(emp.EmployeeCode)}
+                                                                        sx={{
+                                                                            fontSize: '0.6rem',
+                                                                            py: 0.5,
+                                                                            px: 1,
+                                                                            minWidth: 'auto',
+                                                                            textTransform: 'none',
+                                                                            background: `linear-gradient(135deg, #0004ff88 0%, #0004ff88 100%)`,
+                                                                            '&:hover': {
+                                                                                background: `linear-gradient(135deg, #0004ff88 0%, #0004ff88 100%)`,
+                                                                            },
+                                                                        }}
+                                                                    >
+                                                                        Attendance Correction
+                                                                    </Button>
+                                                                </Tooltip>
+                                                            </>
                                                         ) : isCustodian() && emp.EmployeeID === user?.EmployeeID ? (
                                                             <Chip
                                                                 label="Yourself"
