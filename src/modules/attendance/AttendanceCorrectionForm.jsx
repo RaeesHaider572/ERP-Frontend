@@ -77,7 +77,7 @@ const AttendanceCorrectionForm = () => {
     // ============================================
     const fetchTeamMembers = async () => {
         if (!isCustodian() || !user?.EmployeeID) return;
-        
+
         setLoadingTeam(true);
         try {
             const res = await api.get(`/employees/team/${user.EmployeeID}`);
@@ -98,7 +98,7 @@ const AttendanceCorrectionForm = () => {
             // ✅ After team members are loaded, check if we have an employee code from URL
             const params = new URLSearchParams(window.location.search);
             const employeeCode = params.get('employeeCode');
-            
+
             if (employeeCode && !formData.employeeId) {
                 fetchEmployeeByCode(employeeCode);
             }
@@ -132,7 +132,7 @@ const AttendanceCorrectionForm = () => {
 
         setFetchingEmployee(true);
         setFormData((prev) => ({ ...prev, isLoadingEmployee: true }));
-        
+
         try {
             const res = await api.get(`/employees/code/${code}`);
             const emp = res.data?.data;
@@ -232,11 +232,11 @@ const AttendanceCorrectionForm = () => {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const employeeCode = params.get('employeeCode');
-        
+
         if (employeeCode) {
             // ✅ Clear any existing selection
             setSelectedTeamMember(null);
-            
+
             // ✅ Set the employee code and fetch details
             setFormData((prev) => ({
                 ...prev,
@@ -246,7 +246,7 @@ const AttendanceCorrectionForm = () => {
                 department: "",
                 employeeId: null,
             }));
-            
+
             // ✅ Fetch employee details
             fetchEmployeeByCode(employeeCode);
         }
@@ -267,7 +267,7 @@ const AttendanceCorrectionForm = () => {
                 employeeId: value.EmployeeID,
                 preparedBy: user?.Name || "",
             }));
-            
+
             setSnackbar({
                 open: true,
                 message: `Selected: ${value.Name}`,
@@ -434,14 +434,14 @@ const AttendanceCorrectionForm = () => {
                     const printData = printDataResponse.data || printDataResponse;
 
                     const rawPunchTime = printData.PunchTime || new Date().toISOString();
-                    
+
                     let punchDateStr = formData.punchDate;
                     let punchTimeStr = formData.punchTime;
-                    
+
                     if (rawPunchTime) {
                         const dateMatch = rawPunchTime.match(/^(\d{4})-(\d{2})-(\d{2})/);
                         const timeMatch = rawPunchTime.match(/(\d{2}):(\d{2}):(\d{2})/);
-                        
+
                         if (dateMatch) {
                             punchDateStr = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
                         }
@@ -525,6 +525,27 @@ const AttendanceCorrectionForm = () => {
     };
 
     // ============================================
+    // HANDLE BACK TO EDIT
+    // ============================================
+    const handleBackToEdit = () => {
+        // Close print preview
+        setShowPrintPreview(false);
+
+        // ✅ Enable editing - this will enable all fields
+        setSubmitted(false);
+
+        // ✅ Scroll to top of form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // ✅ Show a message to the user
+        setSnackbar({
+            open: true,
+            message: "You can now edit the request details",
+            severity: "info",
+        });
+    };
+
+    // ============================================
     // FORMAT DATE - WITHOUT TIMEZONE CONVERSION
     // ============================================
     const formatDate = (dateString) => {
@@ -562,11 +583,11 @@ const AttendanceCorrectionForm = () => {
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return "—";
-            
+
             const month = date.toLocaleString('en-US', { month: 'long' });
             const day = date.getDate();
             const year = date.getFullYear();
-            
+
             return `${month} ${day}, ${year}`;
         } catch (error) {
             return "—";
@@ -613,7 +634,17 @@ const AttendanceCorrectionForm = () => {
     // HANDLE PRINT
     // ============================================
     const handlePrint = () => {
-        const printWindow = window.open('', '_blank');
+        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+
+        if (!printWindow) {
+            setSnackbar({
+                open: true,
+                message: "Please allow popups for this site to print",
+                severity: "warning",
+            });
+            return;
+        }
+
         const applicationIdDisplay = formData.requestId ? `${formData.requestId}` : "Pending";
 
         let punchDateStr = formData.punchDate;
@@ -622,7 +653,7 @@ const AttendanceCorrectionForm = () => {
         if (formData.rawPunchTime) {
             const dateMatch = formData.rawPunchTime.match(/^(\d{4})-(\d{2})-(\d{2})/);
             const timeMatch = formData.rawPunchTime.match(/(\d{2}):(\d{2})/);
-            
+
             if (dateMatch) {
                 const year = parseInt(dateMatch[1]);
                 const month = parseInt(dateMatch[2]) - 1;
@@ -648,7 +679,7 @@ const AttendanceCorrectionForm = () => {
                 month: 'long',
                 day: 'numeric'
             });
-            
+
             if (formData.punchTime) {
                 const timeParts = formData.punchTime.split(':');
                 if (timeParts.length === 2) {
@@ -667,6 +698,7 @@ const AttendanceCorrectionForm = () => {
             month: 'long',
             day: 'numeric'
         });
+
 
         const printHTML = `
 <!DOCTYPE html>
@@ -696,15 +728,18 @@ const AttendanceCorrectionForm = () => {
                 padding-right: 15%; 
             }
             .header .header-company .company-name { 
-                font-size: 20px; 
-                font-weight: 800; 
+                font-size: 1rem;
+                line-height: 1.5;
+                font-weight: 800;
+                margin-top: 4px; 
                 letter-spacing: 2px; 
             }
             .form-title { 
-                font-size: 24px; 
-                font-weight: 600; 
-                margin-top: 8px; 
-                color: #333; 
+                font-size: 1.25rem;
+                line-height: 1.4;
+                color: #1e293b;
+                font-weight: 600;
+                margin-top: 4px;
             }
             .header .app-info { 
                 display: flex; 
@@ -920,6 +955,21 @@ const AttendanceCorrectionForm = () => {
 
         printWindow.document.write(printHTML);
         printWindow.document.close();
+
+        // ✅ Wait for content to load then print
+        printWindow.onload = function () {
+            setTimeout(function () {
+                printWindow.focus();
+                printWindow.print();
+            }, 300);
+        };
+
+        // ✅ Let the user close the window naturally
+        printWindow.onafterprint = function () {
+            // Don't auto-close - let the user close it
+            // This prevents the main app from being blocked
+            console.log('Print completed or cancelled');
+        };
     };
 
     // ============================================
@@ -943,14 +993,14 @@ const AttendanceCorrectionForm = () => {
                         <Grid container alignItems="center" spacing={2}>
                             <Grid item size={{ xs: 12, md: 2 }}>
                                 <Box component="img" src={logo} alt="Bodla Group"
-                                    sx={{width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
+                                    sx={{ width: "auto", objectFit: "contain", display: "block", mx: { xs: "auto", md: 0 } }} />
                             </Grid>
                             <Grid item size={{ xs: 12, md: 8 }}>
                                 <Box sx={{ textAlign: "center" }}>
-                                    <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 800 }}>
+                                    <Typography variant="h5" sx={{ color: theme.palette.primary.main, fontWeight: 800 }}>
                                         BODLA GROUP
                                     </Typography>
-                                    <Typography variant="h5" sx={{ fontWeight: 600, mt: 0.5 }}>
+                                    <Typography variant="h3" sx={{ fontWeight: 600, mt: 0.5 }}>
                                         Attendance Correction Request
                                     </Typography>
                                 </Box>
@@ -1224,10 +1274,10 @@ const AttendanceCorrectionForm = () => {
                             </Grid>
                             <Grid item size={{ xs: 12, md: 10 }}>
                                 <Box sx={{ textAlign: "center" }}>
-                                    <Typography variant="h4" sx={{ color: theme.palette.primary.main, fontWeight: 800, letterSpacing: 2 }}>
+                                    <Typography variant="h5" sx={{ color: theme.palette.primary.main, fontWeight: 800, letterSpacing: 2 }}>
                                         BODLA GROUP
                                     </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: "#555" }}>
+                                    <Typography variant="h3" sx={{ fontWeight: 600, mt: 0.5, color: "#555" }}>
                                         Attendance Correction Request
                                     </Typography>
                                 </Box>
@@ -1357,7 +1407,7 @@ const AttendanceCorrectionForm = () => {
                         <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
                             <Button
                                 variant="outlined"
-                                onClick={() => setShowPrintPreview(false)}
+                                onClick={handleBackToEdit}
                                 startIcon={<RestartAltIcon />}
                                 size="large"
                             >
