@@ -21,7 +21,6 @@ import Inventory from "../src/modules/inventory/Inventory";
 import TaxRates from "../src/modules/taxRates/TaxRates";
 import CashAndBank from "../src/modules/CashAndBank/CashAndBank";
 import CashAndBankForm from '../src/modules/CashAndBank/CashAndBankForm';
-// import AttendanceLiveFeed from './modules/Attendance/AttendanceLiveFeed';
 import Employees from './modules/Employees/Employees';
 import MobileCheckIn from '../src/modules/Mobilecheckin';
 
@@ -235,12 +234,6 @@ function App() {
                             </ModuleGuard>
                         } />
 
-                        {/* Attendance - Only specific employees with granted access */}
-                        {/* <Route path="AttendanceLiveFeed" element={
-                            <ModuleGuard module={MODULES.ATTENDANCE}>
-                                <AttendanceLiveFeed />
-                            </ModuleGuard>
-                        } /> */}
 
                         {/* Mobile Checkin - Only specific employees with granted access */}
                         <Route path="mobile-checkin" element={
