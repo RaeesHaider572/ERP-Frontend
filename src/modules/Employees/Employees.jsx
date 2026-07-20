@@ -343,7 +343,7 @@ function Employees() {
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={6}>
                         <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                            {isHR() ? 'Employee Management' : 'My Team'}
+                            {isHR() ? 'Employee Management' : 'My Ward'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                             {isHR()
