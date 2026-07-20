@@ -68,3 +68,24 @@ export const getCorrectionStats = async () => {
         throw error;
     }
 };
+
+// ============================================
+// GET TEAM MEMBERS' CORRECTION REQUESTS (CUSTODIAN)
+// ============================================
+export const getTeamMemberRequests = async (filters = {}) => {
+    try {
+        const queryParams = new URLSearchParams();
+        if (filters.status) queryParams.append('status', filters.status);
+        if (filters.employeeId) queryParams.append('employeeId', filters.employeeId);
+        if (filters.startDate) queryParams.append('startDate', filters.startDate);
+        if (filters.endDate) queryParams.append('endDate', filters.endDate);
+
+        const url = `/attendance-correction/team-requests?${queryParams.toString()}`;
+        const response = await api.get(url);
+        return response.data;
+    } catch (error) {
+        console.error("❌ API Error in getTeamMemberRequests:", error);
+        throw error;
+    }
+};
+

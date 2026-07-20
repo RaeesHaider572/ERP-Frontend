@@ -38,6 +38,7 @@ import AllRequests from './modules/Leave/AllRequests';
 import AttendanceCorrectionForm from './modules/attendance/AttendanceCorrectionForm';
 import MyAttendanceCorrectionRequests from './modules/attendance/MyAttendanceCorrectionRequests';
 import AttendanceCorrectionManagement from './modules/attendance/AttendanceCorrectionManagement';
+import AttendanceTeamRequests from './modules/attendance/AttendanceTeamRequests';
 
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
@@ -135,10 +136,17 @@ function App() {
                         <Route path="attendance-correction/apply" element={
                             <AttendanceCorrectionForm />
                         } />
-                        
+
                         {/* All employees can view their own correction requests */}
                         <Route path="attendance-correction/my-requests" element={
                             <MyAttendanceCorrectionRequests />
+                        } />
+                        
+                        {/* Custodians can view team members' correction requests */}
+                        <Route path="attendance-correction/team-requests" element={
+                            <RoleGuard roles={['custodian']}>
+                                <AttendanceTeamRequests />
+                            </RoleGuard>
                         } />
 
                         {/* Only HR can manage/approve attendance correction requests */}

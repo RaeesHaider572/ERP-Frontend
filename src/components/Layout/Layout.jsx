@@ -22,7 +22,8 @@ import {
   Payments as InstallmentIcon,
   Work as WorkIcon,
   CameraAlt as CameraAltIcon,
-  AccessTime as AccessTimeIcon, // ✅ ADD THIS for Attendance Correction
+  AccessTime as AccessTimeIcon,
+  Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -157,7 +158,14 @@ function Layout() {
       icon: <AccessTimeIcon />,
       path: '/attendance-correction/my-requests'
     });
-
+// Custodian can see Team Requests
+if (isCustodian()) {
+  items.push({
+    text: 'Team Requests',
+    icon: <GroupsIcon />,
+    path: '/attendance-correction/team-requests'
+  });
+}
     // HR only - Management
     if (isHR()) {
       items.push({
@@ -172,7 +180,7 @@ function Layout() {
     // ========================================
     if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
       items.push({
-        text: isHR() ? 'Employees' : 'My Team',
+        text: isHR() ? 'Employees' : 'My Ward',
         icon: <EmployeeIcon />,
         path: '/employees'
       });
@@ -490,6 +498,7 @@ function Layout() {
     if (location.pathname.includes('/attendance-correction/apply')) return 'Apply Attendance Correction';
     if (location.pathname.includes('/attendance-correction/my-requests')) return 'My Correction Requests';
     if (location.pathname.includes('/attendance-correction/management')) return 'Manage Corrections';
+    if (location.pathname.includes('/attendance-correction/team-requests')) return 'Team Requests';
 
     // Other routes
     if (location.pathname.includes('/employees')) return 'Employees';

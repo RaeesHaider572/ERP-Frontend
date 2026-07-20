@@ -47,7 +47,8 @@ import {
     Email as EmailIcon,
     Badge as BadgeIcon,
     Work as WorkIcon,
-    PermIdentity as PermIdentityIcon
+    PermIdentity as PermIdentityIcon,
+    Assessment as AssessmentIcon,
 } from "@mui/icons-material";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../contexts/AuthContext";
@@ -77,7 +78,6 @@ function Employees() {
 
     const [form, setForm] = useState({
         Name: "",
-        DeviceUid: "",
         Email: "",
         Department: "",
         Designation: "",
@@ -157,6 +157,10 @@ function Employees() {
         navigate(`/attendance-correction/apply?employeeCode=${employeeCode}`);
     };
 
+    const handleViewTeamRequests = (employeeId) => {
+        navigate(`/attendance-correction/team-requests?employeeId=${employeeId}`);
+    };
+
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -170,7 +174,6 @@ function Employees() {
         try {
             const submitData = {
                 ...form,
-                DeviceUid: form.DeviceUid ? parseInt(form.DeviceUid) : null,
                 JoinDate: form.JoinDate || null,
                 CustodianID: form.CustodianID ? parseInt(form.CustodianID) : null
             };
@@ -197,7 +200,6 @@ function Employees() {
         setEditingEmployee(employee);
         setForm({
             Name: employee.Name || "",
-            DeviceUid: employee.DeviceUid || "",
             Email: employee.Email || "",
             Department: employee.Department || "",
             Designation: employee.Designation || "",
@@ -226,7 +228,6 @@ function Employees() {
     const resetForm = () => {
         setForm({
             Name: "",
-            DeviceUid: "",
             Email: "",
             Department: "",
             Designation: "",
@@ -244,7 +245,6 @@ function Employees() {
         return (
             (emp.Name && emp.Name.toLowerCase().includes(searchLower)) ||
             (emp.EmployeeCode && emp.EmployeeCode.toLowerCase().includes(searchLower)) ||
-            (emp.DeviceUid && emp.DeviceUid.toString().includes(searchLower)) ||
             (emp.Email && emp.Email.toLowerCase().includes(searchLower)) ||
             (emp.Department && emp.Department.toLowerCase().includes(searchLower)) ||
             (emp.Designation && emp.Designation.toLowerCase().includes(searchLower))
@@ -303,7 +303,6 @@ function Employees() {
         { id: 'EmployeeID', label: 'ID', minWidth: 60 },
         { id: 'EmployeeCode', label: 'Code', minWidth: 100 },
         { id: 'Name', label: 'Name', minWidth: 150 },
-        { id: 'DeviceUid', label: 'Device UID', minWidth: 100 },
         { id: 'Department', label: 'Department', minWidth: 120 },
         { id: 'Designation', label: 'Designation', minWidth: 120 },
         { id: 'Email', label: 'Email', minWidth: 150 },
@@ -407,13 +406,6 @@ function Employees() {
                             <PeopleIcon sx={{ color: theme.palette.primary.main, fontSize: 28 }} />
                             <Typography variant="h5" sx={{ fontWeight: 700 }}>{stats.totalEmployees || 0}</Typography>
                             <Typography variant="caption" color="textSecondary">Total Employees</Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                        <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: '#e8f5e9' }}>
-                            <BadgeIcon sx={{ color: '#2e7d32', fontSize: 28 }} />
-                            <Typography variant="h5" sx={{ fontWeight: 700, color: '#2e7d32' }}>{stats.uniqueDeviceUids || 0}</Typography>
-                            <Typography variant="caption" color="textSecondary">Unique Devices</Typography>
                         </Paper>
                     </Grid>
                     <Grid item xs={6} sm={3}>
@@ -573,14 +565,7 @@ function Employees() {
                                                         {emp.Name}
                                                     </Typography>
                                                 </TableCell>
-                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                                    <Chip
-                                                        label={emp.DeviceUid || "-"}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        sx={{ fontSize: '0.7rem' }}
-                                                    />
-                                                </TableCell>
+
                                                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                                                     {emp.Department || "-"}
                                                 </TableCell>
@@ -660,6 +645,28 @@ function Employees() {
                                                                         }}
                                                                     >
                                                                         Attendance Correction
+                                                                    </Button>
+                                                                </Tooltip>
+                                                                <Tooltip title="View attendance correction status for this employee">
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        color="info"
+                                                                        onClick={() => handleViewTeamRequests(emp.EmployeeID)}
+                                                                        sx={{
+                                                                            fontSize: '0.55rem',
+                                                                            py: 0.3,
+                                                                            px: 0.8,
+                                                                            minWidth: 'auto',
+                                                                            textTransform: 'none',
+                                                                            borderColor: theme.palette.info.main,
+                                                                            '&:hover': {
+                                                                                backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                                                            },
+                                                                        }}
+                                                                        startIcon={<AssessmentIcon sx={{ fontSize: '0.8rem' }} />}
+                                                                    >
+                                                                        Status
                                                                     </Button>
                                                                 </Tooltip>
                                                             </>
@@ -775,27 +782,6 @@ function Employees() {
                         </Grid>
 
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Device UID"
-                                    name="DeviceUid"
-                                    type="number"
-                                    value={form.DeviceUid || ""}
-                                    onChange={handleChange}
-                                    placeholder="Biometric device user ID (optional)"
-                                    size="small"
-                                    helperText="Unique ID from biometric device"
-                                    sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover fieldset': {
-                                                borderColor: theme.palette.primary.main,
-                                            },
-                                        },
-                                    }}
-                                />
-                            </Grid>
                             <Grid item xs={12} md={6}>
                                 <TextField
                                     fullWidth
