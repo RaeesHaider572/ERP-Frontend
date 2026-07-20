@@ -966,7 +966,7 @@ const handlePrint = () => {
 
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
-                <div><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
+                <div class="approval-title"><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
             </div>
 
             <div class="signature-header">
