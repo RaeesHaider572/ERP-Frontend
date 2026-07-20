@@ -262,7 +262,7 @@ const MyAttendanceCorrectionRequests = () => {
                 min-height: 80px; 
                 line-height: 1.6; 
                 width: 100%; 
-                background: #f9f9f9; 
+                background: #ffffff; 
                 margin-top: 4px;
             }
             
