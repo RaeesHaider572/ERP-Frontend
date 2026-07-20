@@ -842,6 +842,7 @@ const handlePrint = () => {
                 border-bottom: 2px solid #ddd; 
             }
             .approval-title { font-size: 16px; font-weight: 700; }
+            .prepared-by { font-size: 16px;}
             .signature-header { 
                 display: flex; 
                 justify-content: space-between; 
@@ -966,7 +967,7 @@ const handlePrint = () => {
 
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
-                <div class="approval-title"><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
+                <div class="prepared-by"><strong>Prepared By:</strong> ${formData.preparedBy || "—"}</div>
             </div>
 
             <div class="signature-header">

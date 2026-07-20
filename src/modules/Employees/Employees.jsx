@@ -623,7 +623,7 @@ function Employees() {
                                                             </>
                                                         ) : isCustodian() && emp.EmployeeID !== user?.EmployeeID ? (
                                                             <>
-                                                                <Tooltip title="Apply Leave for this employee">
+                                                                {/* <Tooltip title="Apply Leave for this employee">
                                                                     <Button
                                                                         size="small"
                                                                         variant="contained"
@@ -640,7 +640,7 @@ function Employees() {
                                                                     >
                                                                         Apply Leave
                                                                     </Button>
-                                                                </Tooltip>
+                                                                </Tooltip> */}
                                                                 <Tooltip title="Apply Attendance Correction for this employee">
                                                                     <Button
                                                                         size="small"

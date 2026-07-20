@@ -276,6 +276,7 @@ const MyAttendanceCorrectionRequests = () => {
                 border-bottom: 2px solid #ddd; 
             }
             .approval-title { font-size: 16px; font-weight: 700; }
+            .prepared-by { font-size: 16px;}
             .signature-header { 
                 display: flex; 
                 justify-content: space-between; 
@@ -405,7 +406,7 @@ const MyAttendanceCorrectionRequests = () => {
             <!-- Approval Information -->
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
-                <div class="approval-title"><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
+                <div class="prepared-by"><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
             </div>
 
             <!-- Signature Block - Bottom Aligned -->
