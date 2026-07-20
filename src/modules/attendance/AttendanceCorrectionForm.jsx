@@ -74,6 +74,8 @@ const AttendanceCorrectionForm = () => {
     const [loadingTeam, setLoadingTeam] = useState(false);
     const submittingRef = useRef(false);
 
+// const [printing, setPrinting] = useState(null);
+
     // ============================================
     // FETCH TEAM MEMBERS (for Custodian)
     // ============================================
@@ -573,21 +575,21 @@ const AttendanceCorrectionForm = () => {
     // ============================================
     // FORMAT DATE TIME - WITHOUT TIMEZONE CONVERSION
     // ============================================
-    const formatDateTime = (dateString) => {
-        if (!dateString) return "—";
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return "—";
+    // const formatDateTime = (dateString) => {
+    //     if (!dateString) return "—";
+    //     try {
+    //         const date = new Date(dateString);
+    //         if (isNaN(date.getTime())) return "—";
 
-            const month = date.toLocaleString('en-US', { month: 'long' });
-            const day = date.getDate();
-            const year = date.getFullYear();
+    //         const month = date.toLocaleString('en-US', { month: 'long' });
+    //         const day = date.getDate();
+    //         const year = date.getFullYear();
 
-            return `${month} ${day}, ${year}`;
-        } catch (error) {
-            return "—";
-        }
-    };
+    //         return `${month} ${day}, ${year}`;
+    //     } catch (error) {
+    //         return "—";
+    //     }
+    // };
 
     // ============================================
     // FORMAT TIME ONLY - WITHOUT TIMEZONE CONVERSION
@@ -683,6 +685,13 @@ const handlePrint = () => {
         day: 'numeric'
     });
 
+    // Get the absolute URL
+    const baseUrl = window.location.origin;
+    const logoUrl = `${baseUrl}${logo}`; // If logo is a relative path
+    
+    // Or if logo is already a full URL
+    const fullLogoUrl = logo.startsWith('http') ? logo : `${baseUrl}${logo}`;
+
     // ✅ Build the complete HTML with a PRINT button that user clicks
     const printHTML = `
 <!DOCTYPE html>
@@ -698,6 +707,26 @@ const handlePrint = () => {
                 padding: 20px; 
                 color: #333; 
             }
+                @media print {
+    /* Remove default header/footer */
+    @page {
+        margin: 0; /* This removes the header/footer area */
+        size: auto; /* Or specify size like 'A4' */
+    }
+    
+    body { 
+        background: white; 
+        margin: 0; /* Important for @page margin:0 */
+    }
+    .print-container { 
+        box-shadow: none; 
+        border-radius: 0; 
+        padding: 40px;
+        margin: 0; /* Ensure container doesn't add extra margins */
+    }
+    .no-print { display: none !important; }
+    .print-button-container { display: none !important; }
+}
             .print-container { 
                 max-width: 210mm; 
                 margin: 0 auto; 
@@ -839,7 +868,7 @@ const handlePrint = () => {
             }
             
             .print-btn {
-                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                background: linear-gradient(135deg, #475569 0%, #475569 100%);
                 color: white;
                 border: none;
                 padding: 12px 40px;
@@ -875,7 +904,7 @@ const handlePrint = () => {
         <div class="print-container">
             <div class="header">
                 <div class="header-logo">
-                    <img src="${logo}" alt="Bodla Group Logo" />
+                   <img src="${fullLogoUrl}" alt="Bodla Group" style="width:100px;height:auto;" />
                 </div>
                 <div class="header-company">
                     <div class="company-name">BODLA GROUP</div>
@@ -959,7 +988,7 @@ const handlePrint = () => {
             <div class="print-button-container no-print">
                 
             <button class="close-btn" onclick="window.close()">✕ Close</button>
-            <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
                 
             </div>
         </div>
@@ -983,24 +1012,33 @@ const handlePrint = () => {
 </html>`;
 
     // ✅ Open a new tab with the HTML
-    const printWindow = window.open('', '_blank');
-    
-    if (!printWindow) {
-        setSnackbar({
-            open: true,
-            message: "Please allow popups for this site to print",
-            severity: "warning",
-        });
-        return;
-    }
+ const printBlob = new Blob([printHTML], {
+    type: "text/html;charset=utf-8"
+});
 
-    // ✅ Write the content
-    printWindow.document.write(printHTML);
-    printWindow.document.close();
-    
-    // ✅ Focus the new tab
-    printWindow.focus();
-};
+const printUrl = URL.createObjectURL(printBlob);
+
+// Open through an anchor with noopener.
+// This prevents the print tab from remaining connected to the application tab.
+const printLink = document.createElement("a");
+printLink.href = printUrl;
+printLink.target = "_blank";
+printLink.rel = "noopener noreferrer";
+printLink.style.display = "none";
+
+document.body.appendChild(printLink);
+printLink.click();
+printLink.remove();
+
+// Release the temporary Blob URL after five minutes
+window.setTimeout(() => {
+    URL.revokeObjectURL(printUrl);
+}, 5 * 60 * 1000);
+
+// Re-enable the print icon immediately
+// setPrinting(null);
+
+    };
     // ============================================
     // RENDER
     // ============================================

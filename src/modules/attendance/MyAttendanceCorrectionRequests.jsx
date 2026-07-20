@@ -28,16 +28,17 @@ import {
     AccessTime as AccessTimeIcon,
     Print as PrintIcon,
 } from "@mui/icons-material";
-import logo from "./../../assets/BodlaGroupLogo.svg";
+import logo from "../../assets/BodlaGroupLogo.svg";
+
 
 const MyAttendanceCorrectionRequests = () => {
     const theme = useTheme();
     const { user } = useAuth();
-    const navigate = useNavigate();
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [printing, setPrinting] = useState(null);
+        const navigate = useNavigate();
+        const [requests, setRequests] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState("");
+        const [printing, setPrinting] = useState(null);
 
     useEffect(() => {
         fetchRequests();
@@ -99,15 +100,6 @@ const MyAttendanceCorrectionRequests = () => {
     const handlePrintRequest = (request) => {
         setPrinting(request.RequestID);
         
-        // ✅ Open in a new tab
-        const printWindow = window.open('', '_blank');
-        
-        if (!printWindow) {
-            setPrinting(null);
-            alert("Please allow popups for this site to print");
-            return;
-        }
-
         const applicationIdDisplay = request.RequestID || "Pending";
 
         // Format dates for print
@@ -129,6 +121,13 @@ const MyAttendanceCorrectionRequests = () => {
             day: 'numeric'
         });
 
+        // Get the absolute URL
+            const baseUrl = window.location.origin;
+            const logoUrl = `${baseUrl}${logo}`; // If logo is a relative path
+            
+            // Or if logo is already a full URL
+            const fullLogoUrl = logo.startsWith('http') ? logo : `${baseUrl}${logo}`;
+
         const printHTML = `
 <!DOCTYPE html>
 <html>
@@ -143,6 +142,26 @@ const MyAttendanceCorrectionRequests = () => {
                 padding: 20px; 
                 color: #333; 
             }
+                @media print {
+    /* Remove default header/footer */
+    @page {
+        margin: 0; /* This removes the header/footer area */
+        size: auto; /* Or specify size like 'A4' */
+    }
+    
+    body { 
+        background: white; 
+        margin: 0; /* Important for @page margin:0 */
+    }
+    .print-container { 
+        box-shadow: none; 
+        border-radius: 0; 
+        padding: 40px;
+        margin: 0; /* Ensure container doesn't add extra margins */
+    }
+    .no-print { display: none !important; }
+    .print-button-container { display: none !important; }
+}
             .print-container { 
                 max-width: 210mm; 
                 margin: 0 auto; 
@@ -321,7 +340,7 @@ const MyAttendanceCorrectionRequests = () => {
             <!-- Header -->
             <div class="header">
                 <div class="header-logo">
-                    <img src="${logo}" alt="Bodla Group Logo" />
+                    <img src="${fullLogoUrl}" alt="Bodla Group" style="width:100px;height:auto;" />
                 </div>
                 <div class="header-company">
                     <div class="company-name">BODLA GROUP</div>
@@ -409,13 +428,13 @@ const MyAttendanceCorrectionRequests = () => {
             <div class="print-button-container no-print">
                 
             <button class="close-btn" onclick="window.close()">✕ Close</button>
-            <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
                 
             </div>
         </div>
         
         <script>    
-            // ✅ Add keyboard shortcut for Ctrl+P to trigger print
+            // Keyboard shortcut for Ctrl+P to trigger print
             document.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                     e.preventDefault();
@@ -425,16 +444,33 @@ const MyAttendanceCorrectionRequests = () => {
         <\/script>
     </body>
 </html>`;
+// Create an independent HTML document
+const printBlob = new Blob([printHTML], {
+    type: "text/html;charset=utf-8"
+});
 
-        // ✅ Write the HTML content to the new window
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
-        
-        // ✅ Focus the new tab
-        printWindow.focus();
-        
-        // ✅ Reset printing state
-        setPrinting(null);
+const printUrl = URL.createObjectURL(printBlob);
+
+// Open through an anchor with noopener.
+// This prevents the print tab from remaining connected to the application tab.
+const printLink = document.createElement("a");
+printLink.href = printUrl;
+printLink.target = "_blank";
+printLink.rel = "noopener noreferrer";
+printLink.style.display = "none";
+
+document.body.appendChild(printLink);
+printLink.click();
+printLink.remove();
+
+// Release the temporary Blob URL after five minutes
+window.setTimeout(() => {
+    URL.revokeObjectURL(printUrl);
+}, 5 * 60 * 1000);
+
+// Re-enable the print icon immediately
+setPrinting(null);
+
     };
 
     // Stats

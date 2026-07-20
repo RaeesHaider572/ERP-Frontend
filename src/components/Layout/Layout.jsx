@@ -78,7 +78,8 @@ function Layout() {
 
   useEffect(() => {
     if (user && (location.pathname === '/dashboard' || location.pathname === '/')) {
-      navigate('/leave-dashboard', { replace: true });
+      // navigate('/leave-dashboard', { replace: true });
+      navigate('/attendance-correction/apply', { replace: true });
     }
   }, [user, location.pathname, navigate]);
 
@@ -113,34 +114,34 @@ function Layout() {
     // ========================================
     // LEAVE MODULE - flat top-level links
     // ========================================
-    if (canAccessModule(MODULES.LEAVE)) {
-      const leaveItems = [
-        { text: 'Leave Dashboard', path: '/leave-dashboard' },
-        { text: 'Apply Leave', path: '/LeaveApply' },
-        { text: 'My Requests', path: '/LeaveRequests' },
-        { text: 'Leave Balance', path: '/LeaveBalance' },
-      ];
+    // if (canAccessModule(MODULES.LEAVE)) {
+    //   const leaveItems = [
+    //     { text: 'Leave Dashboard', path: '/leave-dashboard' },
+    //     { text: 'Apply Leave', path: '/LeaveApply' },
+    //     { text: 'My Requests', path: '/LeaveRequests' },
+    //     { text: 'Leave Balance', path: '/LeaveBalance' },
+    //   ];
 
-      // HR gets additional menu items
-      if (isHR()) {
-        leaveItems.push(
-          { text: 'All Requests', path: '/leave/all-requests' }
-        );
-      }
+    //   // HR gets additional menu items
+    //   if (isHR()) {
+    //     leaveItems.push(
+    //       { text: 'All Requests', path: '/leave/all-requests' }
+    //     );
+    //   }
 
-      // Custodian gets team requests
-      if (isCustodian()) {
-        leaveItems.push({ text: 'Team Requests', path: '/leave/team-requests' });
-      }
+    //   // Custodian gets team requests
+    //   if (isCustodian()) {
+    //     leaveItems.push({ text: 'Team Requests', path: '/leave/team-requests' });
+    //   }
 
-      leaveItems.forEach((item) => {
-        items.push({
-          text: item.text,
-          icon: <EventNoteIcon />,
-          path: item.path
-        });
-      });
-    }
+    //   leaveItems.forEach((item) => {
+    //     items.push({
+    //       text: item.text,
+    //       icon: <EventNoteIcon />,
+    //       path: item.path
+    //     });
+    //   });
+    // }
 
     // ========================================
     // ✅ ATTENDANCE CORRECTION MODULE
