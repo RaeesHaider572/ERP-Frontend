@@ -405,7 +405,7 @@ const MyAttendanceCorrectionRequests = () => {
             <!-- Approval Information -->
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
-                <div><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
+                <div class="approval-title"><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
             </div>
 
             <!-- Signature Block - Bottom Aligned -->
