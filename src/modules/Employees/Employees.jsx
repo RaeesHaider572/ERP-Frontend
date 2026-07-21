@@ -647,7 +647,7 @@ function Employees() {
                                                                         Attendance Correction
                                                                     </Button>
                                                                 </Tooltip>
-                                                                <Tooltip title="View attendance correction status for this employee">
+                                                                <Tooltip title="View attendance correction applications for this employee">
                                                                     <Button
                                                                         size="small"
                                                                         variant="outlined"
@@ -664,9 +664,8 @@ function Employees() {
                                                                                 backgroundColor: alpha(theme.palette.info.main, 0.1),
                                                                             },
                                                                         }}
-                                                                        startIcon={<AssessmentIcon sx={{ fontSize: '0.8rem' }} />}
                                                                     >
-                                                                        Status
+                                                                        Applications
                                                                     </Button>
                                                                 </Tooltip>
                                                             </>
