@@ -25,6 +25,10 @@ import {
   AccessTime as AccessTimeIcon,
   Groups as GroupsIcon,
   AssignmentTurnedIn as myRequestsIcon,
+  FactCheck as ApplyCorrectionIcon,
+  HistoryEdu as MyCorrectionsIcon,
+  Groups as TeamCorrectionIcon,
+  AdminPanelSettings as ManageCorrectionsIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -151,12 +155,12 @@ function Layout() {
     // All employees can see these
     items.push({
       text: 'Apply My Correction',
-      icon: <AccessTimeIcon />,
+      icon: <ApplyCorrectionIcon  />,
       path: '/attendance-correction/apply'
     });
     items.push({
       text: 'My Corrections',
-      icon: <AccessTimeIcon />,
+      icon: <MyCorrectionsIcon />,
       path: '/attendance-correction/my-requests'
     });
 
@@ -175,7 +179,7 @@ function Layout() {
 if (isCustodian()) {
   items.push({
     text: 'My Ward Correction',
-    icon: <GroupsIcon />,
+    icon: <TeamCorrectionIcon />,
     path: '/attendance-correction/team-requests'
   });
 }
@@ -183,7 +187,7 @@ if (isCustodian()) {
     if (isHR()) {
       items.push({
         text: 'Manage Corrections',
-        icon: <AccessTimeIcon />,
+        icon: <ManageCorrectionsIcon />,
         path: '/attendance-correction/management'
       });
     }
