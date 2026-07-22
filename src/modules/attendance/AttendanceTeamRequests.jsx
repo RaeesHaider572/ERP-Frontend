@@ -191,6 +191,8 @@ const TeamRequests = () => {
         const baseUrl = window.location.origin;
         const fullLogoUrl = logo.startsWith('http') ? logo : `${baseUrl}${logo}`;
 
+        const preparedByName = request.CreatedByName || request.EmployeeName || "—";
+
         // Print HTML (simplified version)
         const printHTML = `<!DOCTYPE html>
 <html>
@@ -437,7 +439,7 @@ const TeamRequests = () => {
 
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
-                <div class="prepared-by"><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
+                <div class="prepared-by"><strong>Prepared By:</strong> ${preparedByName}</div>
             </div>
 
             <div class="signature-header">
