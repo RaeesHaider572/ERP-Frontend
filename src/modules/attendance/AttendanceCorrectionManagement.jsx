@@ -31,6 +31,7 @@ import {
     Cancel as RejectIcon,
     Refresh as RefreshIcon,
 } from "@mui/icons-material";
+import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
 import { useAuth } from "../../contexts/AuthContext";
 import {
     getAllCorrectionRequests,
@@ -114,17 +115,6 @@ const AttendanceCorrectionManagement = () => {
                 color={type === 0 ? "primary" : "secondary"}
             />
         );
-    };
-
-    const formatDateTime = (date) => {
-        if (!date) return "—";
-        return new Date(date).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
     };
 
     if (loading) {

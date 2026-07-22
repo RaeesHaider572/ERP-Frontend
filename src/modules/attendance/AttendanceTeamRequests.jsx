@@ -28,7 +28,7 @@ import {
     People as PeopleIcon,
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
-
+import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
 const TeamRequests = () => {
     const theme = useTheme();
     const { user } = useAuth();
@@ -81,17 +81,6 @@ const TeamRequests = () => {
 
     const getPunchTypeLabel = (type) => {
         return type === 0 ? "IN" : "OUT";
-    };
-
-    const formatDateTime = (date) => {
-        if (!date) return "—";
-        return new Date(date).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
     };
 
     // Handle Print

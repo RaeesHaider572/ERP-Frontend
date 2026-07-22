@@ -30,15 +30,17 @@ import {
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
 
+// Import the date/time utilities
+import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
 
 const MyAttendanceCorrectionRequests = () => {
     const theme = useTheme();
     const { user } = useAuth();
-        const navigate = useNavigate();
-        const [requests, setRequests] = useState([]);
-        const [loading, setLoading] = useState(true);
-        const [error, setError] = useState("");
-        const [printing, setPrinting] = useState(null);
+    const navigate = useNavigate();
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [printing, setPrinting] = useState(null);
 
     useEffect(() => {
         fetchRequests();
@@ -76,57 +78,24 @@ const MyAttendanceCorrectionRequests = () => {
         );
     };
 
-    const formatDateTime = (date) => {
-        if (!date) return "—";
-        return new Date(date).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    // ============================================
-    // GET PUNCH TYPE LABEL
-    // ============================================
     const getPunchTypeLabel = (type) => {
         return type === 0 ? "IN" : "OUT";
     };
 
-    // ============================================
-    // HANDLE PRINT INDIVIDUAL REQUEST - NON-BLOCKING
-    // ============================================
+    // ✅ PRINT FUNCTION USING UTILITIES
     const handlePrintRequest = (request) => {
         setPrinting(request.RequestID);
         
         const applicationIdDisplay = request.RequestID || "Pending";
 
-        // Format dates for print
-        const punchDateObj = new Date(request.PunchTime);
-        const punchDateStr = punchDateObj.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-        
-        const punchTimeStr = punchDateObj.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        const appliedDateStr = new Date(request.AppliedDate).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        // Use the utility functions
+        const punchDateStr = formatDate(request.PunchTime);
+        const punchTimeStr = formatTime(request.PunchTime);
+        const appliedDateStr = formatDate(request.AppliedDate);
 
         // Get the absolute URL
-            const baseUrl = window.location.origin;
-            const logoUrl = `${baseUrl}${logo}`; // If logo is a relative path
-            
-            // Or if logo is already a full URL
-            const fullLogoUrl = logo.startsWith('http') ? logo : `${baseUrl}${logo}`;
+        const baseUrl = window.location.origin;
+        const fullLogoUrl = logo.startsWith('http') ? logo : `${baseUrl}${logo}`;
 
         const printHTML = `
 <!DOCTYPE html>
@@ -142,26 +111,24 @@ const MyAttendanceCorrectionRequests = () => {
                 padding: 20px; 
                 color: #333; 
             }
-                @media print {
-    /* Remove default header/footer */
-    @page {
-        margin: 0; /* This removes the header/footer area */
-        size: auto; /* Or specify size like 'A4' */
-    }
-    
-    body { 
-        background: white; 
-        margin: 0; /* Important for @page margin:0 */
-    }
-    .print-container { 
-        box-shadow: none; 
-        border-radius: 0; 
-        padding: 40px;
-        margin: 0; /* Ensure container doesn't add extra margins */
-    }
-    .no-print { display: none !important; }
-    .print-button-container { display: none !important; }
-}
+            @media print {
+                @page {
+                    margin: 0;
+                    size: auto;
+                }
+                body { 
+                    background: white; 
+                    margin: 0;
+                }
+                .print-container { 
+                    box-shadow: none; 
+                    border-radius: 0; 
+                    padding: 40px;
+                    margin: 0;
+                }
+                .no-print { display: none !important; }
+                .print-button-container { display: none !important; }
+            }
             .print-container { 
                 max-width: 210mm; 
                 margin: 0 auto; 
@@ -170,14 +137,6 @@ const MyAttendanceCorrectionRequests = () => {
                 border-radius: 8px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             }
-            
-            @media print {
-                body { background: white; padding: 0; }
-                .print-container { box-shadow: none; border-radius: 0; padding: 40px; }
-                .no-print { display: none !important; }
-                .print-button-container { display: none !important; }
-            }
-            
             .header { 
                 margin-bottom: 16px; 
                 padding-bottom: 16px; 
@@ -220,7 +179,6 @@ const MyAttendanceCorrectionRequests = () => {
                 font-size: 0.875rem; 
                 gap: 1rem; 
             }
-            
             .section { margin-bottom: 10px; display: flex; flex-wrap: wrap; flex-direction: row; }
             .section-title { 
                 font-size: 16px; 
@@ -230,7 +188,6 @@ const MyAttendanceCorrectionRequests = () => {
                 border-bottom: 1px solid #ddd; 
                 width: 100%; 
             }
-            
             .info-grid { 
                 display: flex; 
                 gap: 16px; 
@@ -246,7 +203,6 @@ const MyAttendanceCorrectionRequests = () => {
                 border-bottom: 1px solid #eee; 
             }
             .info-value.highlight { font-weight: 700; }
-            
             .details-grid { 
                 display: flex; 
                 gap: 16px; 
@@ -254,7 +210,6 @@ const MyAttendanceCorrectionRequests = () => {
                 flex-wrap: wrap; 
             }
             .details-grid .info-item{ flex: 1; min-width: 0; }
-            
             .reason-box { 
                 padding: 12px; 
                 border: 1px solid #eee; 
@@ -265,7 +220,6 @@ const MyAttendanceCorrectionRequests = () => {
                 background: #ffffff; 
                 margin-top: 4px;
             }
-            
             .approval-header { 
                 display: flex; 
                 justify-content: space-between; 
@@ -294,14 +248,12 @@ const MyAttendanceCorrectionRequests = () => {
                 margin-top: 4px; 
                 font-size: 12px; 
             }
-            
             .print-button-container {
                 text-align: center;
                 margin-top: 30px;
                 padding-top: 20px;
                 border-top: 1px solid #ddd;
             }
-            
             .print-btn {
                 background: linear-gradient(135deg, #475569 0%, #475569 100%);
                 color: white;
@@ -338,7 +290,6 @@ const MyAttendanceCorrectionRequests = () => {
     </head>
     <body>
         <div class="print-container">
-            <!-- Header -->
             <div class="header">
                 <div class="header-logo">
                     <img src="${fullLogoUrl}" alt="Bodla Group" style="width:100px;height:auto;" />
@@ -353,7 +304,6 @@ const MyAttendanceCorrectionRequests = () => {
                 </div>
             </div>
 
-            <!-- Employee Information -->
             <div class="section">
                 <div class="section-title">Employee Information</div>
                 <div class="info-grid">
@@ -376,7 +326,6 @@ const MyAttendanceCorrectionRequests = () => {
                 </div>
             </div>
 
-            <!-- Correction Details -->
             <div class="section">
                 <div class="section-title">Correction Details</div>
                 <div class="details-grid">
@@ -403,13 +352,11 @@ const MyAttendanceCorrectionRequests = () => {
                 </div>
             </div>
 
-            <!-- Approval Information -->
             <div class="approval-header">
                 <div class="approval-title">Approval Information</div>
                 <div class="prepared-by"><strong>Prepared By:</strong> ${request.EmployeeName || "—"}</div>
             </div>
 
-            <!-- Signature Block - Bottom Aligned -->
             <div class="signature-header">
                 <div class="signature-box">
                     <div class="signature-line">Employee</div>
@@ -425,17 +372,13 @@ const MyAttendanceCorrectionRequests = () => {
                 </div>
             </div>
             
-            <!-- ✅ Buttons inside the new tab - NOT blocking the main app -->
             <div class="print-button-container no-print">
-                
-            <button class="close-btn" onclick="window.close()">✕ Close</button>
-            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
-                
+                <button class="close-btn" onclick="window.close()">✕ Close</button>
+                <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
             </div>
         </div>
         
         <script>    
-            // Keyboard shortcut for Ctrl+P to trigger print
             document.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                     e.preventDefault();
@@ -445,33 +388,28 @@ const MyAttendanceCorrectionRequests = () => {
         <\/script>
     </body>
 </html>`;
-// Create an independent HTML document
-const printBlob = new Blob([printHTML], {
-    type: "text/html;charset=utf-8"
-});
 
-const printUrl = URL.createObjectURL(printBlob);
+        const printBlob = new Blob([printHTML], {
+            type: "text/html;charset=utf-8"
+        });
 
-// Open through an anchor with noopener.
-// This prevents the print tab from remaining connected to the application tab.
-const printLink = document.createElement("a");
-printLink.href = printUrl;
-printLink.target = "_blank";
-printLink.rel = "noopener noreferrer";
-printLink.style.display = "none";
+        const printUrl = URL.createObjectURL(printBlob);
 
-document.body.appendChild(printLink);
-printLink.click();
-printLink.remove();
+        const printLink = document.createElement("a");
+        printLink.href = printUrl;
+        printLink.target = "_blank";
+        printLink.rel = "noopener noreferrer";
+        printLink.style.display = "none";
 
-// Release the temporary Blob URL after five minutes
-window.setTimeout(() => {
-    URL.revokeObjectURL(printUrl);
-}, 5 * 60 * 1000);
+        document.body.appendChild(printLink);
+        printLink.click();
+        printLink.remove();
 
-// Re-enable the print icon immediately
-setPrinting(null);
+        window.setTimeout(() => {
+            URL.revokeObjectURL(printUrl);
+        }, 5 * 60 * 1000);
 
+        setPrinting(null);
     };
 
     // Stats
@@ -494,7 +432,6 @@ setPrinting(null);
                 My Attendance Correction Requests
             </Typography>
 
-            {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item size={{ xs: 6, md: 3 }}>
                     <Card>

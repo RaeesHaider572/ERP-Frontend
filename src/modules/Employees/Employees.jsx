@@ -306,7 +306,7 @@ function Employees() {
         { id: 'Department', label: 'Department', minWidth: 120 },
         { id: 'Designation', label: 'Designation', minWidth: 120 },
         { id: 'Email', label: 'Email', minWidth: 150 },
-        { id: 'Role', label: 'Role', minWidth: 100 },
+        // { id: 'Role', label: 'Role', minWidth: 100 },
         { id: 'JoinDate', label: 'Join Date', minWidth: 100 },
         { id: 'actions', label: 'Actions', minWidth: 150, align: 'right' },
     ];
@@ -576,9 +576,6 @@ function Employees() {
                                                     <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                                                         {emp.Email || "-"}
                                                     </Typography>
-                                                </TableCell>
-                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                                    {getRoleChip(emp.Role)}
                                                 </TableCell>
                                                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                                                     {formatDate(emp.JoinDate)}

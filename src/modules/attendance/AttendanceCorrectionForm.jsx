@@ -32,7 +32,7 @@ import {
     Close as CloseIcon,
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
-
+import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
 const AttendanceCorrectionForm = () => {
     const theme = useTheme();
     const { user, isCustodian } = useAuth();
@@ -572,24 +572,6 @@ const AttendanceCorrectionForm = () => {
         }
     };
 
-    // ============================================
-    // FORMAT DATE TIME - WITHOUT TIMEZONE CONVERSION
-    // ============================================
-    // const formatDateTime = (dateString) => {
-    //     if (!dateString) return "—";
-    //     try {
-    //         const date = new Date(dateString);
-    //         if (isNaN(date.getTime())) return "—";
-
-    //         const month = date.toLocaleString('en-US', { month: 'long' });
-    //         const day = date.getDate();
-    //         const year = date.getFullYear();
-
-    //         return `${month} ${day}, ${year}`;
-    //     } catch (error) {
-    //         return "—";
-    //     }
-    // };
 
     // ============================================
     // FORMAT TIME ONLY - WITHOUT TIMEZONE CONVERSION
