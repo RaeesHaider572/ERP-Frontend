@@ -361,8 +361,7 @@ if (isCustodian()) {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
-                >
-                  {getRoleDisplay()}
+                >{user?.Designation || 'No Designation'}
                 </Typography>
               </Box>
             </>

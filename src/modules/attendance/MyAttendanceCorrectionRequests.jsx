@@ -5,12 +5,6 @@ import { getEmployeeCorrectionRequests } from "../../services/attendanceCorrecti
 import {
     Container,
     Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Paper,
     Chip,
     Box,
@@ -21,18 +15,96 @@ import {
     Grid,
     Button,
     Tooltip,
+    alpha,
     IconButton,
     useTheme,
+
 } from "@mui/material";
+
 import {
     AccessTime as AccessTimeIcon,
-    Print as PrintIcon,
+    Print as PrintIcon, Assignment,
+    HourglassEmpty,
+    CheckCircle,
+    Cancel,
 } from "@mui/icons-material";
 import logo from "../../assets/BodlaGroupLogo.svg";
-
+import { DataGrid } from "@mui/x-data-grid";
 // Import the date/time utilities
-import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
+import { formatDate, formatTime } from "../../utils/dateTimeUtils";
+const StatCard = ({ title, value, subtitle, icon, color }) => {
+    const theme = useTheme();
 
+    return (
+        <Card
+            sx={{
+                height: "100%",
+                width: "100%",
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                boxShadow: "0 2px 10px rgba(0,0,0,.05)",
+                transition: "all .25s ease",
+                "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
+                },
+            }}
+        >
+            <CardContent>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    <Box>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            fontWeight={500}
+                        >
+                            {title}
+                        </Typography>
+
+                        <Typography
+                            variant="h3"
+                            fontWeight={700}
+                            sx={{ my: 1 }}
+                        >
+                            {value}
+                        </Typography>
+
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                        >
+                            {subtitle}
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 3,
+                            bgcolor: alpha(color, 0.12),
+                            color: color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                        }}
+                    >
+                        {React.cloneElement(icon, {
+                            sx: { fontSize: 34 },
+                        })}
+                    </Box>
+                </Box>
+            </CardContent>
+        </Card>
+    );
+};
 const MyAttendanceCorrectionRequests = () => {
     const theme = useTheme();
     const { user } = useAuth();
@@ -40,6 +112,7 @@ const MyAttendanceCorrectionRequests = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    // const [setPrinting] = useState(null);
     const [printing, setPrinting] = useState(null);
 
     useEffect(() => {
@@ -82,10 +155,11 @@ const MyAttendanceCorrectionRequests = () => {
         return type === 0 ? "IN" : "OUT";
     };
 
+
     // ✅ PRINT FUNCTION USING UTILITIES
     const handlePrintRequest = (request) => {
         setPrinting(request.RequestID);
-        
+
         const applicationIdDisplay = request.RequestID || "Pending";
 
         // Use the utility functions
@@ -417,7 +491,133 @@ const MyAttendanceCorrectionRequests = () => {
     const pendingRequests = requests.filter(r => r.Status === 'Pending').length;
     const approvedRequests = requests.filter(r => r.Status === 'Approved').length;
     const rejectedRequests = requests.filter(r => r.Status === 'Rejected').length;
+    const columns = [
+        {
+            field: "RequestID",
+            headerName: "Request ID",
+            width: 100,
+            renderCell: (params) => (
+                <Box sx={{ py: 2 }}><Typography>
+                    BGAC-{params.value}
+                </Typography></Box>
+            ),
+        },
+        {
+            field: "EmployeeName",
+            headerName: "Employee",
+            flex: 1.2,
+            minWidth: 120,
+            renderCell: (params) => (
+                <Box sx={{ py: 1.7 }}>
+                    <Typography>
+                        {params.row.EmployeeName}
+                    </Typography>
 
+                    <Typography variant="caption" color="text.secondary">
+                        {params.row.EmployeeCode}
+                    </Typography>
+
+                    <Typography
+                        variant="caption"
+                        display="block"
+                        color="text.secondary"
+                    >
+                        {params.row.Designation}
+                    </Typography>
+                </Box>
+            ),
+        },
+        {
+            field: "PunchTime",
+            headerName: "Punch Time",
+            width: 200,
+            renderCell: (params) => (
+                <>
+                <Box sx={{ py: 1.7 }}>
+                    <Typography>
+                        {formatDate(params.value)} {formatTime(params.value)}
+                    </Typography></Box>
+                </>
+            ),
+        },
+        {
+            field: "PunchType",
+            headerName: "Punch Type",
+            width: 110,
+            renderCell: (params) => getPunchTypeChip(params.value),
+        },
+        {
+            field: "DeviceName",
+            headerName: "Device",
+            width: 100,
+            renderCell: (params) => (params.value || "Web"),
+        },
+        {
+            field: "Status",
+            headerName: "Status",
+            width: 130,
+            renderCell: (params) => getStatusChip(params.value),
+        },
+        {
+            field: "AppliedDate",
+            headerName: "Applied",
+            width: 200,
+            renderCell: (params) => (
+                <>
+                    <Box sx={{ py: 1.7 }}><Typography>
+                        {formatDate(params.value)}  {formatTime(params.value)}
+                    </Typography></Box>
+                </>
+            ),
+        },
+        {
+            field: "actions",
+            headerName: "Actions",
+            width: 100,
+            sortable: false,
+            renderCell: (params) => (
+                <Tooltip title="Print Request">
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => handlePrintRequest(params.row)}
+                    >
+                        <PrintIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            ),
+        },
+    ];
+    const stats = [
+        {
+            title: "Total Requests",
+            value: totalRequests,
+            subtitle: "Attendance Corrections",
+            icon: <Assignment />,
+            color: theme.palette.primary.main,
+        },
+        {
+            title: "Pending",
+            value: pendingRequests,
+            subtitle: "Awaiting Approval",
+            icon: <HourglassEmpty />,
+            color: theme.palette.warning.main,
+        },
+        {
+            title: "Approved",
+            value: approvedRequests,
+            subtitle: "Successfully Approved",
+            icon: <CheckCircle />,
+            color: theme.palette.success.main,
+        },
+        {
+            title: "Rejected",
+            value: rejectedRequests,
+            subtitle: "Not Approved",
+            icon: <Cancel />,
+            color: theme.palette.error.main,
+        },
+    ];
     if (loading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -428,51 +628,68 @@ const MyAttendanceCorrectionRequests = () => {
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
-                My Attendance Correction Requests
-            </Typography>
+            <Box
+                sx={{
+                    mb: 4,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 2
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" fontWeight={700}>
+                        My Attendance Corrections
+                    </Typography>
+
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: .5 }}
+                    >
+                        View and print your attendance correction requests.
+                    </Typography>
+                </Box>
+
+                <Button
+                    variant="contained"
+                    startIcon={<AccessTimeIcon />}
+                    onClick={() => navigate("/attendance-correction/apply")}
+                >
+                    Apply Correction
+                </Button>
+            </Box>
+
 
             <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item size={{ xs: 6, md: 3 }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Total
-                            </Typography>
-                            <Typography variant="h4">{totalRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item size={{ xs: 6, md: 3 }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Pending
-                            </Typography>
-                            <Typography variant="h4" color="warning.main">{pendingRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item size={{ xs: 6, md: 3 }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Approved
-                            </Typography>
-                            <Typography variant="h4" color="success.main">{approvedRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item size={{ xs: 6, md: 3 }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Rejected
-                            </Typography>
-                            <Typography variant="h4" color="error.main">{rejectedRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 3,
+                        mb: 4,
+                        width: "100%",
+                        flexWrap: {
+                            xs: "wrap",
+                            md: "nowrap",
+                        },
+                    }}
+                >
+                    {stats.map((stat, index) => (
+                        <Box
+                            key={index}
+                            sx={{
+                                flex: 1,
+                                width: {
+                                    xs: "100%",
+                                    md: 0,
+                                },
+                            }}
+                        >
+                            <StatCard {...stat} />
+                        </Box>
+                    ))}
+                </Box>
             </Grid>
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -485,54 +702,47 @@ const MyAttendanceCorrectionRequests = () => {
                     </a>
                 </Alert>
             ) : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                                <TableCell>Request ID</TableCell>
-                                <TableCell>Punch Date/Time</TableCell>
-                                <TableCell>Type</TableCell>
-                                <TableCell>Device</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Applied Date</TableCell>
-                                <TableCell align="center">Action</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {requests.map((req) => (
-                                <TableRow key={req.RequestID}>
-                                    <TableCell>#{req.RequestID}</TableCell>
-                                    <TableCell>{formatDateTime(req.PunchTime)}</TableCell>
-                                    <TableCell>{getPunchTypeChip(req.PunchType)}</TableCell>
-                                    <TableCell>{req.DeviceName || "Web"}</TableCell>
-                                    <TableCell>{getStatusChip(req.Status)}</TableCell>
-                                    <TableCell>{formatDateTime(req.AppliedDate)}</TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Print this request">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handlePrintRequest(req)}
-                                                disabled={printing === req.RequestID}
-                                                sx={{
-                                                    color: theme.palette.primary.main,
-                                                    '&:hover': {
-                                                        backgroundColor: theme.palette.primary.light,
-                                                    }
-                                                }}
-                                            >
-                                                {printing === req.RequestID ? (
-                                                    <CircularProgress size={20} />
-                                                ) : (
-                                                    <PrintIcon fontSize="small" />
-                                                )}
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                <Paper
+                    elevation={0}
+                    sx={{
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        overflow: "hidden",
+                    }}
+                >
+                    <Box sx={{ height: "70vh", width: "100%" }}>
+                        <DataGrid
+                            rows={requests.map((r) => ({
+                                id: r.RequestID,
+                                ...r,
+                            }))}
+                            columns={columns}
+                            pageSizeOptions={[10, 25, 50, 100]}
+                            initialState={{
+                                pagination: {
+                                    paginationModel: {
+                                        pageSize: 25,
+                                    },
+                                },
+                            }}
+                            disableRowSelectionOnClick
+                            loading={loading}
+                            sx={{
+                                border: 0,
+                                "& .MuiDataGrid-columnHeaders": {
+                                    backgroundColor:
+                                        theme.palette.mode === "light"
+                                            ? theme.palette.grey[100]
+                                            : theme.palette.grey[900],
+                                    fontWeight: 700,
+                                },
+                                "& .MuiDataGrid-cell": {
+                                    alignItems: "center",
+                                },
+                            }}
+                        />
+                    </Box>
+                </Paper>
             )}
         </Container>
     );
