@@ -24,6 +24,7 @@ import {
   CameraAlt as CameraAltIcon,
   AccessTime as AccessTimeIcon,
   Groups as GroupsIcon,
+  AssignmentTurnedIn as myRequestsIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth, MODULES } from '../../contexts/AuthContext';
@@ -149,8 +150,8 @@ function Layout() {
     // ========================================
     // All employees can see these
     items.push({
-      text: 'Apply Correction',
-      icon: <AccessTimeIcon />,
+      text: 'Apply My Correction',
+      icon: <DynamicForm />,
       path: '/attendance-correction/apply'
     });
     items.push({
@@ -158,10 +159,22 @@ function Layout() {
       icon: <AccessTimeIcon />,
       path: '/attendance-correction/my-requests'
     });
+
+    // ========================================
+    // EMPLOYEES - Custodian & HR only
+    // ========================================
+    if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
+      items.push({
+        text: isHR() ? 'Employees' : 'My Ward',
+        icon: <EmployeeIcon />,
+        path: '/employees'
+      });
+    }
+
 // Custodian can see Team Requests
 if (isCustodian()) {
   items.push({
-    text: 'Team Requests',
+    text: 'My Ward Correction',
     icon: <GroupsIcon />,
     path: '/attendance-correction/team-requests'
   });
@@ -175,16 +188,6 @@ if (isCustodian()) {
       });
     }
 
-    // ========================================
-    // EMPLOYEES - Custodian & HR only
-    // ========================================
-    if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {
-      items.push({
-        text: isHR() ? 'Employees' : 'My Ward',
-        icon: <EmployeeIcon />,
-        path: '/employees'
-      });
-    }
 
     // ========================================
     // OTHER MODULES
