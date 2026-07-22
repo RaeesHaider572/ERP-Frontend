@@ -151,7 +151,7 @@ function Layout() {
     // All employees can see these
     items.push({
       text: 'Apply My Correction',
-      icon: <DynamicForm />,
+      icon: <AccessTimeIcon />,
       path: '/attendance-correction/apply'
     });
     items.push({
