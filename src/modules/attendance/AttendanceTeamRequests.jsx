@@ -3,14 +3,10 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from 'react-router-dom';
 import { getTeamMemberRequests } from "../../services/attendanceCorrectionService";
 import {
+    Button,
+    alpha,
     Container,
     Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Paper,
     Chip,
     Box,
@@ -19,16 +15,94 @@ import {
     Card,
     CardContent,
     Grid,
-    Tooltip,
-    IconButton,
-    useTheme,
+    Tooltip, IconButton, useTheme,
 } from "@mui/material";
 import {
     Print as PrintIcon,
     People as PeopleIcon,
+    Assignment,
+    HourglassEmpty,
+    CheckCircle,
+    Cancel,
+    AccessTime as AccessTimeIcon,
 } from "@mui/icons-material";
+import { DataGrid } from "@mui/x-data-grid";
 import logo from "../../assets/BodlaGroupLogo.svg";
 import { formatDateTime, formatDate, formatTime } from "../../utils/dateTimeUtils";
+
+const StatCard = ({ title, value, subtitle, icon, color }) => {
+    const theme = useTheme();
+
+    return (
+        <Card
+            sx={{
+                height: "100%",
+                width: "100%",
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                boxShadow: "0 2px 10px rgba(0,0,0,.05)",
+                transition: "all .25s ease",
+                "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
+                },
+            }}
+        >
+            <CardContent>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    <Box>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            fontWeight={500}
+                        >
+                            {title}
+                        </Typography>
+
+                        <Typography
+                            variant="h3"
+                            fontWeight={700}
+                            sx={{ my: 1 }}
+                        >
+                            {value}
+                        </Typography>
+
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                        >
+                            {subtitle}
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 3,
+                            bgcolor: alpha(color, 0.12),
+                            color: color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                        }}
+                    >
+                        {React.cloneElement(icon, {
+                            sx: { fontSize: 34 },
+                        })}
+                    </Box>
+                </Box>
+            </CardContent>
+        </Card>
+    );
+};
 const TeamRequests = () => {
     const theme = useTheme();
     const { user } = useAuth();
@@ -66,7 +140,14 @@ const TeamRequests = () => {
             Approved: "success",
             Rejected: "error",
         };
-        return <Chip label={status} color={colors[status] || "default"} size="small" />;
+
+        return (
+            <Chip
+                label={status}
+                size="small"
+                color={colors[status] || "default"}
+            />
+        );
     };
 
     const getPunchTypeChip = (type) => {
@@ -86,7 +167,7 @@ const TeamRequests = () => {
     // Handle Print
     const handlePrintRequest = (request) => {
         setPrinting(request.RequestID);
-        
+
         const applicationIdDisplay = request.RequestID || "Pending";
 
         const punchDateObj = new Date(request.PunchTime);
@@ -95,7 +176,7 @@ const TeamRequests = () => {
             month: 'long',
             day: 'numeric'
         });
-        
+
         const punchTimeStr = punchDateObj.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit'
@@ -415,7 +496,140 @@ const TeamRequests = () => {
     const pendingRequests = requests.filter(r => r.Status === 'Pending').length;
     const approvedRequests = requests.filter(r => r.Status === 'Approved').length;
     const rejectedRequests = requests.filter(r => r.Status === 'Rejected').length;
+    const columns = [
+        {
+            field: "RequestID",
+            headerName: "Request ID",
+            width: 110,
+            renderCell: ({ value }) => (
+                <Typography noWrap>
+                    BGAC-{value}
+                </Typography>
+            ),
+        },
+        {
+            field: "EmployeeName",
+            headerName: "Employee",
+            flex: 1.2,
+            minWidth: 220,
+            renderCell: ({ row }) => (
+                <Box sx={{ py: 1 }}>
+                    <Typography noWrap>
+                        {row.EmployeeName}
+                    </Typography>
 
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        noWrap
+                    >
+                        {row.EmployeeCode}
+                    </Typography>
+
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        noWrap
+                    >
+                        {row.Designation}
+                    </Typography>
+                </Box>
+            ),
+        },
+        {
+            field: "PunchTime",
+            headerName: "Punch Time",
+            width: 190,
+            renderCell: ({ value }) => (
+                <Typography noWrap>
+                    {formatDate(value)} {formatTime(value)}
+                </Typography>
+            ),
+        },
+        {
+            field: "PunchType",
+            headerName: "Punch",
+            width: 90,
+            renderCell: ({ value }) => (
+                <Chip
+                    label={value === 0 ? "IN" : "OUT"}
+                    size="small"
+                    variant="outlined"
+                    color={value === 0 ? "primary" : "secondary"}
+                />
+            ),
+        },
+        {
+            field: "DeviceName",
+            headerName: "Device",
+            width: 110,
+            renderCell: ({ value }) => value || "Web",
+        },
+        {
+            field: "Status",
+            headerName: "Status",
+            width: 120,
+            renderCell: ({ value }) => getStatusChip(value),
+        },
+        {
+            field: "AppliedDate",
+            headerName: "Applied",
+            width: 190,
+            renderCell: ({ value }) => (
+                <Typography noWrap>
+                    {formatDate(value)} {formatTime(value)}
+                </Typography>
+            ),
+        },
+        {
+            field: "actions",
+            headerName: "",
+            width: 70,
+            sortable: false,
+            renderCell: ({ row }) => (
+                <Tooltip title="Print">
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => handlePrintRequest(row)}
+                    >
+                        <PrintIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            ),
+        },
+    ];
+    const stats = [
+        {
+            title: "Total Requests",
+            value: totalRequests,
+            subtitle: "Team Corrections",
+            icon: <PeopleIcon />,
+            color: theme.palette.primary.main,
+        },
+        {
+            title: "Pending",
+            value: pendingRequests,
+            subtitle: "Awaiting Approval",
+            icon: <HourglassEmpty />,
+            color: theme.palette.warning.main,
+        },
+        {
+            title: "Approved",
+            value: approvedRequests,
+            subtitle: "Successfully Approved",
+            icon: <CheckCircle />,
+            color: theme.palette.success.main,
+        },
+        {
+            title: "Rejected",
+            value: rejectedRequests,
+            subtitle: "Not Approved",
+            icon: <Cancel />,
+            color: theme.palette.error.main,
+        },
+    ];
     if (loading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -426,52 +640,67 @@ const TeamRequests = () => {
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
-                Team Attendance Correction Requests
-            </Typography>
+            <Box
+                sx={{
+                    mb: 4,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 2
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" fontWeight={700}>
+                        Team Attendance Corrections
+                    </Typography>
 
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: .5 }}
+                    >
+                        View attendance correction requests submitted for your team members.
+                    </Typography>
+                </Box>
+{/* 
+                <Button
+                    variant="contained"
+                    startIcon={<AccessTimeIcon />}
+                    onClick={() => navigate("/attendance-correction/apply")}
+                >
+                    Apply Correction
+                </Button> */}
+            </Box>
             {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item xs={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Total
-                            </Typography>
-                            <Typography variant="h4">{totalRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                    <Card sx={{ bgcolor: '#fff3e0' }}>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Pending
-                            </Typography>
-                            <Typography variant="h4" color="warning.main">{pendingRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                    <Card sx={{ bgcolor: '#e8f5e9' }}>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Approved
-                            </Typography>
-                            <Typography variant="h4" color="success.main">{approvedRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                    <Card sx={{ bgcolor: '#ffebee' }}>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Rejected
-                            </Typography>
-                            <Typography variant="h4" color="error.main">{rejectedRequests}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 3,
+                        mb: 4,
+                        width: "100%",
+                        flexWrap: {
+                            xs: "wrap",
+                            md: "nowrap",
+                        },
+                    }}
+                >
+                    {stats.map((stat, index) => (
+                        <Box
+                            key={index}
+                            sx={{
+                                flex: 1,
+                                width: {
+                                    xs: "100%",
+                                    md: 0,
+                                },
+                            }}
+                        >
+                            <StatCard {...stat} />
+                        </Box>
+                    ))}
+                </Box>
             </Grid>
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -481,63 +710,49 @@ const TeamRequests = () => {
                     No attendance correction requests found for your team members.
                 </Alert>
             ) : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                                <TableCell>Request ID</TableCell>
-                                <TableCell>Employee</TableCell>
-                                <TableCell>Punch Date/Time</TableCell>
-                                <TableCell>Type</TableCell>
-                                <TableCell>Device</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Applied Date</TableCell>
-                                <TableCell align="center">Action</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {requests.map((req) => (
-                                <TableRow key={req.RequestID}>
-                                    <TableCell>#{req.RequestID}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" fontWeight="500">
-                                            {req.EmployeeName}
-                                        </Typography>
-                                        <Typography variant="caption" color="textSecondary">
-                                            {req.EmployeeCode}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>{formatDateTime(req.PunchTime)}</TableCell>
-                                    <TableCell>{getPunchTypeChip(req.PunchType)}</TableCell>
-                                    <TableCell>{req.DeviceName || "Web"}</TableCell>
-                                    <TableCell>{getStatusChip(req.Status)}</TableCell>
-                                    <TableCell>{formatDateTime(req.AppliedDate)}</TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Print this request">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handlePrintRequest(req)}
-                                                disabled={printing === req.RequestID}
-                                                sx={{
-                                                    color: theme.palette.primary.main,
-                                                    '&:hover': {
-                                                        backgroundColor: theme.palette.primary.light,
-                                                    }
-                                                }}
-                                            >
-                                                {printing === req.RequestID ? (
-                                                    <CircularProgress size={20} />
-                                                ) : (
-                                                    <PrintIcon fontSize="small" />
-                                                )}
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                <Paper
+                    elevation={0}
+                    sx={{
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        overflow: "hidden",
+                    }}
+                >
+                    <Box sx={{ height: "70vh", width: "100%" }}>
+                        <DataGrid
+                            rows={requests.map((r) => ({
+                                id: r.RequestID,
+                                ...r,
+                            }))}
+                            columns={columns}
+                            pageSizeOptions={[10, 25, 50, 100]}
+                            initialState={{
+                                pagination: {
+                                    paginationModel: {
+                                        pageSize: 25,
+                                    },
+                                },
+                            }}
+                            disableRowSelectionOnClick
+                            loading={loading}
+                            sx={{
+                                border: 0,
+                                "& .MuiDataGrid-columnHeaders": {
+                                    backgroundColor:
+                                        theme.palette.mode === "light"
+                                            ? theme.palette.grey[100]
+                                            : theme.palette.grey[900],
+                                    fontWeight: 700,
+                                },
+                                "& .MuiDataGrid-cell": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    whiteSpace: "nowrap",
+                                },
+                            }}
+                        />
+                    </Box>
+                </Paper>
             )}
         </Container>
     );
