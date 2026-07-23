@@ -173,6 +173,11 @@ function Layout() {
     icon: <AccessTimeIcon />,
     path: '/attendance-logs'
   });
+  items.push({
+    text: 'Web Logs',
+    icon: <AccessTimeIcon />,
+    path: '/web-logs'
+  });
   
     // ========================================
     // EMPLOYEES - Custodian & HR only
