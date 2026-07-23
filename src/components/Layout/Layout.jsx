@@ -165,6 +165,16 @@ function Layout() {
     });
 
     // ========================================
+  // ✅ ATTENDANCE LOGS MODULE (NEW)
+  // ========================================
+  // All employees can see their attendance logs
+  items.push({
+    text: 'Device Logs',
+    icon: <AccessTimeIcon />,
+    path: '/attendance-logs'
+  });
+  
+    // ========================================
     // EMPLOYEES - Custodian & HR only
     // ========================================
     if (canAccessModule(MODULES.EMPLOYEES) && (isCustodian() || isHR())) {

@@ -40,6 +40,8 @@ import MyAttendanceCorrectionRequests from './modules/attendance/MyAttendanceCor
 import AttendanceCorrectionManagement from './modules/attendance/AttendanceCorrectionManagement';
 import AttendanceTeamRequests from './modules/attendance/AttendanceTeamRequests';
 
+import AttendanceLogs from './modules/attendance/AttendanceLogs';
+
 // ============================================
 // ROLE-BASED ROUTE GUARD COMPONENT
 // ============================================
@@ -141,6 +143,7 @@ function App() {
                         <Route path="attendance-correction/my-requests" element={
                             <MyAttendanceCorrectionRequests />
                         } />
+                        <Route path="attendance-logs" element={<AttendanceLogs />} />
                         
                         {/* Custodians can view team members' correction requests */}
                         <Route path="attendance-correction/team-requests" element={
