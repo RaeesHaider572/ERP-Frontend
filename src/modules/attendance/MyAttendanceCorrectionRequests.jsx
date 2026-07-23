@@ -119,10 +119,10 @@ const MyAttendanceCorrectionRequests = () => {
     }, [user]);
 
     const fetchRequests = async () => {
-        if (!user?.EmployeeID) return;
+        if (!user?.EmployeeId) return;
         setLoading(true);
         try {
-            const response = await getEmployeeCorrectionRequests(user.EmployeeID);
+            const response = await getEmployeeCorrectionRequests(user.EmployeeId);
             setRequests(response.data || []);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to fetch requests");
