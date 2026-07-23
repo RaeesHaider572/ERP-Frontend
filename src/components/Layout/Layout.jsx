@@ -193,7 +193,7 @@ function Layout() {
 // Custodian can see Team Requests
 if (isCustodian()) {
   items.push({
-    text: 'My Ward Corrections',
+    text: 'Ward Web Logs',
     icon: <TeamCorrectionIcon />,
     path: '/attendance-correction/team-requests'
   });
