@@ -14,7 +14,7 @@ export const getAttendanceLogs = async (filters = {}) => {
         if (filters.page) queryParams.append('page', filters.page);
         if (filters.limit) queryParams.append('limit', filters.limit);
 
-        const url = `/attendance-logs?${queryParams.toString()}`;
+        const url = `/web-logs?${queryParams.toString()}`;
         const response = await api.get(url);
         return response.data;
     } catch (error) {
@@ -34,7 +34,7 @@ export const getEmployeeAttendance = async (employeeId, filters = {}) => {
         if (filters.startDate) queryParams.append('startDate', filters.startDate);
         if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
-        const url = `/attendance-logs/employee/${employeeId}?${queryParams.toString()}`;
+        const url = `/web-logs/employee/${employeeId}?${queryParams.toString()}`;
         const response = await api.get(url);
         return response.data;
     } catch (error) {
@@ -46,14 +46,14 @@ export const getEmployeeAttendance = async (employeeId, filters = {}) => {
 };
 
 // ============================================
-// GET ATTENDANCE SUMMARY FOR DASHBOARD
+// GET WEB LOGS SUMMARY FOR DASHBOARD
 // ============================================
 export const getAttendanceSummary = async (date = null) => {
     try {
         const queryParams = new URLSearchParams();
         if (date) queryParams.append('date', date);
 
-        const url = `/attendance-logs/summary?${queryParams.toString()}`;
+        const url = `/web-logs/summary?${queryParams.toString()}`;
         const response = await api.get(url);
         return response.data;
     } catch (error) {
@@ -77,7 +77,7 @@ export const getAttendanceStatistics = async (period = 'monthly', year = null, m
         queryParams.append('year', currentYear);
         queryParams.append('month', currentMonth);
 
-        const url = `/attendance-logs/statistics?${queryParams.toString()}`;
+        const url = `/web-logs/statistics?${queryParams.toString()}`;
         const response = await api.get(url);
         return response.data;
     } catch (error) {
@@ -93,7 +93,7 @@ export const getAttendanceStatistics = async (period = 'monthly', year = null, m
 // ============================================
 export const getTodayAttendance = async () => {
     try {
-        const response = await api.get("/attendance-logs/today");
+        const response = await api.get("/web-logs/today");
         return response.data;
     } catch (error) {
         console.error("❌ API Error in getTodayAttendance:", error);
@@ -108,7 +108,7 @@ export const getTodayAttendance = async () => {
 // ============================================
 export const getTeamMembers = async () => {
     try {
-        const response = await api.get("/attendance-logs/team-members");
+        const response = await api.get("/web-logs/team-members");
         return response.data;
     } catch (error) {
         console.error("❌ API Error in getTeamMembers:", error);
@@ -127,7 +127,7 @@ export const exportAttendanceReport = async (filters = {}) => {
         if (filters.startDate) queryParams.append('startDate', filters.startDate);
         if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
-        const url = `/attendance-logs/export?${queryParams.toString()}`;
+        const url = `/web-logs/export?${queryParams.toString()}`;
         const response = await api.get(url);
         return response.data;
     } catch (error) {
