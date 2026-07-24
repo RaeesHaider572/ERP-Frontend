@@ -41,6 +41,7 @@ import AttendanceCorrectionManagement from './modules/attendance/AttendanceCorre
 import AttendanceTeamRequests from './modules/attendance/AttendanceTeamRequests';
 
 import AttendanceLogs from './modules/attendance/AttendanceLogs';
+import MyAttendanceLogs from './modules/attendance/MyAttendanceLogs';
 import WebAttendanceLogs from "./modules/attendance/WebAttendanceLogs";
 
 // ============================================
@@ -144,7 +145,16 @@ function App() {
                         <Route path="attendance-correction/my-requests" element={
                             <MyAttendanceCorrectionRequests />
                         } />
-                        <Route path="attendance-logs" element={<AttendanceLogs />} />
+                        {/* <Route path="attendance-logs" element={<AttendanceLogs />} /> */}
+                        {/* Custodian sees their team, HR sees everyone */}
+<Route path="attendance-logs" element={
+    <RoleGuard roles={['custodian', 'HR']}>
+        <AttendanceLogs />
+    </RoleGuard>
+} />
+
+{/* Everyone can see their own punches */}
+<Route path="my-attendance" element={<MyAttendanceLogs />} />
                         
                         <Route path="/web-attendance-logs" element={<WebAttendanceLogs />}/>
 

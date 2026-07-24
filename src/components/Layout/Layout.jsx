@@ -154,31 +154,31 @@ function Layout() {
     // ========================================
     // All employees can see these
     items.push({
-      text: 'Apply My Correction',
-      icon: <ApplyCorrectionIcon  />,
+      text: 'Web Attendance',
+      icon: <ApplyCorrectionIcon />,
       path: '/attendance-correction/apply'
     });
     items.push({
-      text: 'My Corrections',
+      text: 'My Web Logs',
       icon: <MyCorrectionsIcon />,
       path: '/attendance-correction/my-requests'
     });
-
+    items.push({
+      text: 'My Device Logs',
+      icon: <AccessTimeIcon />,
+      path: '/my-attendance'
+    });
     // ========================================
-  // ✅ ATTENDANCE LOGS MODULE (NEW)
-  // ========================================
-  // All employees can see their attendance logs
-  items.push({
-    text: 'Device Logs',
-    icon: <AccessTimeIcon />,
-    path: '/attendance-logs'
-  });
-  items.push({
-    text: 'Web Logs',
-    icon: <AccessTimeIcon />,
-    path: '/web-attendance-logs'
-  });
-  
+    // ✅ ATTENDANCE LOGS MODULE (NEW)
+    // ========================================
+    // All employees can see their attendance logs
+
+    // items.push({
+    //   text: 'Web Logs',
+    //   icon: <AccessTimeIcon />,
+    //   path: '/web-attendance-logs'
+    // });
+
     // ========================================
     // EMPLOYEES - Custodian & HR only
     // ========================================
@@ -190,14 +190,30 @@ function Layout() {
       });
     }
 
-// Custodian can see Team Requests
-if (isCustodian()) {
-  items.push({
-    text: 'Ward Web Logs',
-    icon: <TeamCorrectionIcon />,
-    path: '/attendance-correction/team-requests'
-  });
-}
+    // Custodian can see Team Requests
+    if (isCustodian()) {
+      items.push({
+        text: 'Ward Web Logs',
+        icon: <TeamCorrectionIcon />,
+        path: '/attendance-correction/team-requests'
+      });
+    }
+    // items.push({
+    //     text: 'Ward Device Logs',
+    //     icon: <AccessTimeIcon />,
+    //     path: '/attendance-logs'
+    //   });
+    // Custodian & HR only — team/all device logs
+    if (isCustodian() || isHR()) {
+      items.push({
+        text: isHR() ? 'All Device Logs' : 'Ward Device Logs',
+        icon: <AccessTimeIcon />,
+        path: '/attendance-logs'
+      });
+    }
+
+    // Everyone — their own device logs
+
     // HR only - Management
     if (isHR()) {
       items.push({
@@ -521,6 +537,8 @@ if (isCustodian()) {
     if (location.pathname.includes('/attendance-correction/management')) return 'Manage Corrections';
     if (location.pathname.includes('/attendance-correction/team-requests')) return 'Team Requests';
 
+    if (location.pathname.includes('/attendance-logs')) return 'Team Attendance Logs';
+    if (location.pathname.includes('/my-attendance')) return 'My Attendance';   // ADD THIS
     // Other routes
     if (location.pathname.includes('/employees')) return 'Employees';
     if (location.pathname.includes('/dashboard')) return 'Dashboard';

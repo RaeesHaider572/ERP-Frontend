@@ -1,5 +1,4 @@
 // components/attendance/AttendanceLogs.jsx
-// Visible to: Custodian (their team, self excluded by backend) and HR (all employees)
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box,
@@ -17,6 +16,8 @@ import {
     TextField,
     Button,
     Grid,
+    Card,
+    CardContent,
     IconButton,
     Tooltip,
     MenuItem,
@@ -24,19 +25,29 @@ import {
     FormControl,
     InputLabel,
     Pagination,
+    Divider,
     Stack,
     Avatar,
-    Collapse
+    LinearProgress,
+    Fade,
+    Collapse,
+    useTheme
 } from '@mui/material';
 import {
     Refresh as RefreshIcon,
+    CheckCircle as CheckCircleIcon,
     Cancel as CancelIcon,
+    Schedule as ScheduleIcon,
+    Today as TodayIcon,
     Person as PersonIcon,
+    Download as DownloadIcon,
     Print as PrintIcon,
     Search as SearchIcon,
     Clear as ClearIcon,
+    Group as GroupIcon,
     Business as BusinessIcon,
     LocationOn as LocationIcon,
+    AccessTime as AccessTimeIcon,
     Check as CheckIcon,
     Close as CloseIcon,
     FileDownload as FileDownloadIcon
@@ -45,25 +56,28 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
     getAttendanceLogs,
     getAttendanceSummary,
+    getTodayAttendance,
     exportAttendanceReport
 } from '../../services/attendanceLogsService';
 
 import { formatDateTime, formatDate, formatTime } from '../../utils/dateTimeUtils';
 
 const AttendanceLogs = () => {
+    const theme = useTheme();
     const { user } = useAuth();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [summary, setSummary] = useState(null);
+    const [todayAttendance, setTodayAttendance] = useState(null);
     const [totalLogs, setTotalLogs] = useState(0);
     const [expandedRow, setExpandedRow] = useState(null);
     const [exporting, setExporting] = useState(false);
 
-    const role = user?.Role?.toLowerCase();
-    const isCustodian = role === 'custodian';
-    const isHR = role === 'hr';
-    const canViewTeamLogs = isCustodian || isHR;
+    // User roles
+    const isEmployee = user?.Role?.toLowerCase() === 'employee';
+    const isCustodian = user?.Role?.toLowerCase() === 'custodian';
+    const isHR = user?.Role?.toLowerCase() === 'hr';
 
     // Filters state
     const [filters, setFilters] = useState({
@@ -75,17 +89,19 @@ const AttendanceLogs = () => {
         limit: 50
     });
 
-    // Fetch team/all attendance logs
+    // Fetch attendance logs
     const fetchLogs = useCallback(async () => {
-        if (!canViewTeamLogs) return;
         setLoading(true);
         setError(null);
         try {
             const response = await getAttendanceLogs(filters);
-
-            if (response.status === "success") {
+            // if (response.success)
+                if (response.status === "success") {
                 setLogs(response.data || []);
                 setTotalLogs(response.data?.length || 0);
+                if (response.todayAttendance) {
+                    setTodayAttendance(response.todayAttendance);
+                }
             } else {
                 setError(response.message || 'Failed to fetch attendance logs');
             }
@@ -95,37 +111,58 @@ const AttendanceLogs = () => {
         } finally {
             setLoading(false);
         }
-    }, [filters, canViewTeamLogs]);
+    }, [filters]);
 
-    // Fetch summary (team/org-wide)
+    // Fetch summary
     const fetchSummary = useCallback(async () => {
-        if (!canViewTeamLogs) return;
         try {
             const response = await getAttendanceSummary(
                 new Date().toISOString().split('T')[0]
             );
+            // if (response.success)
             if (response.status === "success") {
                 setSummary(response.data);
+                if (response.todayAttendance) {
+                    setTodayAttendance(response.todayAttendance);
+                }
             }
         } catch (err) {
             console.error('❌ Error fetching summary:', err);
         }
-    }, [canViewTeamLogs]);
+    }, []);
 
+    // Fetch today's attendance (for employees)
+    const fetchTodayAttendance = useCallback(async () => {
+        if (!isEmployee) return;
+        try {
+            const response = await getTodayAttendance();
+            // if (response.success)
+                if (response.status === "success") {
+                setTodayAttendance(response.data);
+            }
+        } catch (err) {
+            console.error('❌ Error fetching today attendance:', err);
+        }
+    }, [isEmployee]);
+
+    // Initial fetch
     useEffect(() => {
         fetchLogs();
         fetchSummary();
-    }, [fetchLogs, fetchSummary]);
+        fetchTodayAttendance();
+    }, [fetchLogs, fetchSummary, fetchTodayAttendance]);
 
+    // Handle filter changes
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({
             ...prev,
             [name]: value,
-            page: 1
+            page: 1 // Reset to first page when filter changes
         }));
     };
 
+    // Clear filters
     const handleClearFilters = () => {
         setFilters({
             startDate: new Date().toISOString().split('T')[0],
@@ -137,20 +174,24 @@ const AttendanceLogs = () => {
         });
     };
 
+    // Handle refresh
     const handleRefresh = () => {
         fetchLogs();
         fetchSummary();
+        fetchTodayAttendance();
     };
 
+    // Handle page change
     const handlePageChange = (event, value) => {
         setFilters(prev => ({ ...prev, page: value }));
     };
 
+    // Handle row expansion
     const handleRowExpand = (logId) => {
         setExpandedRow(expandedRow === logId ? null : logId);
     };
 
-    // PunchType: 0 = Check In, 1 = Check Out
+    // Get punch type chip (0 = Check In, 1 = Check Out)
     const getPunchTypeChip = (type) => {
         const typeMap = {
             0: { label: 'Check In', color: 'success', icon: <CheckIcon /> },
@@ -167,6 +208,20 @@ const AttendanceLogs = () => {
         );
     };
 
+    // Get status chip
+    const getStatusChip = (status) => {
+        const statusMap = {
+            present: { label: 'Present', color: 'success' },
+            absent: { label: 'Absent', color: 'error' },
+            'half-day': { label: 'Half Day', color: 'warning' },
+            'checked-in': { label: 'Checked In', color: 'info' },
+            'checked-out': { label: 'Checked Out', color: 'secondary' }
+        };
+        const statusInfo = statusMap[status] || { label: status || 'Unknown', color: 'default' };
+        return <Chip label={statusInfo.label} color={statusInfo.color} size="small" />;
+    };
+
+    // Export report
     const handleExport = async () => {
         setExporting(true);
         try {
@@ -174,7 +229,9 @@ const AttendanceLogs = () => {
                 startDate: filters.startDate,
                 endDate: filters.endDate
             });
-            if (response.status === "success") {
+            // if (response.success)
+                if (response.status === "success") {
+                // Create CSV download
                 const headers = ['Log ID', 'Employee', 'Punch Time', 'Punch Type', 'Device', 'Location'];
                 const csvRows = [headers.join(',')];
 
@@ -183,6 +240,7 @@ const AttendanceLogs = () => {
                         log.LogId,
                         `"${log.employee_name || `Emp #${log.EmployeeId}`}"`,
                         formatDateTime(log.PunchTime),
+                        // ✅ FIXED: 0 = Check In, 1 = Check Out
                         log.PunchType === 0 ? 'Check In' : 'Check Out',
                         `"${log.DeviceName || '-'}"`,
                         `"${log.DeviceLocation || '-'}"`
@@ -209,15 +267,17 @@ const AttendanceLogs = () => {
         }
     };
 
+    // Print report
     const handlePrint = () => {
         window.print();
     };
 
+    // Render summary cards
     const renderSummaryCards = () => {
         if (!summary) return null;
 
         const cards = [
-            { label: isHR ? 'Total Employees' : 'Team Size', value: summary.total || 0, color: '#f0fdf4', textColor: 'success.main' },
+            { label: 'Total Employees', value: summary.total || 0, color: '#f0fdf4', textColor: 'success.main' },
             { label: 'Checked In', value: summary.checkedIn || 0, color: '#dcfce7', textColor: 'success.main' },
             { label: 'Absent', value: summary.absent || 0, color: '#fee2e2', textColor: 'error.main' },
             { label: 'Not Checked In', value: summary.notCheckedIn || 0, color: '#fef3c7', textColor: 'warning.main' },
@@ -242,16 +302,73 @@ const AttendanceLogs = () => {
         );
     };
 
-    // Non custodian/HR users shouldn't land here
-    if (!canViewTeamLogs) {
+    // Render today's attendance card
+    const renderTodayAttendance = () => {
+        if (!isEmployee || !todayAttendance) return null;
+
         return (
-            <Box sx={{ p: 3 }}>
-                <Alert severity="warning">
-                    You don't have access to team attendance logs. Head to "My Attendance" to view your own records.
-                </Alert>
-            </Box>
+            <Fade in={!!todayAttendance}>
+                <Card sx={{ mb: 3, bgcolor: '#f8fafc' }}>
+                    <CardContent>
+                        <Box display="flex" alignItems="center" gap={2} mb={2}>
+                            <TodayIcon color="primary" />
+                            <Typography variant="h6">Today's Attendance</Typography>
+                            <Box flex={1} />
+                            <Chip
+                                label={todayAttendance.status === 'present' ? 'Present' :
+                                    todayAttendance.status === 'half-day' ? 'Half Day' : 'Absent'}
+                                color={todayAttendance.status === 'present' ? 'success' :
+                                    todayAttendance.status === 'half-day' ? 'warning' : 'error'}
+                            />
+                        </Box>
+                        <Divider sx={{ my: 1.5 }} />
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="textSecondary">Check In</Typography>
+                                {todayAttendance.checkIn ? (
+                                    <Box>
+                                        <Typography variant="body1" fontWeight="bold">
+                                            {formatTime(todayAttendance.checkIn.PunchTime)}
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                            Device: {todayAttendance.checkIn.DeviceName || 'Unknown'}
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                            Location: {todayAttendance.checkIn.DeviceLocation || 'Unknown'}
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    <Typography variant="body2" color="textSecondary">
+                                        Not checked in yet
+                                    </Typography>
+                                )}
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="textSecondary">Check Out</Typography>
+                                {todayAttendance.checkOut ? (
+                                    <Box>
+                                        <Typography variant="body1" fontWeight="bold">
+                                            {formatTime(todayAttendance.checkOut.PunchTime)}
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                            Device: {todayAttendance.checkOut.DeviceName || 'Unknown'}
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                            Location: {todayAttendance.checkOut.DeviceLocation || 'Unknown'}
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    <Typography variant="body2" color="textSecondary">
+                                        Not checked out yet
+                                    </Typography>
+                                )}
+                            </Grid>
+                        </Grid>
+                    </CardContent>
+                </Card>
+            </Fade>
         );
-    }
+    };
 
     return (
         <Box sx={{ p: { xs: 2, sm: 3 } }}>
@@ -259,9 +376,13 @@ const AttendanceLogs = () => {
                 Attendance Device Logs
             </Typography>
             <Typography variant="subtitle1" color="textSecondary" gutterBottom>
+                {isEmployee && 'Your attendance records'}
                 {isCustodian && 'Your team attendance records'}
                 {isHR && 'All employees attendance records'}
             </Typography>
+
+            {/* Today's Attendance */}
+            {renderTodayAttendance()}
 
             {/* Summary Cards */}
             {renderSummaryCards()}
@@ -293,20 +414,22 @@ const AttendanceLogs = () => {
                             size="small"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={2}>
-                        <TextField
-                            fullWidth
-                            name="employeeId"
-                            label="Employee ID"
-                            value={filters.employeeId}
-                            onChange={handleFilterChange}
-                            placeholder="Filter by employee"
-                            size="small"
-                            InputProps={{
-                                startAdornment: <PersonIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                            }}
-                        />
-                    </Grid>
+                    {(isHR || isCustodian) && (
+                        <Grid item xs={12} sm={2}>
+                            <TextField
+                                fullWidth
+                                name="employeeId"
+                                label="Employee ID"
+                                value={filters.employeeId}
+                                onChange={handleFilterChange}
+                                placeholder="Filter by employee"
+                                size="small"
+                                InputProps={{
+                                    startAdornment: <PersonIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                                }}
+                            />
+                        </Grid>
+                    )}
                     <Grid item xs={12} sm={2}>
                         <FormControl fullWidth size="small">
                             <InputLabel>Punch Type</InputLabel>
@@ -317,6 +440,7 @@ const AttendanceLogs = () => {
                                 label="Punch Type"
                             >
                                 <MenuItem value="">All</MenuItem>
+                                {/* ✅ FIXED: 0 = Check In, 1 = Check Out */}
                                 <MenuItem value="0">Check In</MenuItem>
                                 <MenuItem value="1">Check Out</MenuItem>
                             </Select>
@@ -525,8 +649,8 @@ const AttendanceLogs = () => {
                                                                 Employee Details
                                                             </Typography>
                                                             <Typography variant="body2">
-                                                                {log.employee_name || `Employee #${log.EmployeeId}`} -{' '}
-                                                                {log.employee_designation || 'No Designation'} -{' '}
+                                                                {log.employee_name || `Employee #${log.EmployeeId}`} -
+                                                                {log.employee_designation || 'No Designation'} -
                                                                 {log.employee_department || 'No Department'}
                                                             </Typography>
                                                         </Grid>

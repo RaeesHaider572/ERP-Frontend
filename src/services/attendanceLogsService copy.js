@@ -2,9 +2,7 @@
 import api from "./authService";
 
 // ============================================
-// GET ATTENDANCE LOGS (ROLE-BASED — TEAM / ALL)
-// Custodian -> team only (self excluded, handled by backend)
-// HR        -> all employees
+// GET ATTENDANCE LOGS (ROLE-BASED)
 // ============================================
 export const getAttendanceLogs = async (filters = {}) => {
     try {
@@ -21,30 +19,6 @@ export const getAttendanceLogs = async (filters = {}) => {
         return response.data;
     } catch (error) {
         console.error("❌ API Error in getAttendanceLogs:", error);
-        console.error("❌ Response:", error.response);
-        console.error("❌ Error Message:", error.message);
-        throw error;
-    }
-};
-
-// ============================================
-// GET MY OWN ATTENDANCE LOGS (SELF VIEW — ANY ROLE)
-// Hits GET /attendance-logs/my-attendance
-// ============================================
-export const getMyAttendance = async (filters = {}) => {
-    try {
-        const queryParams = new URLSearchParams();
-        if (filters.startDate) queryParams.append('startDate', filters.startDate);
-        if (filters.endDate) queryParams.append('endDate', filters.endDate);
-        if (filters.punchType !== undefined && filters.punchType !== '') queryParams.append('punchType', filters.punchType);
-        if (filters.page) queryParams.append('page', filters.page);
-        if (filters.limit) queryParams.append('limit', filters.limit);
-
-        const url = `/attendance-logs/my-attendance?${queryParams.toString()}`;
-        const response = await api.get(url);
-        return response.data;
-    } catch (error) {
-        console.error("❌ API Error in getMyAttendance:", error);
         console.error("❌ Response:", error.response);
         console.error("❌ Error Message:", error.message);
         throw error;
@@ -116,7 +90,6 @@ export const getAttendanceStatistics = async (period = 'monthly', year = null, m
 
 // ============================================
 // GET TODAY'S ATTENDANCE FOR CURRENT EMPLOYEE
-// ⚠️ Backend currently only allows Role === 'employee' to call this
 // ============================================
 export const getTodayAttendance = async () => {
     try {
@@ -124,6 +97,21 @@ export const getTodayAttendance = async () => {
         return response.data;
     } catch (error) {
         console.error("❌ API Error in getTodayAttendance:", error);
+        console.error("❌ Response:", error.response);
+        console.error("❌ Error Message:", error.message);
+        throw error;
+    }
+};
+
+// ============================================
+// GET TEAM MEMBERS (CUSTODIAN ONLY)
+// ============================================
+export const getTeamMembers = async () => {
+    try {
+        const response = await api.get("/attendance-logs/team-members");
+        return response.data;
+    } catch (error) {
+        console.error("❌ API Error in getTeamMembers:", error);
         console.error("❌ Response:", error.response);
         console.error("❌ Error Message:", error.message);
         throw error;
