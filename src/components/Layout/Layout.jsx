@@ -176,7 +176,7 @@ function Layout() {
   items.push({
     text: 'Web Logs',
     icon: <AccessTimeIcon />,
-    path: '/web-logs'
+    path: '/web-attendance-logs'
   });
   
     // ========================================

@@ -511,7 +511,7 @@ const TeamRequests = () => {
         },
         {
             field: "EmployeeName",
-            headerName: "Employee",
+            headerName: "Employee Name",
             flex: 1.2,
             minWidth: 220,
             renderCell: ({ row }) => (
@@ -520,13 +520,13 @@ const TeamRequests = () => {
                         {row.EmployeeName}
                     </Typography>
 
-                    <Typography
+                    {/* <Typography
                         variant="caption"
                         color="text.secondary"
                         noWrap
                     >
                         {row.EmployeeCode}
-                    </Typography>
+                    </Typography> */}
 
                     <Typography
                         variant="caption"
@@ -641,7 +641,7 @@ const TeamRequests = () => {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <Box
                 sx={{
                     mb: 4,
@@ -756,7 +756,7 @@ const TeamRequests = () => {
                     </Box>
                 </Paper>
             )}
-        </Container>
+        </Box>
     );
 };
 

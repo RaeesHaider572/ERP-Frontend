@@ -626,7 +626,7 @@ const MyAttendanceCorrectionRequests = () => {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <Box
                 sx={{
                     mb: 4,
@@ -743,7 +743,7 @@ const MyAttendanceCorrectionRequests = () => {
                     </Box>
                 </Paper>
             )}
-        </Container>
+        </Box>
     );
 };
 

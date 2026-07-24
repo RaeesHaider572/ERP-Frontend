@@ -126,7 +126,7 @@ const AttendanceCorrectionManagement = () => {
     }
 
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
                 Attendance Correction Management
             </Typography>
@@ -307,7 +307,7 @@ const AttendanceCorrectionManagement = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+        </Box>
     );
 };
 

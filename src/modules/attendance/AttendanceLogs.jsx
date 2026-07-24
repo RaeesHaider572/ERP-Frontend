@@ -57,7 +57,6 @@ import {
     getAttendanceLogs,
     getAttendanceSummary,
     getTodayAttendance,
-    getTeamMembers,
     exportAttendanceReport
 } from '../../services/attendanceLogsService';
 
@@ -71,7 +70,6 @@ const AttendanceLogs = () => {
     const [error, setError] = useState(null);
     const [summary, setSummary] = useState(null);
     const [todayAttendance, setTodayAttendance] = useState(null);
-    const [teamMembers, setTeamMembers] = useState([]);
     const [totalLogs, setTotalLogs] = useState(0);
     const [expandedRow, setExpandedRow] = useState(null);
     const [exporting, setExporting] = useState(false);
@@ -104,9 +102,6 @@ const AttendanceLogs = () => {
                 if (response.todayAttendance) {
                     setTodayAttendance(response.todayAttendance);
                 }
-                if (response.teamMembers) {
-                    setTeamMembers(response.teamMembers);
-                }
             } else {
                 setError(response.message || 'Failed to fetch attendance logs');
             }
@@ -130,9 +125,6 @@ const AttendanceLogs = () => {
                 if (response.todayAttendance) {
                     setTodayAttendance(response.todayAttendance);
                 }
-                if (response.teamMembers) {
-                    setTeamMembers(response.teamMembers);
-                }
             }
         } catch (err) {
             console.error('❌ Error fetching summary:', err);
@@ -153,27 +145,12 @@ const AttendanceLogs = () => {
         }
     }, [isEmployee]);
 
-    // Fetch team members (for custodians)
-    const fetchTeamMembers = useCallback(async () => {
-        if (!isCustodian) return;
-        try {
-            const response = await getTeamMembers();
-            // if (response.success) 
-                if (response.status === "success"){
-                setTeamMembers(response.data || []);
-            }
-        } catch (err) {
-            console.error('❌ Error fetching team members:', err);
-        }
-    }, [isCustodian]);
-
     // Initial fetch
     useEffect(() => {
         fetchLogs();
         fetchSummary();
         fetchTodayAttendance();
-        fetchTeamMembers();
-    }, [fetchLogs, fetchSummary, fetchTodayAttendance, fetchTeamMembers]);
+    }, [fetchLogs, fetchSummary, fetchTodayAttendance]);
 
     // Handle filter changes
     const handleFilterChange = (e) => {
@@ -202,7 +179,6 @@ const AttendanceLogs = () => {
         fetchLogs();
         fetchSummary();
         fetchTodayAttendance();
-        fetchTeamMembers();
     };
 
     // Handle page change
@@ -394,49 +370,10 @@ const AttendanceLogs = () => {
         );
     };
 
-    // Render team members (for custodian)
-    const renderTeamMembers = () => {
-        if (!isCustodian || teamMembers.length === 0) return null;
-
-        return (
-            <Paper sx={{ p: 2, mb: 3 }}>
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                    <GroupIcon color="primary" />
-                    <Typography variant="h6">Team Members</Typography>
-                    <Chip label={teamMembers.length} size="small" color="primary" />
-                </Box>
-                <Grid container spacing={1}>
-                    {teamMembers.map((member) => (
-                        <Grid item xs={12} sm={6} md={4} key={member.EmployeeId}>
-                            <Card variant="outlined" sx={{ p: 1.5 }}>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                    <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                        {member.Name?.charAt(0) || 'E'}
-                                    </Avatar>
-                                    <Box>
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {member.Name || `Employee #${member.EmployeeId}`}
-                                        </Typography>
-                                        <Typography variant="caption" color="textSecondary" display="block">
-                                            {member.Designation || 'No Designation'}
-                                        </Typography>
-                                        <Typography variant="caption" color="textSecondary" display="block">
-                                            {member.Department || 'No Department'}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            </Paper>
-        );
-    };
-
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-                Attendance Logs
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="h5">
+                Attendance Device Logs
             </Typography>
             <Typography variant="subtitle1" color="textSecondary" gutterBottom>
                 {isEmployee && 'Your attendance records'}
@@ -446,9 +383,6 @@ const AttendanceLogs = () => {
 
             {/* Today's Attendance */}
             {renderTodayAttendance()}
-
-            {/* Team Members (for Custodian) */}
-            {renderTeamMembers()}
 
             {/* Summary Cards */}
             {renderSummaryCards()}
