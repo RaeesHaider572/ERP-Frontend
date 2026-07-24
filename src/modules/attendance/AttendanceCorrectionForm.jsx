@@ -80,18 +80,18 @@ const AttendanceCorrectionForm = () => {
     // FETCH TEAM MEMBERS (for Custodian)
     // ============================================
     const fetchTeamMembers = async () => {
-        if (!isCustodian() || !user?.EmployeeID) return;
+        if (!isCustodian() || !user?.EmployeeId) return;
 
         setLoadingTeam(true);
         try {
-            const res = await api.get(`/employees/team/${user.EmployeeID}`);
+            const res = await api.get(`/employees/team/${user.EmployeeId}`);
             let data = [];
             if (res.data?.data) data = res.data.data;
             else if (Array.isArray(res.data)) data = res.data;
 
             const formattedData = data.map(emp => ({
                 label: `${emp.Name} (${emp.EmployeeCode})`,
-                EmployeeID: emp.EmployeeID,
+                EmployeeId: emp.EmployeeId,
                 Name: emp.Name,
                 EmployeeCode: emp.EmployeeCode,
                 Designation: emp.Designation || "",
@@ -144,7 +144,7 @@ const AttendanceCorrectionForm = () => {
             if (emp) {
                 // ✅ Find if this employee is in the team members list
                 const foundTeamMember = teamMembers.find(
-                    tm => tm.EmployeeCode === code || tm.EmployeeID === emp.EmployeeID
+                    tm => tm.EmployeeCode === code || tm.EmployeeId === emp.EmployeeId
                 );
 
                 setFormData((prev) => ({
@@ -152,7 +152,7 @@ const AttendanceCorrectionForm = () => {
                     employeeName: emp.Name || "",
                     designation: emp.Designation || "",
                     department: emp.Department || "",
-                    employeeId: emp.EmployeeID || null,
+                    employeeId: emp.EmployeeId || null,
                     employeeCode: code,
                     preparedBy: user?.Name || prev.preparedBy || "",
                     isLoadingEmployee: false,
@@ -161,7 +161,7 @@ const AttendanceCorrectionForm = () => {
                 // ✅ If this is a team member, update selected team member
                 if (foundTeamMember) {
                     setSelectedTeamMember(foundTeamMember);
-                } else if (isCustodian() && emp.EmployeeID !== user?.EmployeeID) {
+                } else if (isCustodian() && emp.EmployeeId !== user?.EmployeeId) {
                     // ✅ If employee is not in team list but custodian, still allow
                     // but don't set selected team member
                     setSelectedTeamMember(null);
@@ -220,7 +220,7 @@ const AttendanceCorrectionForm = () => {
                 employeeName: prev.employeeName || user.Name || "",
                 designation: prev.designation || user.Designation || "",
                 department: prev.department || user.Department || "",
-                employeeId: prev.employeeId || user.EmployeeID || null,
+                employeeId: prev.employeeId || user.EmployeeId || null,
                 preparedBy: user.Name || "",
             }));
 
@@ -268,7 +268,7 @@ const AttendanceCorrectionForm = () => {
                 employeeName: value.Name,
                 designation: value.Designation || "",
                 department: value.Department || "",
-                employeeId: value.EmployeeID,
+                employeeId: value.EmployeeId,
                 preparedBy: user?.Name || "",
             }));
 
@@ -286,7 +286,7 @@ const AttendanceCorrectionForm = () => {
                     employeeName: user.Name || "",
                     designation: user.Designation || "",
                     department: user.Department || "",
-                    employeeId: user.EmployeeID || null,
+                    employeeId: user.EmployeeId || null,
                     preparedBy: user.Name || "",
                 }));
             }
@@ -419,7 +419,7 @@ const AttendanceCorrectionForm = () => {
             const localTimeStr = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 
             const payload = {
-                EmployeeID: parseInt(formData.employeeId),
+                EmployeeId: parseInt(formData.employeeId),
                 PunchTime: localTimeStr,
                 PunchType: formData.punchType,
                 DeviceName: formData.deviceName,
@@ -518,7 +518,7 @@ const AttendanceCorrectionForm = () => {
                 employeeName: user.Name || "",
                 designation: user.Designation || "",
                 department: user.Department || "",
-                employeeId: user.EmployeeID || null,
+                employeeId: user.EmployeeId || null,
                 preparedBy: user.Name || "",
             })
         });

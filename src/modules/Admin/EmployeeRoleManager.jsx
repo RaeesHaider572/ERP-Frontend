@@ -44,7 +44,7 @@ const EmployeeRoleManager = () => {
                 </thead>
                 <tbody>
                     {employees.map(emp => (
-                        <tr key={emp.EmployeeID}>
+                        <tr key={emp.EmployeeId}>
                             <td>{emp.EmployeeCode}</td>
                             <td>{emp.Name}</td>
                             <td>
@@ -60,7 +60,7 @@ const EmployeeRoleManager = () => {
                                 <Form.Select
                                     size="sm"
                                     value={emp.Role || 'employee'}
-                                    onChange={(e) => handleRoleUpdate(emp.EmployeeID, e.target.value)}
+                                    onChange={(e) => handleRoleUpdate(emp.EmployeeId, e.target.value)}
                                 >
                                     <option value="employee">Employee</option>
                                     <option value="custodian">Custodian</option>

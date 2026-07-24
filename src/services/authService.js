@@ -77,7 +77,7 @@ export const loginWithEmployeeCode = async (employeeCode, password) => {
             if (data.user) {
                 const userData = data.user;
                 console.log("✅ User data from API:", userData);
-                console.log("✅ EmployeeID:", userData.EmployeeID);
+                console.log("✅ EmployeeId:", userData.EmployeeId);
                 console.log("✅ Role:", userData.Role);
                 localStorage.setItem("user", JSON.stringify(userData));
                 console.log("✅ User data stored in localStorage");
@@ -159,7 +159,7 @@ export const getUser = () => {
             const parsed = JSON.parse(user);
             console.log("🔐 getUser:", parsed ? parsed.Name : "❌ Missing");
             console.log("🔐 User Role:", parsed?.Role);
-            console.log("🔐 User EmployeeID:", parsed?.EmployeeID);
+            console.log("🔐 User EmployeeId:", parsed?.EmployeeId);
             return parsed;
         } catch (e) {
             console.error("❌ Error parsing user:", e);

@@ -179,7 +179,7 @@ function Employees() {
             };
 
             if (editingEmployee) {
-                await updateEmployee(editingEmployee.EmployeeID, submitData);
+                await updateEmployee(editingEmployee.EmployeeId, submitData);
                 showSnackbar("Employee updated successfully", "success");
             } else {
                 await createEmployee(submitData);
@@ -300,7 +300,7 @@ function Employees() {
 
     // Columns for table
     const columns = [
-        { id: 'EmployeeID', label: 'ID', minWidth: 60 },
+        { id: 'EmployeeId', label: 'ID', minWidth: 60 },
         { id: 'EmployeeCode', label: 'Code', minWidth: 100 },
         { id: 'Name', label: 'Name', minWidth: 150 },
         { id: 'Department', label: 'Department', minWidth: 120 },
@@ -540,7 +540,7 @@ function Employees() {
                                     ) : (
                                         paginatedEmployees.map((emp) => (
                                             <TableRow
-                                                key={emp.EmployeeID}
+                                                key={emp.EmployeeId}
                                                 hover
                                                 sx={{
                                                     '&:nth-of-type(even)': {
@@ -550,7 +550,7 @@ function Employees() {
                                             >
                                                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                                                     <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
-                                                        {emp.EmployeeID}
+                                                        {emp.EmployeeId}
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
@@ -596,14 +596,14 @@ function Employees() {
                                                                 <Tooltip title="Delete Employee">
                                                                     <IconButton
                                                                         size="small"
-                                                                        onClick={() => handleDelete(emp.EmployeeID, emp.Name)}
+                                                                        onClick={() => handleDelete(emp.EmployeeId, emp.Name)}
                                                                         sx={{ color: theme.palette.error.main }}
                                                                     >
                                                                         <DeleteIcon fontSize="small" />
                                                                     </IconButton>
                                                                 </Tooltip>
                                                             </>
-                                                        ) : isCustodian() && emp.EmployeeID !== user?.EmployeeID ? (
+                                                        ) : isCustodian() && emp.EmployeeId !== user?.EmployeeId ? (
                                                             <>
                                                                 {/* <Tooltip title="Apply Leave for this employee">
                                                                     <Button
@@ -649,7 +649,7 @@ function Employees() {
                                                                         size="small"
                                                                         variant="outlined"
                                                                         color="info"
-                                                                        onClick={() => handleViewTeamRequests(emp.EmployeeID)}
+                                                                        onClick={() => handleViewTeamRequests(emp.EmployeeId)}
                                                                         sx={{
                                                                             fontSize: '0.55rem',
                                                                             py: 0.3,
@@ -666,7 +666,7 @@ function Employees() {
                                                                     </Button>
                                                                 </Tooltip>
                                                             </>
-                                                        ) : isCustodian() && emp.EmployeeID === user?.EmployeeID ? (
+                                                        ) : isCustodian() && emp.EmployeeId === user?.EmployeeId ? (
                                                             <Chip
                                                                 label="Yourself"
                                                                 size="small"
