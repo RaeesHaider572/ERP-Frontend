@@ -264,7 +264,7 @@ const AttendanceLogs = () => {
             </Typography>
 
             {/* Summary Cards */}
-            {renderSummaryCards()}
+            {/* {renderSummaryCards()} */}
 
             {/* Filters */}
             <Paper sx={{ p: 2, mb: 3 }}>
